@@ -2,21 +2,151 @@
   "symbol": "005930",
   "companyName": "삼성전자",
   "annual": [
-    { "period": "2021/12", "revenue": 2796052, "operatingProfit": 516339, "netIncome": 399075, "eps": 5777, "fcf": 377600, "debtRatio": 39.9, "currentRatio": 196.8 },
-    { "period": "2022/12", "revenue": 3022314, "operatingProfit": 433767, "netIncome": 556541, "eps": 8057, "fcf": 144400, "debtRatio": 26.4, "currentRatio": 211.7 },
-    { "period": "2023/12", "revenue": 2589355, "operatingProfit": 65670, "netIncome": 154871, "eps": 2277, "fcf": 103000, "debtRatio": 25.4, "currentRatio": 209.7 },
-    { "period": "2024/12", "revenue": 3008709, "operatingProfit": 329726, "netIncome": 344514, "eps": 5039, "fcf": 292000, "debtRatio": 24.1, "currentRatio": 216.4 },
-    { "period": "2025/12", "revenue": 3125400, "operatingProfit": 365200, "netIncome": 381000, "eps": 5560, "fcf": 308000, "debtRatio": 23.7, "currentRatio": 219.0 }
+    {
+      "period": "2021/12",
+      "revenue": 2796052,
+      "operatingProfit": 516339,
+      "netIncome": 399075,
+      "eps": 5777,
+      "fcf": 377600,
+      "debtRatio": 39.9,
+      "currentRatio": 196.8,
+      "roe": 13.9
+    },
+    {
+      "period": "2022/12",
+      "revenue": 3022314,
+      "operatingProfit": 433767,
+      "netIncome": 556541,
+      "eps": 8057,
+      "fcf": 144400,
+      "debtRatio": 26.4,
+      "currentRatio": 211.7,
+      "roe": 17.1
+    },
+    {
+      "period": "2023/12",
+      "revenue": 2589355,
+      "operatingProfit": 65670,
+      "netIncome": 154871,
+      "eps": 2277,
+      "fcf": 103000,
+      "debtRatio": 25.4,
+      "currentRatio": 209.7,
+      "roe": 4.1
+    },
+    {
+      "period": "2024/12",
+      "revenue": 3008709,
+      "operatingProfit": 329726,
+      "netIncome": 344514,
+      "eps": 5039,
+      "fcf": 292000,
+      "debtRatio": 24.1,
+      "currentRatio": 216.4,
+      "roe": 9.8
+    },
+    {
+      "period": "2025/12",
+      "revenue": 3125400,
+      "operatingProfit": 365200,
+      "netIncome": 381000,
+      "eps": 5560,
+      "fcf": 308000,
+      "debtRatio": 23.7,
+      "currentRatio": 219.0,
+      "roe": 10.4
+    }
   ],
   "quarterly": [
-    { "period": "2024/03", "revenue": 719156, "operatingProfit": 66061, "netIncome": 67547, "eps": 986, "fcf": 54200, "debtRatio": 25.1, "currentRatio": 214.2 },
-    { "period": "2024/06", "revenue": 740683, "operatingProfit": 104439, "netIncome": 96351, "eps": 1407, "fcf": 61200, "debtRatio": 24.6, "currentRatio": 215.0 },
-    { "period": "2024/09", "revenue": 790987, "operatingProfit": 91834, "netIncome": 100150, "eps": 1462, "fcf": 69000, "debtRatio": 24.5, "currentRatio": 216.2 },
-    { "period": "2024/12", "revenue": 798785, "operatingProfit": 67392, "netIncome": 80466, "eps": 1184, "fcf": 47600, "debtRatio": 24.1, "currentRatio": 216.4 },
-    { "period": "2025/03", "revenue": 765400, "operatingProfit": 81200, "netIncome": 84300, "eps": 1235, "fcf": 58500, "debtRatio": 24.0, "currentRatio": 217.1 },
-    { "period": "2025/06", "revenue": 781200, "operatingProfit": 90500, "netIncome": 94400, "eps": 1382, "fcf": 70100, "debtRatio": 23.9, "currentRatio": 217.8 },
-    { "period": "2025/09", "revenue": 786800, "operatingProfit": 95200, "netIncome": 98100, "eps": 1436, "fcf": 73600, "debtRatio": 23.8, "currentRatio": 218.6 },
-    { "period": "2025/12", "revenue": 792000, "operatingProfit": 98300, "netIncome": 104200, "eps": 1507, "fcf": 75800, "debtRatio": 23.7, "currentRatio": 219.0 }
+    {
+      "period": "2024/03",
+      "revenue": 719156,
+      "operatingProfit": 66061,
+      "netIncome": 67547,
+      "eps": 986,
+      "fcf": 54200,
+      "debtRatio": 25.1,
+      "currentRatio": 214.2,
+      "roe": 9.8
+    },
+    {
+      "period": "2024/06",
+      "revenue": 740683,
+      "operatingProfit": 104439,
+      "netIncome": 96351,
+      "eps": 1407,
+      "fcf": 61200,
+      "debtRatio": 24.6,
+      "currentRatio": 215.0,
+      "roe": 10.5
+    },
+    {
+      "period": "2024/09",
+      "revenue": 790987,
+      "operatingProfit": 91834,
+      "netIncome": 100150,
+      "eps": 1462,
+      "fcf": 69000,
+      "debtRatio": 24.5,
+      "currentRatio": 216.2,
+      "roe": 10.8
+    },
+    {
+      "period": "2024/12",
+      "revenue": 798785,
+      "operatingProfit": 67392,
+      "netIncome": 80466,
+      "eps": 1184,
+      "fcf": 47600,
+      "debtRatio": 24.1,
+      "currentRatio": 216.4,
+      "roe": 9.8
+    },
+    {
+      "period": "2025/03",
+      "revenue": 765400,
+      "operatingProfit": 81200,
+      "netIncome": 84300,
+      "eps": 1235,
+      "fcf": 58500,
+      "debtRatio": 24.0,
+      "currentRatio": 217.1,
+      "roe": 10.0
+    },
+    {
+      "period": "2025/06",
+      "revenue": 781200,
+      "operatingProfit": 90500,
+      "netIncome": 94400,
+      "eps": 1382,
+      "fcf": 70100,
+      "debtRatio": 23.9,
+      "currentRatio": 217.8,
+      "roe": 10.3
+    },
+    {
+      "period": "2025/09",
+      "revenue": 786800,
+      "operatingProfit": 95200,
+      "netIncome": 98100,
+      "eps": 1436,
+      "fcf": 73600,
+      "debtRatio": 23.8,
+      "currentRatio": 218.6,
+      "roe": 10.5
+    },
+    {
+      "period": "2025/12",
+      "revenue": 792000,
+      "operatingProfit": 98300,
+      "netIncome": 104200,
+      "eps": 1507,
+      "fcf": 75800,
+      "debtRatio": 23.7,
+      "currentRatio": 219.0,
+      "roe": 10.4
+    }
   ],
   "meta": {
     "source": "sample cache",

@@ -28,6 +28,11 @@ export function formatEok(value: number | null | undefined) {
   return `${formatNumber(value)}억원`;
 }
 
+export function formatEps(value: number | null | undefined) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+  return `${formatNumber(value)}원`;
+}
+
 export function getGapSignal(gapPercent: number | null | undefined) {
   if (gapPercent === null || gapPercent === undefined || Number.isNaN(Number(gapPercent))) {
     return { label: '중립', tone: 'neutral' as const };

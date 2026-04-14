@@ -11,12 +11,6 @@ function toNumber(text: string | undefined) {
   return Number.isFinite(value) ? value : null;
 }
 
-function transposeTable(rows: string[][]) {
-  if (!rows.length) return [];
-  const max = Math.max(...rows.map((r) => r.length));
-  return Array.from({ length: max }, (_, idx) => rows.map((row) => row[idx] ?? ''));
-}
-
 function findMetricRow(table: string[][], candidates: string[]) {
   return table.find((row) => candidates.some((candidate) => row[0]?.includes(candidate)));
 }
@@ -27,6 +21,7 @@ function buildRows(headers: string[], matrix: string[][]): FinancialRow[] {
   const netIncome = findMetricRow(matrix, ['당기순이익', '지배주주순이익']);
   const eps = findMetricRow(matrix, ['EPS']);
   const fcf = findMetricRow(matrix, ['FCF']);
+  const roe = findMetricRow(matrix, ['ROE']);
   const debtRatio = findMetricRow(matrix, ['부채비율']);
   const currentRatio = findMetricRow(matrix, ['유동비율']);
 
@@ -37,6 +32,7 @@ function buildRows(headers: string[], matrix: string[][]): FinancialRow[] {
     netIncome: toNumber(netIncome?.[idx + 1]),
     eps: toNumber(eps?.[idx + 1]),
     fcf: toNumber(fcf?.[idx + 1]),
+    roe: toNumber(roe?.[idx + 1]),
     debtRatio: toNumber(debtRatio?.[idx + 1]),
     currentRatio: toNumber(currentRatio?.[idx + 1]),
   }));

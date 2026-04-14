@@ -23,6 +23,7 @@ function buildRows(headers, table) {
   const netIncome = findMetricRow(table, ['당기순이익', '지배주주순이익']);
   const eps = findMetricRow(table, ['EPS']);
   const fcf = findMetricRow(table, ['FCF']);
+  const roe = findMetricRow(table, ['ROE']);
   const debtRatio = findMetricRow(table, ['부채비율']);
   const currentRatio = findMetricRow(table, ['유동비율']);
 
@@ -33,6 +34,7 @@ function buildRows(headers, table) {
     netIncome: toNumber(netIncome?.[idx + 1]),
     eps: toNumber(eps?.[idx + 1]),
     fcf: toNumber(fcf?.[idx + 1]),
+    roe: toNumber(roe?.[idx + 1]),
     debtRatio: toNumber(debtRatio?.[idx + 1]),
     currentRatio: toNumber(currentRatio?.[idx + 1]),
   }));

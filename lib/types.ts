@@ -24,6 +24,7 @@ export type FinancialRow = {
   netIncome: number | null;
   eps: number | null;
   fcf: number | null;
+  roe: number | null;
   debtRatio: number | null;
   currentRatio: number | null;
 };
