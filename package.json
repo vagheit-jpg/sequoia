@@ -1,6 +1,6 @@
 {
   "name": "sequoia-lite",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -8,6 +8,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/buildCorplist.js",
     "build": "vite build",
     "preview": "vite preview"
   },

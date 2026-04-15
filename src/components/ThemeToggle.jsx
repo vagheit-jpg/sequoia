@@ -4,18 +4,19 @@ export default function ThemeToggle({ mode, onToggle, theme }) {
       type="button"
       onClick={onToggle}
       style={{
-        border: `1px solid ${theme.border}`,
-        background: theme.surface,
-        color: theme.text,
-        padding: '9px 12px',
-        borderRadius: 12,
+        border: `1px solid ${theme.gold}88`,
+        background: `${theme.surface}dd`,
+        color: theme.goldLight,
+        padding: '11px 16px',
+        borderRadius: 999,
         cursor: 'pointer',
-        fontWeight: 700,
-        fontSize: 13,
+        fontWeight: 900,
+        fontSize: 14,
         boxShadow: theme.shadow,
+        minWidth: 110,
       }}
     >
-      {mode === 'dark' ? '라이트 모드' : '다크 모드'}
+      {mode === 'dark' ? '☀ 라이트' : '☾ 다크'}
     </button>
   );
 }

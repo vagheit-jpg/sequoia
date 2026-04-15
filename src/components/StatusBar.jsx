@@ -26,12 +26,19 @@ function Pill({ label, value, ok, theme }) {
   );
 }
 
-export default function StatusBar({ theme, status }) {
+export default function StatusBar({ theme, status, error, source }) {
   return (
-    <section style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-      <Pill label="Price" value={status.price} ok={status.price === 'ready'} theme={theme} />
-      <Pill label="Yahoo" value={status.yahoo} ok={status.yahoo === 'ready'} theme={theme} />
-      <Pill label="DART" value={status.dart} ok={status.dart === 'ready'} theme={theme} />
+    <section style={{ display: 'grid', gap: 10 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Pill label="Price" value={status.price} ok={status.price === 'ready' || status.price === 'fallback'} theme={theme} />
+        <Pill label="Yahoo" value={status.yahoo} ok={status.yahoo === 'ready'} theme={theme} />
+        <Pill label="DART" value={status.dart} ok={status.dart === 'ready'} theme={theme} />
+      </div>
+      {(error || source) && (
+        <div style={{ color: theme.muted, fontSize: 12 }}>
+          {error ? error : ''}{error && source ? ' · ' : ''}{source ? `현재가 소스: ${source}` : ''}
+        </div>
+      )}
     </section>
   );
 }

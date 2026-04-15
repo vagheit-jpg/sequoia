@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import ThemeToggle from './components/ThemeToggle.jsx';
 import SearchBox from './components/SearchBox.jsx';
 import StockCard from './components/StockCard.jsx';
@@ -7,103 +7,145 @@ import GapCard from './components/GapCard.jsx';
 import FinancialChart from './components/FinancialChart.jsx';
 import StatusBar from './components/StatusBar.jsx';
 import { useTheme } from './hooks/useTheme.js';
-import { buildBandLines, calcGap, calcMA, getGapLabel } from './lib/calc.js';
+import { buildBandLines, calcGap, calcMA, getGapLabel, getGapMessage } from './lib/calc.js';
+import { formatCompactEok } from './lib/format.js';
+import { useStock } from './hooks/useStock.js';
 
-const demoSuggestions = [
-  { name: '엠아이텍', stockCode: '179290', market: 'KOSDAQ' },
-  { name: '삼성전자', stockCode: '005930', market: 'KOSPI' },
-  { name: 'NAVER', stockCode: '035420', market: 'KOSPI' },
-];
-
-const demoMonthly = [
-  ['2021.01', 4000], ['2021.04', 4800], ['2021.07', 5600], ['2021.10', 5450],
-  ['2022.01', 6000], ['2022.04', 7500], ['2022.07', 9200], ['2022.10', 8300],
-  ['2023.01', 10000], ['2023.04', 14000], ['2023.07', 11000], ['2023.10', 9200],
-  ['2024.01', 8500], ['2024.04', 9000], ['2024.07', 8500], ['2024.10', 7900],
-  ['2025.01', 8000], ['2025.04', 8100], ['2025.07', 7600], ['2025.10', 6900],
-  ['2026.01', 6800], ['2026.02', 6900], ['2026.03', 7050],
-];
-
-const expandedMonthly = Array.from({ length: 60 }, (_, i) => {
-  const year = 2021 + Math.floor(i / 12);
-  const month = (i % 12) + 1;
-  const base = 4300 + Math.round(Math.sin(i / 4) * 500) + i * 55;
-  const cycle = i > 24 ? (i < 36 ? 2800 : i < 48 ? 1300 : 400) : 0;
-  const price = Math.max(3300, base + cycle - (i > 30 ? (i - 30) * 95 : 0));
-  return { label: `${year}.${String(month).padStart(2, '0')}`, price };
-});
-
-const demoAnnual = [
-  { year: 2020, revenue: 363, operatingIncome: 70, netIncome: 55 },
-  { year: 2021, revenue: 503, operatingIncome: 132, netIncome: 120 },
-  { year: 2022, revenue: 606, operatingIncome: 204, netIncome: 191 },
-  { year: 2023, revenue: 464, operatingIncome: 141, netIncome: 130 },
-  { year: 2024, revenue: 538, operatingIncome: 176, netIncome: 183 },
-  { year: 2025, revenue: 672, operatingIncome: 207, netIncome: 204 },
-];
+function buildKpiRows(latestAnnual) {
+  if (!latestAnnual) return [];
+  return [
+    { label: '매출(연간)', value: formatCompactEok(latestAnnual.revenue) },
+    { label: '영업이익', value: formatCompactEok(latestAnnual.operatingIncome) },
+    { label: '순이익', value: formatCompactEok(latestAnnual.netIncome) },
+    { label: 'EPS', value: latestAnnual.eps ? `${latestAnnual.eps.toLocaleString('ko-KR')}원` : '-' },
+    { label: 'BPS', value: latestAnnual.bps ? `${latestAnnual.bps.toLocaleString('ko-KR')}원` : '-' },
+    { label: 'ROE', value: latestAnnual.roe != null ? `${latestAnnual.roe.toFixed(1)}%` : '-' },
+  ];
+}
 
 export default function App() {
   const { mode, theme, toggleMode } = useTheme();
-  const [searchTerm, setSearchTerm] = useState('엠아이텍');
-
-  const latestEPS = 629;
-  const latestBPS = 3850;
+  const {
+    query,
+    setQuery,
+    suggestions,
+    selectedCorp,
+    loading,
+    priceData,
+    monthlyData,
+    annualData,
+    latestAnnual,
+    companyData,
+    status,
+    error,
+    submitSearch,
+    selectSuggestion,
+  } = useStock();
 
   const chartData = useMemo(() => {
-    const withMA = calcMA(expandedMonthly, 60);
-    return buildBandLines(withMA, latestEPS, latestBPS);
-  }, []);
+    if (!monthlyData.length) return [];
+    const withMA = calcMA(monthlyData, 60);
+    return buildBandLines(withMA, latestAnnual?.eps || 0, latestAnnual?.bps || 0);
+  }, [monthlyData, latestAnnual?.eps, latestAnnual?.bps]);
 
   const latestRow = chartData.at(-1);
-  const gap60 = calcGap(latestRow?.price, latestRow?.ma60);
+  const currentPrice = priceData?.price || latestRow?.price || 0;
+  const changePct = priceData?.changePct ?? 0;
+  const gap60 = calcGap(currentPrice, latestRow?.ma60);
+  const per = priceData?.per || (latestAnnual?.eps > 0 ? +(currentPrice / latestAnnual.eps).toFixed(1) : null);
+  const pbr = priceData?.pbr || (latestAnnual?.bps > 0 ? +(currentPrice / latestAnnual.bps).toFixed(2) : null);
+  const targetPrice = latestAnnual?.eps ? Math.round(latestAnnual.eps * 13) : null;
+  const upsidePct = targetPrice && currentPrice ? ((targetPrice / currentPrice) - 1) * 100 : null;
+  const marketCapWon = companyData?.shares && currentPrice ? companyData.shares * currentPrice : null;
 
   const stock = {
-    name: '엠아이텍',
-    ticker: '179290',
-    market: 'KOSDAQ',
-    currentPrice: latestRow?.price ?? 7050,
-    changePct: 1.82,
-    marketCapEok: 2282,
-    per: 11.2,
-    pbr: 1.83,
-    gap60: gap60 ?? -8.4,
+    name: selectedCorp?.corp_name || companyData?.name || '-',
+    ticker: selectedCorp?.stock_code || '-',
+    market: selectedCorp?.market || '-',
+    currentPrice,
+    changePct,
+    marketCapWon,
+    per,
+    pbr,
+    targetPrice,
+    upsidePct,
   };
 
-  const status = {
-    price: 'mock',
-    yahoo: 'mock',
-    dart: 'mock',
-  };
+  const kpis = useMemo(() => buildKpiRows(latestAnnual), [latestAnnual]);
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: theme.bg,
-        color: theme.text,
-      }}
-    >
-      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '28px 16px 56px' }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap', marginBottom: 18 }}>
-          <div>
-            <div style={{ color: theme.goldLight, fontSize: 12, fontWeight: 800, letterSpacing: '0.12em', marginBottom: 8 }}>
-              SEQUOIA LITE
+    <div style={{ minHeight: '100vh', background: theme.bg, color: theme.text }}>
+      <div style={{ maxWidth: 1240, margin: '0 auto', padding: '18px 16px 56px' }}>
+        <header
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            gap: 12,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            marginBottom: 18,
+            padding: '12px 4px 4px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+            <div
+              style={{
+                width: 48,
+                height: 48,
+                borderRadius: 12,
+                background: 'linear-gradient(135deg, #ffb34d, #ff7f2a)',
+                color: '#111',
+                display: 'grid',
+                placeItems: 'center',
+                fontWeight: 900,
+                fontSize: 28,
+              }}
+            >
+              S
             </div>
-            <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1.1 }}>장기 매수·매도 타이밍 분석기</div>
-            <div style={{ color: theme.muted, marginTop: 8, fontSize: 14 }}>
-              Claude 스타일의 그래프 감성과 Sequoia의 핵심 판단축만 남긴 Lite 1차 시공본
+            <div>
+              <div style={{ color: theme.goldLight, fontSize: 18, fontWeight: 900, letterSpacing: '0.1em' }}>SEQUOIA QUANTUM</div>
+              <div style={{ color: theme.muted, fontSize: 11, letterSpacing: '0.28em', fontWeight: 700 }}>INVESTMENT INTELLIGENCE SYSTEM</div>
             </div>
           </div>
-          <ThemeToggle mode={mode} onToggle={toggleMode} theme={theme} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: '#95a9cc' }} />
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: '#4bc1ff' }} />
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: '#2a75ff' }} />
+              <span style={{ width: 10, height: 10, borderRadius: 999, background: '#d7a627' }} />
+            </div>
+            <ThemeToggle mode={mode} onToggle={toggleMode} theme={theme} />
+          </div>
         </header>
 
         <div style={{ display: 'grid', gap: 16 }}>
-          <SearchBox theme={theme} value={searchTerm} onChange={setSearchTerm} suggestions={demoSuggestions} />
-          <StockCard theme={theme} stock={stock} />
+          <SearchBox
+            theme={theme}
+            value={query}
+            onChange={setQuery}
+            onSubmit={submitSearch}
+            onSelect={selectSuggestion}
+            suggestions={suggestions}
+            loading={loading}
+          />
+          <StockCard theme={theme} stock={stock} company={companyData} loading={loading} />
+          <GapCard theme={theme} gap={gap60 ?? 0} label={getGapLabel(gap60 ?? 0)} message={getGapMessage(gap60 ?? 0)} />
           <PriceChart theme={theme} data={chartData} />
-          <GapCard theme={theme} gap={gap60 ?? -8.4} label={getGapLabel(gap60 ?? -8.4)} />
-          <FinancialChart theme={theme} data={demoAnnual} />
-          <StatusBar theme={theme} status={status} />
+
+          {kpis.length > 0 && (
+            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 10 }}>
+              {kpis.map((item) => (
+                <div key={item.label} style={{ background: theme.surface, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 14, boxShadow: theme.shadow }}>
+                  <div style={{ color: theme.muted, fontSize: 11, marginBottom: 4 }}>{item.label}</div>
+                  <div style={{ color: theme.text, fontSize: 18, fontWeight: 900 }}>{item.value}</div>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <FinancialChart theme={theme} data={annualData} error={status.dart === 'failed' ? '최근 공시 데이터 확인 불가' : ''} />
+          <StatusBar theme={theme} status={status} error={error} source={priceData?.source || ''} />
         </div>
       </div>
     </div>

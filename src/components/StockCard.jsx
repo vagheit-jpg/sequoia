@@ -1,4 +1,4 @@
-import { formatEok, formatPercent, formatPrice } from '../lib/format.js';
+import { formatMarketCapFromWon, formatMultiple, formatPercent, formatPrice } from '../lib/format.js';
 
 function Stat({ label, value, theme, accent }) {
   return (
@@ -6,62 +6,62 @@ function Stat({ label, value, theme, accent }) {
       style={{
         background: theme.surface,
         border: `1px solid ${theme.border}`,
-        borderRadius: 14,
+        borderRadius: 16,
         padding: 14,
         minWidth: 110,
         flex: 1,
       }}
     >
       <div style={{ color: theme.muted, fontSize: 11, marginBottom: 4 }}>{label}</div>
-      <div style={{ color: accent || theme.text, fontSize: 18, fontWeight: 800 }}>{value}</div>
+      <div style={{ color: accent || theme.text, fontSize: 17, fontWeight: 900 }}>{value}</div>
     </div>
   );
 }
 
-export default function StockCard({ theme, stock }) {
-  const isUp = stock.changePct >= 0;
+export default function StockCard({ theme, stock, company, loading }) {
+  const isUp = (stock.changePct ?? 0) >= 0;
 
   return (
     <section
       style={{
         background: `linear-gradient(135deg, ${theme.surface2}, ${theme.surface})`,
         border: `1px solid ${theme.border}`,
-        borderRadius: 18,
-        padding: 18,
+        borderRadius: 20,
+        padding: 20,
         boxShadow: theme.shadow,
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
         <div>
-          <div style={{ color: theme.muted, fontSize: 12, marginBottom: 6 }}>{stock.market} · {stock.ticker}</div>
-          <div style={{ color: theme.text, fontSize: 28, fontWeight: 900, marginBottom: 8 }}>{stock.name}</div>
-          <div style={{ display: 'flex', alignItems: 'end', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ color: theme.text, fontSize: 34, fontWeight: 900 }}>{formatPrice(stock.currentPrice)}</div>
-            <div style={{ color: isUp ? theme.green : theme.red, fontSize: 15, fontWeight: 800 }}>
-              {isUp ? '+' : ''}{formatPercent(stock.changePct, 2)}
+          <div style={{ color: theme.muted, fontSize: 14, marginBottom: 8 }}>
+            {stock.market || '-'} · {stock.ticker || '-'} · CEO {company?.ceo || '-'}
+          </div>
+          <div style={{ color: theme.text, fontSize: 38, fontWeight: 900, marginBottom: 8 }}>{stock.name || '종목 선택'}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ color: theme.green, fontSize: 34, fontWeight: 900 }}>{formatPrice(stock.currentPrice)}</div>
+            <div
+              style={{
+                color: isUp ? theme.green : theme.red,
+                fontSize: 16,
+                fontWeight: 900,
+                borderRadius: 12,
+                padding: '8px 12px',
+                background: isUp ? `${theme.green}22` : `${theme.red}22`,
+              }}
+            >
+              {formatPercent(stock.changePct ?? 0, 2, true)}
             </div>
           </div>
         </div>
-        <div
-          style={{
-            alignSelf: 'flex-start',
-            color: theme.goldLight,
-            fontSize: 12,
-            fontWeight: 800,
-            background: `${theme.gold}22`,
-            borderRadius: 999,
-            padding: '6px 10px',
-          }}
-        >
-          Lite v1
-        </div>
+        <div style={{ color: theme.muted, fontSize: 12, alignSelf: 'center' }}>{loading ? '데이터 갱신 중...' : 'LIVE LITE'}</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginTop: 18 }}>
-        <Stat label="시가총액" value={formatEok(stock.marketCapEok)} theme={theme} accent={theme.blueLight} />
-        <Stat label="PER" value={`${stock.per}배`} theme={theme} accent={theme.goldLight} />
-        <Stat label="PBR" value={`${stock.pbr}배`} theme={theme} accent={theme.goldLight} />
-        <Stat label="60M 이격도" value={`${stock.gap60.toFixed(1)}%`} theme={theme} accent={stock.gap60 <= -20 ? theme.green : stock.gap60 >= 100 ? theme.red : theme.orange} />
+        <Stat label="PER" value={formatMultiple(stock.per)} theme={theme} accent={theme.goldLight} />
+        <Stat label="PBR" value={formatMultiple(stock.pbr, 2)} theme={theme} accent={theme.goldLight} />
+        <Stat label="목표가" value={formatPrice(stock.targetPrice)} theme={theme} accent={theme.blueLight} />
+        <Stat label="상승여력" value={formatPercent(stock.upsidePct, 0, true)} theme={theme} accent={theme.green} />
+        <Stat label="시가총액" value={formatMarketCapFromWon(stock.marketCapWon)} theme={theme} accent={theme.blueLight} />
       </div>
     </section>
   );
