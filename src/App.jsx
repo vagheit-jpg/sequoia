@@ -246,22 +246,43 @@ const NAVER_FIELD_MAP = {
 const parseNaverSheet = (sheet) => {
   const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:""});
   if(!rows.length) return [];
-  // 1행: 항목명, 2행~: 헤더(연도/분기) + 데이터
-  // 네이버 형식: A열=항목명, B~열=연도/분기
-  const headerRow = rows[0];
-  const periods = headerRow.slice(1).map(h => String(h).trim()).filter(Boolean);
+
+  // 헤더 행 자동 탐지 — 연도 패턴(2020~2030) 또는 분기 패턴이 있는 행 찾기
+  const isYearCell = (v) => {
+    const s = String(v||"").trim();
+    // "2022/12", "2024/03", "2022년", "22년" 등 다양한 형식
+    return /^20[0-9]{2}/.test(s) || /^[0-9]{2}[\/년]/.test(s);
+  };
+
+  let headerRowIdx = -1;
+  for(let i = 0; i < Math.min(rows.length, 8); i++){
+    const row = rows[i];
+    const yearCells = row.slice(1).filter(isYearCell);
+    if(yearCells.length >= 1){
+      headerRowIdx = i;
+      break;
+    }
+  }
+  if(headerRowIdx === -1) return [];
+
+  const headerRow = rows[headerRowIdx];
+  // A열(index 0)이 항목명 헤더, B열~가 연도/분기
+  const periods = headerRow.slice(1)
+    .map(h => String(h||"").replace(/\n/g," ").trim())
+    .filter(Boolean);
   if(!periods.length) return [];
 
   // 기간별 객체 초기화
   const result = periods.map(p => ({ period: p }));
 
-  rows.slice(1).forEach(row => {
+  // 헤더 다음 행부터 데이터 읽기
+  rows.slice(headerRowIdx + 1).forEach(row => {
     const label = String(row[0]||"").trim();
     const field = NAVER_FIELD_MAP[label];
     if(!field) return;
     periods.forEach((p, i) => {
       const raw = String(row[i+1]||"").replace(/,/g,"").trim();
-      const val = raw === "" || raw === "-" ? null : parseFloat(raw);
+      const val = raw === "" || raw === "-" || raw === "N/A" ? null : parseFloat(raw);
       result[i][field] = val;
     });
   });
@@ -269,11 +290,30 @@ const parseNaverSheet = (sheet) => {
   return result;
 };
 
+// 기간 문자열에서 연도 추출 — 다양한 형식 지원
+// "2024/12", "2024/12\n(IFRS별도)", "2024년", "24년" 등
+const extractYear = (period) => {
+  const s = String(period||"").trim();
+  // "2024/12..." 형식
+  const m1 = s.match(/^(20[0-9]{2})/);
+  if(m1) return parseInt(m1[1]);
+  // "24년" 형식
+  const m2 = s.match(/^([0-9]{2})[년\/]/);
+  if(m2) return 2000 + parseInt(m2[1]);
+  return 0;
+};
+
+// 기간 문자열에서 월 추출
+const extractMonth = (period) => {
+  const s = String(period||"").trim();
+  const m = s.match(/[\/\.\-]([0-9]{1,2})/) ;
+  return m ? parseInt(m[1]) : 12;
+};
+
 const parseAnnual = (sheet) => {
   const rows = parseNaverSheet(sheet);
   return rows.map(r => {
-    // 기간 파싱: "2024/12" → year:2024
-    const year = parseInt(r.period?.split("/")?.[0]) || 0;
+    const year = extractYear(r.period);
     return { ...r, year };
   }).filter(r => r.year > 0);
 };
@@ -281,20 +321,17 @@ const parseAnnual = (sheet) => {
 const parseQuarter = (sheet) => {
   const rows = parseNaverSheet(sheet);
   return rows.map(r => {
-    // 기간 파싱: "2024/03" → year:2024, quarter:1
-    const parts = r.period?.split("/") || [];
-    const year  = parseInt(parts[0]) || 0;
-    const month = parseInt(parts[1]) || 0;
+    const year    = extractYear(r.period);
+    const month   = extractMonth(r.period);
     const quarter = Math.ceil(month/3);
-    return { ...r, year, month, quarter,
-      label: `${year}Q${quarter}` };
+    return { ...r, year, month, quarter, label:`${year}Q${quarter}` };
   }).filter(r => r.year > 0);
 };
 
 const parseDividend = (sheet) => {
   const rows = parseNaverSheet(sheet);
   return rows.map(r => {
-    const year = parseInt(r.period?.split("/")?.[0]) || 0;
+    const year = extractYear(r.period);
     return { ...r, year };
   }).filter(r => r.year > 0 && r.dps != null);
 };
