@@ -51,12 +51,7 @@ const rowToStock=(r)=>({ticker:r.ticker,name:r.name,annData:r.ann_data||[],qtrDa
 // 2. Yahoo Finance — 수정 2: 지수 심볼 인코딩 문제 해결
 // ══════════════════════════════════════════════════════════════
 const PROXY="https://api.allorigins.win/raw?url=";
-const INDICES=[
-  {id:"kospi", label:"KOSPI",  symbol:"%5EKS11", flag:"🇰🇷"},
-  {id:"kosdaq",label:"KOSDAQ", symbol:"%5EKQ11", flag:"🇰🇷"},
-  {id:"sp500", label:"S&P500", symbol:"%5EGSPC", flag:"🇺🇸"},
-  {id:"nasdaq",label:"NASDAQ", symbol:"%5EIXIC", flag:"🇺🇸"},
-];
+
 
 const fetchYahoo=async(symbol)=>{
   try{
@@ -77,10 +72,13 @@ const fetchYahoo=async(symbol)=>{
     }).filter(d=>d.price>0);
     const cur=Math.round(chart.meta?.regularMarketPrice||q.close[q.close.length-1]||0);
     const prv=Math.round(chart.meta?.chartPreviousClose||0);
-    // 수정 2: 전일대비 증감 — meta값이 신뢰 어려우면 표시 안 함
+    // 데이터 기준 시각
+    const ts=chart.meta?.regularMarketTime;
+    const priceDate=ts?new Date(ts*1000):new Date(monthly[monthly.length-1]?.ts*1000||Date.now());
+    const priceDateStr=`${priceDate.getFullYear()}.${String(priceDate.getMonth()+1).padStart(2,"0")}.${String(priceDate.getDate()).padStart(2,"0")} (월봉 기준)`;
     const chg=cur-prv;
     const chgPct=prv>100?+((chg/prv)*100).toFixed(2):null;
-    return{monthly,currentPrice:cur,prevClose:prv,change:chg,changePct:chgPct};
+    return{monthly,currentPrice:cur,prevClose:prv,change:chg,changePct:chgPct,priceDateStr};
   }catch{return null;}
 };
 
@@ -395,12 +393,10 @@ export default function App(){
   const [monthly,setMonthly]=useState([]);
   const [priceInfo,setPriceInfo]=useState(null);
   const [priceLoading,setPriceLoading]=useState(false);
-  const [indexData,setIndexData]=useState({});
   const [tab,setTab]=useState("overview");
   const [rangeIdx,setRangeIdx]=useState(0);
   const [finView,setFinView]=useState("연간");
   const [stabView,setStabView]=useState("연간");
-  const [techTarget,setTechTarget]=useState("stock");
   const [uploading,setUploading]=useState(false);
   const [searchQuery,setSearchQuery]=useState("");
   const [searchResults,setSearchResults]=useState([]);
@@ -431,15 +427,7 @@ export default function App(){
     ]).then(([kospi,kosdaq])=>{
       const all=[...kospi,...kosdaq];
       if(all.length>100) setStockList(all);
-    }).catch(()=>{}); // 실패 시 FALLBACK 유지
-  },[]);
-
-  // 지수 로드
-  useEffect(()=>{
-    Promise.all(INDICES.map(idx=>fetchYahoo(idx.symbol).then(r=>({id:idx.id,data:r})).catch(()=>({id:idx.id,data:null})))).then(results=>{
-      const map={};results.forEach(r=>{if(r.data)map[r.id]=r.data;});
-      setIndexData(map);
-    });
+    }).catch(()=>{});
   },[]);
 
   const co=stocks[activeIdx]||null;
@@ -482,21 +470,13 @@ export default function App(){
 
   const displayMonthly=useMemo(()=>monthly.slice(-RANGES[rangeIdx].months).filter(d=>d.label<=latestLabel),[monthly,rangeIdx,latestLabel]);
 
-  const techMonthly=useMemo(()=>{
-    if(techTarget==="stock")return displayMonthly;
-    const d=indexData[techTarget];
-    if(!d?.monthly)return[];
-    return d.monthly.slice(-RANGES[rangeIdx].months).filter(x=>x.label<=latestLabel);
-  },[techTarget,displayMonthly,indexData,rangeIdx,latestLabel]);
-
   const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
   const withBands =useMemo(()=>buildBandsFromQtr(withMA60,co?.qtrData,co?.annData),[withMA60,co?.qtrData,co?.annData]);
-  const techMA60  =useMemo(()=>calcMA60(techMonthly),[techMonthly]);
-  const techG     =useMemo(()=>calcGBands(techMonthly),[techMonthly]);
-  const techRSI   =useMemo(()=>calcRSI(techMonthly),[techMonthly]);
-  const techMACD  =useMemo(()=>calcMACD(techMonthly),[techMonthly]);
-  const techOBV   =useMemo(()=>calcOBV(techMonthly),[techMonthly]);
-  const techMFI   =useMemo(()=>calcMFI(techMonthly),[techMonthly]);
+  const withG     =useMemo(()=>calcGBands(displayMonthly),[displayMonthly]);
+  const withRSI   =useMemo(()=>calcRSI(displayMonthly),[displayMonthly]);
+  const withMACD  =useMemo(()=>calcMACD(displayMonthly),[displayMonthly]);
+  const withOBV   =useMemo(()=>calcOBV(displayMonthly),[displayMonthly]);
+  const withMFI   =useMemo(()=>calcMFI(displayMonthly),[displayMonthly]);
   const signalPts =useMemo(()=>calcSignalPoints(withMA60),[withMA60]);
   const lastGap   =withMA60.slice(-1)[0]?.gap60??null;
   const lastAnn   =co?.annData?.slice(-1)?.[0]||{};
@@ -559,9 +539,7 @@ export default function App(){
   };
   const gs=gapSig(lastGap);
   const price=priceInfo?.currentPrice||0;
-  // 수정 2: 증감폭 신뢰도 낮으면 표시 안 함
-  const chgPct=priceInfo?.changePct;
-  const change=priceInfo?.change||0;
+  const priceDateStr=priceInfo?.priceDateStr||"";
   const ma60val=withMA60.slice(-1)[0]?.ma60||0;
   const per=lastAnn.per||(lastAnn.eps&&price?Math.round(price/lastAnn.eps*10)/10:0);
   const pbr=lastAnn.pbr||(lastAnn.bps&&price?Math.round(price/lastAnn.bps*100)/100:0);
@@ -640,7 +618,7 @@ export default function App(){
     </div>
   );
 
-  const techLabel=techTarget==="stock"?co?.name:INDICES.find(i=>i.id===techTarget)?.label||"";
+
   const hasFinData=!!(co?.annData?.length||co?.qtrData?.length);
 
   // 수정 1: 종목 없어도 메인 화면 진입 가능
@@ -706,7 +684,7 @@ export default function App(){
         padding:"8px 12px",display:"flex",alignItems:"center",gap:8,position:"sticky",top:0,zIndex:100}}>
         <div style={{color:C.gold,fontSize:15,fontWeight:900,fontFamily:"monospace",flexShrink:0}}>🌲</div>
         <div style={{position:"relative",flex:1,minWidth:0}}>
-          <select value={activeIdx} onChange={e=>{setActiveIdx(+e.target.value);setTab("overview");setTechTarget("stock");}}
+          <select value={activeIdx} onChange={e=>{setActiveIdx(+e.target.value);setTab("overview");}}
             style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.blue}`,
               borderRadius:8,padding:"6px 26px 6px 10px",fontSize:13,fontWeight:700,
               fontFamily:"monospace",cursor:"pointer",appearance:"none",WebkitAppearance:"none",outline:"none"}}>
@@ -753,39 +731,17 @@ export default function App(){
         <input ref={fileRef} type="file" accept=".xlsx,.xls" multiple style={{display:"none"}} onChange={handleUpload}/>
       </div>
 
-      {/* ── 지수 바 */}
-      <div style={{background:C.card2,borderBottom:`1px solid ${C.border}`,padding:"6px 12px",display:"flex",gap:6,overflowX:"auto"}}>
-        {INDICES.map(idx=>{
-          const d=indexData[idx.id];
-          const up=(d?.change||0)>=0;
-          return(
-            <div key={idx.id} style={{flexShrink:0,background:C.card,borderRadius:7,padding:"5px 10px",border:`1px solid ${C.border}`,minWidth:90}}>
-              <div style={{color:C.muted,fontSize:9,marginBottom:1}}>{idx.flag} {idx.label}</div>
-              {d?(
-                <>
-                  <div style={{color:C.text,fontSize:12,fontWeight:700,fontFamily:"monospace"}}>{d.currentPrice.toLocaleString()}</div>
-                  {d.changePct!==null&&<div style={{color:up?C.green:C.red,fontSize:9}}>{up?"+":""}{d.changePct}%</div>}
-                </>
-              ):<div style={{color:C.muted,fontSize:10}}>로딩...</div>}
-            </div>
-          );
-        })}
-      </div>
-
       {/* ── 종목 헤더 */}
       <div style={{background:`linear-gradient(135deg,${C.card2},${C.card})`,borderBottom:`1px solid ${C.border}`,padding:"10px 12px"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <div style={{flex:1,minWidth:0}}>
             <div style={{fontSize:16,fontWeight:900,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{co?.name}</div>
-            <div style={{color:C.muted,fontSize:10,marginTop:1}}>{co?.ticker} · 15~20분 지연</div>
+            <div style={{color:C.muted,fontSize:10,marginTop:1}}>{co?.ticker}</div>
           </div>
-          {priceLoading?<div style={{color:C.muted,fontSize:11}}>로딩 중...</div>:price>0?(
-            <div style={{display:"flex",alignItems:"baseline",gap:6,flexShrink:0}}>
+          {priceLoading?<div style={{color:C.muted,fontSize:11}}>주가 로딩 중...</div>:price>0?(
+            <div style={{flexShrink:0}}>
               <div style={{fontSize:20,fontWeight:900,color:C.text,fontFamily:"monospace"}}>{price.toLocaleString()}원</div>
-              {/* 수정 2: 증감 신뢰 가능할 때만 표시 */}
-              {chgPct!==null&&<div style={{fontSize:12,color:change>=0?C.green:C.red,fontWeight:700}}>
-                {change>=0?"+":""}{change.toLocaleString()} ({chgPct>=0?"+":""}{chgPct}%)
-              </div>}
+              <div style={{color:C.muted,fontSize:10,marginTop:2}}>{priceDateStr}</div>
             </div>
           ):null}
         </div>
@@ -795,7 +751,7 @@ export default function App(){
             {k:"PBR",v:pbr?`${pbr}배`:"—",c:C.gold},
             {k:"이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
             {k:"신호",v:gs.label,c:gs.color},
-            {k:`DCF평균`,v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL},
+            {k:"DCF평균",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL},
           ].map(k=>(
             <div key={k.k} style={{textAlign:"center",background:C.bg,borderRadius:7,padding:"5px 8px",flexShrink:0}}>
               <div style={{color:C.muted,fontSize:9}}>{k.k}</div>
@@ -1058,41 +1014,27 @@ export default function App(){
         {/* ════ 기술분석 ════ */}
         {tab==="technical"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
-            <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
-              {[{id:"stock",label:`📈 ${co?.name||"종목"}`},...INDICES.map(i=>({id:i.id,label:`${i.flag} ${i.label}`}))].map(t=>(
-                <button key={t.id} onClick={()=>setTechTarget(t.id)}
-                  style={{background:techTarget===t.id?C.blue:"transparent",color:techTarget===t.id?"#fff":C.muted,
-                    border:`1px solid ${techTarget===t.id?C.blue:C.border}`,borderRadius:7,
-                    padding:"5px 10px",fontSize:11,cursor:"pointer",fontWeight:techTarget===t.id?700:400,whiteSpace:"nowrap"}}>
-                  {t.label}
-                </button>
-              ))}
+            <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}33`,borderRadius:9,padding:"8px 12px",marginBottom:10,fontSize:10,color:C.muted}}>
+              <span style={{color:C.green}}>G1 무릎</span> 200일MA / <span style={{color:C.blueL}}>G2 허벅지</span> 60MA+10% / <span style={{color:C.orange}}>G3 어깨</span> 60MA+25% / <span style={{color:C.red}}>G4 상투</span> 볼린저(2σ)
             </div>
-            {techTarget==="stock"&&(
-              <>
-                <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}33`,borderRadius:9,padding:"8px 12px",marginBottom:10,fontSize:10,color:C.muted}}>
-                  <span style={{color:C.green}}>G1 무릎</span> 200일MA / <span style={{color:C.blueL}}>G2 허벅지</span> 60MA+10% / <span style={{color:C.orange}}>G3 어깨</span> 60MA+25% / <span style={{color:C.red}}>G4 상투</span> 볼린저(2σ)
-                </div>
-                <ST accent={C.gold}>G1·G2·G3·G4 밴드</ST>
-                <CW h={270}>
-                  <ComposedChart data={techG} margin={{top:4,right:10,left:0,bottom:8}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                    <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-                    <Line dataKey="price" name="주가"    stroke={C.blue}   strokeWidth={2.5} dot={false}/>
-                    <Line dataKey="g1" name="G1 무릎"   stroke={C.green}  strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>
-                    <Line dataKey="g2" name="G2 허벅지" stroke={C.blueL}  strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
-                    <Line dataKey="g3" name="G3 어깨"   stroke={C.orange} strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
-                    <Line dataKey="g4" name="G4 상투"   stroke={C.red}    strokeWidth={1.5} dot={false} strokeDasharray="2 2"/>
-                  </ComposedChart>
-                </CW>
-              </>
-            )}
-            <ST accent={C.blue} right={techLabel}>주가 & 60MA</ST>
-            <CW h={240}>
-              <ComposedChart data={techMA60} margin={{top:4,right:10,left:0,bottom:8}}>
+            <ST accent={C.gold}>G1·G2·G3·G4 밴드</ST>
+            <CW h={270}>
+              <ComposedChart data={withG} margin={{top:4,right:10,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",56)} tickFormatter={v=>v.toLocaleString()}/>
+                <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
+                <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                <Line dataKey="price" name="주가"    stroke={C.blue}   strokeWidth={2.5} dot={false}/>
+                <Line dataKey="g1" name="G1 무릎"   stroke={C.green}  strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>
+                <Line dataKey="g2" name="G2 허벅지" stroke={C.blueL}  strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
+                <Line dataKey="g3" name="G3 어깨"   stroke={C.orange} strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
+                <Line dataKey="g4" name="G4 상투"   stroke={C.red}    strokeWidth={1.5} dot={false} strokeDasharray="2 2"/>
+              </ComposedChart>
+            </CW>
+            <ST accent={C.blue}>주가 & 60MA</ST>
+            <CW h={240}>
+              <ComposedChart data={withMA60} margin={{top:4,right:10,left:0,bottom:8}}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
                 <Area dataKey="price" name="주가" stroke={C.blue} strokeWidth={2} fill={`${C.blue}18`} dot={false}/>
                 <Line dataKey="ma60" name="60MA" stroke={C.gold} strokeWidth={2} dot={false} strokeDasharray="5 3"/>
@@ -1100,7 +1042,7 @@ export default function App(){
             </CW>
             <ST accent={C.green}>RSI (14개월)</ST>
             <CW h={148}>
-              <ComposedChart data={techRSI} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withRSI} margin={{top:4,right:10,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
                 <Tooltip content={<MTip/>}/>
@@ -1112,7 +1054,7 @@ export default function App(){
             </CW>
             <ST accent={C.blueL}>MACD</ST>
             <CW h={148}>
-              <ComposedChart data={techMACD} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMACD} margin={{top:4,right:10,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",38)}/>
                 <Tooltip content={<MTip/>}/>
@@ -1124,7 +1066,7 @@ export default function App(){
             </CW>
             <ST accent={C.teal}>OBV</ST>
             <CW h={128}>
-              <AreaChart data={techOBV} margin={{top:4,right:10,left:0,bottom:8}}>
+              <AreaChart data={withOBV} margin={{top:4,right:10,left:0,bottom:8}}>
                 <defs><linearGradient id="obvG" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={C.teal} stopOpacity={0.3}/>
                   <stop offset="95%" stopColor={C.teal} stopOpacity={0}/>
@@ -1137,7 +1079,7 @@ export default function App(){
             </CW>
             <ST accent={C.pink}>MFI</ST>
             <CW h={128}>
-              <ComposedChart data={techMFI} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMFI} margin={{top:4,right:10,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
                 <Tooltip content={<MTip/>}/>
