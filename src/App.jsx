@@ -409,7 +409,6 @@ export default function App(){
   const signalPts =useMemo(()=>calcSignalPoints(withMA60),[withMA60]);
 
   const lastGap=withMA60.slice(-1)[0]?.gap60??null;
-  const fScore =useMemo(()=>calcFScore(co?.annData),[co?.annData]);
 
   // DCF — 가장 최근 연간 기준 고정
   const lastAnn=co?.annData?.slice(-1)?.[0]||{};
@@ -502,7 +501,6 @@ export default function App(){
       {ko:"찰리 멍거",style:"ROIC·독점적 해자",calc:j(roic>=15&&debt<30,roic<8||debt>80,`ROIC ${roic}% | 부채 ${debt}%`),detail:[{k:"추정ROIC",v:`${roic}%`},{k:"부채비율",v:`${debt}%`},{k:"OPM",v:`${opm}%`}]},
       {ko:"모니시 파브라이",style:"하방제한·턴어라운드",calc:j(pbr<1.5&&fcf>0&&revGrowth>0,pbr>3.0||fcf<0,`PBR ${pbr}배 | FCF ${fcf}억`),detail:[{k:"PBR",v:`${pbr}배`},{k:"FCF",v:`${fcf}억`},{k:"매출YoY",v:`${revGrowth}%`}]},
       {ko:"존 네프",style:"저PER·배당+성장",calc:j(ttmPer<15&&neffRatio>=2,ttmPer>20||neffRatio<1,`Neff ${neffRatio} | PER ${ttmPer}배`),detail:[{k:"PER",v:`${ttmPer}배`},{k:"Neff Ratio",v:neffRatio},{k:"EPS성장",v:`${epsGrowth}%`}]},
-      {ko:"윌리엄 오닐",style:"CAN-SLIM",calc:j(price>ma60val&&qEpsGrowth>=20,price<ma60val*0.9||qEpsGrowth<0,`60MA ${price>ma60val?"위":"아래"} | 분기EPS ${qEpsGrowth}%`),detail:[{k:"60MA비교",v:price>ma60val?"위":"아래"},{k:"분기EPS YoY",v:`${qEpsGrowth}%`}]},
       {ko:"세스 클라만",style:"극단적 안전마진",calc:j(netCash>mktCap*0.5||pbr<1.0,pbr>2.5&&netCash<mktCap*0.2,`순현금 ${netCash}억 | PBR ${pbr}배`),detail:[{k:"추정순현금",v:`${netCash}억`},{k:"시총",v:`${Math.round(mktCap)}억`},{k:"PBR",v:`${pbr}배`}]},
     ];
   },[co,price,per,pbr,ma60val,lastAnn,priceInfo]);
@@ -512,7 +510,7 @@ export default function App(){
     {id:"perbpr",label:"💹 PER/PBR"},{id:"financial",label:"💰 재무"},
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
-    {id:"masters",label:"👑 9거장"},
+    {id:"masters",label:"👑 8거장"},
   ];
 
   // ── 빈 상태 (수정 6: 타이틀 간소화)
@@ -1030,33 +1028,6 @@ export default function App(){
               </Box>
             )}
 
-            {/* F-Score */}
-            <Box>
-              <ST accent={C.green}>F-Score (피오트로스키)</ST>
-              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
-                <div style={{textAlign:"center",flexShrink:0}}>
-                  <div style={{fontSize:40,fontWeight:900,fontFamily:"monospace",lineHeight:1,
-                    color:fScore.total>=7?C.green:fScore.total>=4?C.gold:C.red}}>{fScore.total}</div>
-                  <div style={{color:C.muted,fontSize:9}}>/9점</div>
-                  <Tag color={fScore.total>=7?C.green:fScore.total>=4?C.gold:C.red}>
-                    {fScore.total>=7?"강력매수":fScore.total>=4?"중립":"주의"}
-                  </Tag>
-                </div>
-                {fScore.items.length?(
-                  <div style={{flex:1,display:"flex",flexDirection:"column",gap:3}}>
-                    {fScore.items.map((s,i)=>(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:6}}>
-                        <div style={{width:7,height:7,borderRadius:"50%",flexShrink:0,background:s.val?C.green:C.red}}/>
-                        <span style={{color:s.val?C.text:C.muted,fontSize:11,flex:1}}>{s.name}</span>
-                        <span style={{color:C.muted,fontSize:9}}>{s.desc}</span>
-                      </div>
-                    ))}
-                  </div>
-                ):(
-                  <div style={{color:C.muted,fontSize:11}}>2년치 데이터가 필요합니다.</div>
-                )}
-              </div>
-            </Box>
           </div>
         )}
 
@@ -1161,15 +1132,15 @@ export default function App(){
           <div style={{animation:"fadeIn 0.3s ease"}}>
             {masterJudge.length?(()=>{
               const passCount=masterJudge.filter(m=>m.calc.verdict==="추천").length;
-              const consensus=passCount>=6?"강력매수":passCount>=4?"중립":"관망";
-              const cc=passCount>=6?C.green:passCount>=4?C.gold:C.red;
+              const consensus=passCount>=5?"강력매수":passCount>=3?"중립":"관망";
+              const cc=passCount>=5?C.green:passCount>=3?C.gold:C.red;
               return(
                 <>
                   <div style={{background:`linear-gradient(135deg,${cc}18,${C.card2})`,
                     border:`2px solid ${cc}55`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
                     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
                       <div>
-                        <div style={{color:C.muted,fontSize:9,letterSpacing:"0.1em",marginBottom:2}}>👑 9인의 거장 컨센서스</div>
+                        <div style={{color:C.muted,fontSize:9,letterSpacing:"0.1em",marginBottom:2}}>👑 8인의 거장 컨센서스</div>
                         <div style={{fontSize:18,fontWeight:900,color:cc,fontFamily:"monospace"}}>SEQUOIA: {consensus}</div>
                         <div style={{color:C.muted,fontSize:10,marginTop:3}}>※ 알고리즘 판정 · 투자 참고용</div>
                       </div>
