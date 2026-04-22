@@ -84,7 +84,8 @@ const INDICES=[
 
 const fetchYahoo=async(symbol)=>{
   try{
-    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1mo&range=10y`;
+    // symbol을 URL 경로에 그대로 사용 (^KS11 등 지수 심볼 포함)
+    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1mo&range=10y`;
     const r=await fetch(PROXY+encodeURIComponent(url));
     const d=await r.json();
     const chart=d?.chart?.result?.[0];
