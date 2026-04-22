@@ -53,33 +53,51 @@ const rowToStock=(r)=>({ticker:r.ticker,name:r.name,annData:r.ann_data||[],qtrDa
 const PROXY="https://api.allorigins.win/raw?url=";
 
 
-const fetchYahoo=async(symbol)=>{
-  try{
+const fetchYahoo = async (symbol) => {
+  try {
     // ^ 를 %5E 로 미리 치환해서 이중인코딩 방지
-    const safe=symbol.replace(/\^/g,"%5E");
-    const url=`https://query1.finance.yahoo.com/v8/finance/chart/${safe}?interval=1mo&range=10y`;
-    const r=await fetch(PROXY+encodeURIComponent(url));
-    const d=await r.json();
-    const chart=d?.chart?.result?.[0];
-    if(!chart)return null;
-    const ts=chart.timestamp||[],q=chart.indicators.quote[0];
-    const monthly=ts.map((t,i)=>{
-      const dt=new Date(t*1000);
-      return{ts:t,label:`${dt.getFullYear()}.${String(dt.getMonth()+1).padStart(2,"0")}`,
-        year:dt.getFullYear(),month:dt.getMonth()+1,
-        price:Math.round(q.close[i]||0),open:Math.round(q.open[i]||0),
-        high:Math.round(q.high[i]||0),low:Math.round(q.low[i]||0),volume:q.volume[i]||0};
-    }).filter(d=>d.price>0);
-    const cur=Math.round(chart.meta?.regularMarketPrice||q.close[q.close.length-1]||0);
-    const prv=Math.round(chart.meta?.chartPreviousClose||0);
-    // 데이터 기준 시각
-    const ts=chart.meta?.regularMarketTime;
-    const priceDate=ts?new Date(ts*1000):new Date(monthly[monthly.length-1]?.ts*1000||Date.now());
-    const priceDateStr=`${priceDate.getFullYear()}.${String(priceDate.getMonth()+1).padStart(2,"0")}.${String(priceDate.getDate()).padStart(2,"0")} (월봉 기준)`;
-    const chg=cur-prv;
-    const chgPct=prv>100?+((chg/prv)*100).toFixed(2):null;
-    return{monthly,currentPrice:cur,prevClose:prv,change:chg,changePct:chgPct,priceDateStr};
-  }catch{return null;}
+    const safe = symbol.replace(/\^/g, "%5E");
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${safe}?interval=1mo&range=10y`;
+    const r = await fetch(PROXY + encodeURIComponent(url));
+    const d = await r.json();
+    const chart = d?.chart?.result?.[0];
+    if (!chart) return null;
+
+    // 1. 여기서 ts는 타임스탬프 '배열'입니다.
+    const ts = chart.timestamp || [], q = chart.indicators.quote[0];
+    
+    const monthly = ts.map((t, i) => {
+      const dt = new Date(t * 1000);
+      return {
+        ts: t,
+        label: `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}`,
+        year: dt.getFullYear(),
+        month: dt.getMonth() + 1,
+        price: Math.round(q.close[i] || 0),
+        open: Math.round(q.open[i] || 0),
+        high: Math.round(q.high[i] || 0),
+        low: Math.round(q.low[i] || 0),
+        volume: q.volume[i] || 0
+      };
+    }).filter(d => d.price > 0);
+
+    const cur = Math.round(chart.meta?.regularMarketPrice || q.close[q.close.length - 1] || 0);
+    const prv = Math.round(chart.meta?.chartPreviousClose || 0);
+
+    // 2. [수정됨] 변수 이름을 marketTs로 변경하여 중복 선언을 방지합니다.
+    const marketTs = chart.meta?.regularMarketTime; 
+    
+    // 3. [수정됨] 아래 변수명도 marketTs로 맞춰줍니다.
+    const priceDate = marketTs ? new Date(marketTs * 1000) : new Date(monthly[monthly.length - 1]?.ts * 1000 || Date.now());
+    
+    const priceDateStr = `${priceDate.getFullYear()}.${String(priceDate.getMonth() + 1).padStart(2, "0")}.${String(priceDate.getDate()).padStart(2, "0")} (월봉 기준)`;
+    const chg = cur - prv;
+    const chgPct = prv > 100 ? +((chg / prv) * 100).toFixed(2) : null;
+
+    return { monthly, currentPrice: cur, prevClose: prv, change: chg, changePct: chgPct, priceDateStr };
+  } catch {
+    return null;
+  }
 };
 
 // ══════════════════════════════════════════════════════════════
