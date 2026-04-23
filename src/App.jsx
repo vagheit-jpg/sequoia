@@ -726,7 +726,7 @@ export default function App(){
 
       {/* ── 업로드 토스트 */}
       {uploadToast&&(
-        <div style={{position:"fixed",top:16,right:16,zIndex:9999,
+        <div style={{position:"fixed",top:16,right:12,zIndex:9999,
           background:uploadToast==="loading"?C.card:uploadToast==="success"?C.green:C.red,
           color:uploadToast==="loading"?C.text:"#fff",
           border:`1px solid ${uploadToast==="loading"?C.border:"transparent"}`,
@@ -1191,9 +1191,9 @@ export default function App(){
                   </div>
                   {dcfHistory.length>=2&&(
                     <>
-                      <ST accent={C.gold} right="참고용">연도별 DCF 추이</ST>
+                      <ST accent={C.gold}>연도별 DCF 추이</ST>
                       <CW h={190}>
-                        <ComposedChart data={dcfHistory} margin={{top:4,right:20,left:0,bottom:8}}>
+                        <ComposedChart data={dcfHistory} margin={{top:4,right:12,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left"  {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
@@ -1225,7 +1225,7 @@ export default function App(){
                   <ViewToggle view={stabView} setView={setStabView}/>
                   <ST accent={C.teal}>부채비율(우축) · 자본유보율(좌축)</ST>
                   <CW h={230}>
-                    <ComposedChart data={data} margin={{top:4,right:16,left:0,bottom:8}}>
+                    <ComposedChart data={data} margin={{top:4,right:12,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
@@ -1251,7 +1251,7 @@ export default function App(){
                   </CW>
                   <ST accent={C.blue}>자본·부채 적층(좌축) + 부채비율 꺾은선(우축)</ST>
                   <CW h={230}>
-                    <ComposedChart data={da} margin={{top:4,right:16,left:0,bottom:8}}>
+                    <ComposedChart data={da} margin={{top:4,right:12,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp(ua,48)}/>
@@ -1287,7 +1287,7 @@ export default function App(){
                 </CW>
                 <ST accent={C.green}>배당수익률(막대·우축) · 배당성향(꺾은선·좌축)</ST>
                 <CW h={200}>
-                  <ComposedChart data={co.divData} margin={{top:4,right:16,left:0,bottom:8}}>
+                  <ComposedChart data={co.divData} margin={{top:4,right:12,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
                     <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
