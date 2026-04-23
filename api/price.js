@@ -1,52 +1,75 @@
 /**
- * api/price.js — 키움 REST API 주가 중계 (CommonJS)
+ * api/price.js — Yahoo Finance 주가 중계
  * GET /api/price?ticker=005930
+ * 한국 주식: .KS (KOSPI) / .KQ (KOSDAQ) 자동 판별
+ * 10년치 월봉 한 번에 수신 — 빠름
  */
 
-let _token = null;
-let _tokenExpiry = 0;
+const MARKET_SUFFIX = {
+  // KOSPI 주요 종목은 .KS, KOSDAQ은 .KQ
+  // 판별 불가시 .KS 먼저 시도 후 .KQ 재시도
+};
 
-async function getToken() {
-  if (_token && Date.now() < _tokenExpiry) return _token;
-  const res = await fetch("https://openapi.kiwoom.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json;charset=UTF-8" },
-    body: JSON.stringify({
-      grant_type: "client_credentials",
-      appkey: process.env.KIWOOM_APP_KEY,
-      secretkey: process.env.KIWOOM_APP_SECRET,
-    }),
-  });
-  if (!res.ok) throw new Error(`토큰 발급 실패 ${res.status}`);
-  const data = await res.json();
-  _token = data.token;
-  _tokenExpiry = Date.now() + 23 * 60 * 60 * 1000;
-  return _token;
+function getYahooTicker(ticker, market) {
+  if (market === "KQ") return `${ticker}.KQ`;
+  return `${ticker}.KS`;
 }
 
-async function kiwoomApi(trCode, body, token) {
-  const res = await fetch("https://openapi.kiwoom.com/api/dostrade", {
-    method: "POST",
+async function fetchYahoo(yahooTicker) {
+  const now = Math.floor(Date.now() / 1000);
+  const tenYearsAgo = now - 10 * 365 * 24 * 60 * 60;
+
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooTicker}` +
+    `?interval=1mo&period1=${tenYearsAgo}&period2=${now}&includePrePost=false`;
+
+  const res = await fetch(url, {
     headers: {
-      "Content-Type": "application/json;charset=UTF-8",
-      Authorization: `Bearer ${token}`,
-      trnm: trCode,
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Accept": "application/json",
+      "Accept-Language": "ko-KR,ko;q=0.9",
     },
-    body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${trCode} 실패 ${res.status}`);
-  return res.json();
+
+  if (!res.ok) throw new Error(`Yahoo ${yahooTicker} ${res.status}`);
+  const data = await res.json();
+
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error(`No data for ${yahooTicker}`);
+
+  return result;
 }
 
-function today() {
-  const d = new Date();
-  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
-}
+function buildMonthly(result) {
+  const timestamps = result.timestamps || result.timestamp || [];
+  const quotes = result.indicators?.quote?.[0] || {};
+  const closes = quotes.close || [];
+  const opens  = quotes.open  || [];
+  const highs  = quotes.high  || [];
+  const lows   = quotes.low   || [];
+  const vols   = quotes.volume|| [];
 
-function tenYearsAgo() {
-  const d = new Date();
-  d.setFullYear(d.getFullYear() - 10);
-  return `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+  const monthly = [];
+  for (let i = 0; i < timestamps.length; i++) {
+    const price = closes[i];
+    if (!price || isNaN(price)) continue;
+
+    const d = new Date(timestamps[i] * 1000);
+    const year  = d.getFullYear();
+    const month = d.getMonth() + 1;
+    const label = `${year}.${String(month).padStart(2, "0")}`;
+
+    monthly.push({
+      dt: `${year}${String(month).padStart(2,"0")}01`,
+      year, month, label,
+      price: Math.round(price),
+      open:  Math.round(opens[i]  || price),
+      high:  Math.round(highs[i]  || price),
+      low:   Math.round(lows[i]   || price),
+      volume: Math.round(vols[i]  || 0),
+    });
+  }
+
+  return monthly.sort((a, b) => a.dt > b.dt ? 1 : -1);
 }
 
 module.exports = async function handler(req, res) {
@@ -55,67 +78,68 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
   if (req.method !== "GET") return res.status(405).json({ error: "Method not allowed" });
 
-  const { ticker } = req.query;
+  const { ticker, market } = req.query;
   if (!ticker || !/^\d{6}$/.test(ticker)) {
     return res.status(400).json({ error: "ticker 파라미터 필요 (6자리 숫자)" });
   }
 
   try {
-    const token = await getToken();
+    let result = null;
+    let usedTicker = "";
 
-    const basicRes = await kiwoomApi("ka10001", { stk_cd: ticker }, token);
-    const basic = basicRes?.output || {};
-    const currentPrice = Math.abs(parseInt(basic.cur_prc || "0"));
-    const prevClose = Math.abs(parseInt(basic.base_pric || basic.pred_pric || "0"));
-    const change = currentPrice - prevClose;
-    const changePct = prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : null;
-    const t = today();
-    const priceDateStr = `${t.slice(0,4)}.${t.slice(4,6)}.${t.slice(6,8)} (장중/종가)`;
-
-    const allCandles = [];
-    let nextKey = "";
-    const startDt = tenYearsAgo();
-    const endDt = today();
-
-    for (let page = 0; page < 20; page++) {
-      const body = { stk_cd: ticker, base_dt: endDt, mod_yn: "1" };
-      if (nextKey) body.next_key = nextKey;
-      const chartRes = await kiwoomApi("ka10083", body, token);
-      const items = chartRes?.output2 || chartRes?.output || [];
-      if (!Array.isArray(items) || items.length === 0) break;
-      let stop = false;
-      for (const item of items) {
-        const dt = item.dt || item.stk_bsop_date || "";
-        if (dt < startDt) { stop = true; break; }
-        const priceRaw = Math.abs(parseInt(item.cls_prc || item.cur_prc || "0"));
-        if (!priceRaw) continue;
-        const year = parseInt(dt.slice(0,4));
-        const month = parseInt(dt.slice(4,6));
-        allCandles.push({
-          dt, year, month,
-          label: `${year}.${String(month).padStart(2,"0")}`,
-          price: priceRaw,
-          open:  Math.abs(parseInt(item.opn_prc  || "0")),
-          high:  Math.abs(parseInt(item.high_prc || "0")),
-          low:   Math.abs(parseInt(item.low_prc  || "0")),
-          volume: parseInt(item.trde_qty || item.acc_trde_qty || "0"),
-        });
+    // market 파라미터 있으면 바로 사용, 없으면 KS 먼저 시도 후 KQ 재시도
+    if (market === "KQ") {
+      usedTicker = `${ticker}.KQ`;
+      result = await fetchYahoo(usedTicker);
+    } else if (market === "KS") {
+      usedTicker = `${ticker}.KS`;
+      result = await fetchYahoo(usedTicker);
+    } else {
+      // 자동 판별: KS 먼저
+      try {
+        usedTicker = `${ticker}.KS`;
+        result = await fetchYahoo(usedTicker);
+      } catch {
+        // KS 실패 시 KQ 재시도
+        usedTicker = `${ticker}.KQ`;
+        result = await fetchYahoo(usedTicker);
       }
-      if (stop) break;
-      nextKey = chartRes?.next_key || "";
-      if (!nextKey) break;
     }
 
-    allCandles.sort((a, b) => a.dt > b.dt ? 1 : -1);
+    const monthly = buildMonthly(result);
+    if (!monthly.length) {
+      return res.status(404).json({ error: "주가 데이터 없음" });
+    }
 
-    const kstHour = (new Date().getUTCHours() + 9) % 24;
-    res.setHeader("Cache-Control", (kstHour >= 9 && kstHour < 16) ? "s-maxage=60" : "s-maxage=3600");
+    // 현재가 / 전일종가
+    const meta = result.meta || {};
+    const currentPrice = Math.round(meta.regularMarketPrice || monthly[monthly.length - 1].price);
+    const prevClose    = Math.round(meta.previousClose || meta.chartPreviousClose || 0);
+    const change       = currentPrice - prevClose;
+    const changePct    = prevClose > 0 ? +((change / prevClose) * 100).toFixed(2) : null;
+
+    const now = new Date();
+    const priceDateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,"0")}.${String(now.getDate()).padStart(2,"0")} 기준`;
+
+    // 장중(9~16시 KST)은 1분, 그 외 1시간 캐시
+    const kstHour = (now.getUTCHours() + 9) % 24;
+    res.setHeader("Cache-Control",
+      (kstHour >= 9 && kstHour < 16)
+        ? "s-maxage=60, stale-while-revalidate=30"
+        : "s-maxage=3600, stale-while-revalidate=300"
+    );
 
     return res.status(200).json({
-      monthly: allCandles,
-      currentPrice: currentPrice || (allCandles.length ? allCandles[allCandles.length-1].price : 0),
-      prevClose, change, changePct, priceDateStr,
+      monthly,
+      currentPrice,
+      prevClose,
+      change,
+      changePct,
+      priceDateStr,
+      source: "yahoo",
+      yahooTicker: usedTicker,
     });
+
   } catch (err) {
     console.error("[api/price] error:", err.message);
     return res.status(500).json({ error: err.message });
