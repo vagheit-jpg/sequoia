@@ -493,10 +493,11 @@ export default function App(){
     const d=shares?calcDCF_owner({net:lastAnn.net,cfo:lastAnn.cfo,cfi:lastAnn.cfi,capex:lastAnn.capex,gr,dr,shares}):0;
     const valid=[a,b,c,d].filter(v=>v>0);
     const avg=valid.length?Math.round(valid.reduce((s,v)=>s+v,0)/valid.length):0;
-    // 역DCF — 현재 주가에 내재된 성장률
-    const impliedGr=price>0?calcReverseDCF({price,eps:lastAnn.eps,dr}):null;
+    // 역DCF — 현재 주가에 내재된 성장률 (priceInfo에서 직접 읽기)
+    const curPrice=priceInfo?.currentPrice||0;
+    const impliedGr=curPrice>0?calcReverseDCF({price:curPrice,eps:lastAnn.eps,dr}):null;
     return{a,b,c,d,avg,impliedGr};
-  },[lastAnn,dcfApplied,price]);
+  },[lastAnn,dcfApplied,priceInfo]);
 
   const dcfHistory=useMemo(()=>buildDCFHistory(co?.annData,dcfApplied.gr/100,(dcfApplied.bondYield+dcfApplied.riskPrem)/100),[co?.annData,dcfApplied]);
 
