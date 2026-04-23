@@ -179,6 +179,40 @@ const buildDCFHistory=(annData,gr,dr)=>{
   }));
 };
 
+// ── 오너이익 DCF (버핏 방식)
+// 오너이익 = 순이익 + 추정감가상각(영업CF - 순이익) - CAPEX(투자CF 음수부분 근사)
+const calcOwnerEarnings=({net,cfo,cfi,capex})=>{
+  if(!net||!cfo)return null;
+  const depEst=cfo-net;                                        // 감가상각 근사
+  const capexEst=capex?Math.abs(capex):cfi<0?Math.abs(cfi)*0.7:0; // 실제CAPEX 우선, 없으면 투자CF 70% 추정
+  return net+depEst-capexEst;
+};
+const calcDCF_owner=({net,cfo,cfi,capex,gr,dr,shares})=>{
+  const oe=calcOwnerEarnings({net,cfo,cfi,capex});
+  if(!oe||oe<=0||!shares||shares<=0)return 0;
+  let pv=0,cf=oe;
+  for(let y=1;y<=10;y++){cf*=(1+gr);pv+=cf/Math.pow(1+dr,y);}
+  const tv=(cf*(1+0.03)/(dr-0.03))/Math.pow(1+dr,10);
+  return Math.round((pv+tv)/shares);
+};
+
+// ── 역DCF: 현재 주가에 내재된 성장률 역산
+const calcReverseDCF=({price,eps,dr})=>{
+  if(!price||!eps||eps<=0||dr<=0)return null;
+  // 현재주가 = EPS × (1+g)/(dr-g) × (1-Math.pow((1+g)/(1+dr),10)) + TV
+  // 수치적으로 이분탐색으로 역산
+  let lo=-0.5,hi=1.0;
+  for(let i=0;i<60;i++){
+    const g=(lo+hi)/2;
+    if(dr-g<=0.001){hi=g;continue;}
+    let pv=0,cf=eps;
+    for(let y=1;y<=10;y++){cf*=(1+g);pv+=cf/Math.pow(1+dr,y);}
+    const tv=(cf*(1+0.02)/(dr-0.02))/Math.pow(1+dr,10);
+    if(pv+tv>price)hi=g;else lo=g;
+  }
+  return +((lo+hi)/2*100).toFixed(1);
+};
+
 // ══════════════════════════════════════════════════════════════
 // 5. 엑셀 파서
 // ══════════════════════════════════════════════════════════════
@@ -188,7 +222,7 @@ const FIELD_MAP={
   "영업활동현금흐름":"cfo","투자활동현금흐름":"cfi","재무활동현금흐름":"cff","FCF":"fcf",
   "ROE(%)":"roe","ROA(%)":"roa","EPS(원)":"eps","BPS(원)":"bps",
   "PER(배)":"per","PBR(배)":"pbr","발행주식수(보통주)":"shares",
-  "현금DPS(원)":"dps","현금배당수익률":"divYield","현금배당성향(%)":"divPayout",
+  "설비투자(CAPEX)":"capex","현금DPS(원)":"dps","현금배당수익률":"divYield","현금배당성향(%)":"divPayout",
 };
 const parseSheet=(sheet)=>{
   const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
@@ -456,10 +490,13 @@ export default function App(){
     const a=shares?calcDCF_rate({fcf:lastAnn.fcf,gr,dr,shares}):0;
     const b=calcDCF_graham({eps:lastAnn.eps,gr,bondYield:dcfApplied.bondYield});
     const c=calcDCF_roe({roe:lastAnn.roe,eps:lastAnn.eps});
-    const valid=[a,b,c].filter(v=>v>0);
+    const d=shares?calcDCF_owner({net:lastAnn.net,cfo:lastAnn.cfo,cfi:lastAnn.cfi,capex:lastAnn.capex,gr,dr,shares}):0;
+    const valid=[a,b,c,d].filter(v=>v>0);
     const avg=valid.length?Math.round(valid.reduce((s,v)=>s+v,0)/valid.length):0;
-    return{a,b,c,avg};
-  },[lastAnn,dcfApplied]);
+    // 역DCF — 현재 주가에 내재된 성장률
+    const impliedGr=price>0?calcReverseDCF({price,eps:lastAnn.eps,dr}):null;
+    return{a,b,c,d,avg,impliedGr};
+  },[lastAnn,dcfApplied,price]);
 
   const dcfHistory=useMemo(()=>buildDCFHistory(co?.annData,dcfApplied.gr/100,(dcfApplied.bondYield+dcfApplied.riskPrem)/100),[co?.annData,dcfApplied]);
 
@@ -898,7 +935,7 @@ export default function App(){
               <ComposedChart data={withMA60} margin={{top:20,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                 <Area dataKey="price" name="주가" stroke={C.blue} strokeWidth={2} fill={`${C.blue}18`} dot={false}/>
                 <Line dataKey="ma60" name="60MA" stroke={C.gold} strokeWidth={2} dot={false} strokeDasharray="5 3"/>
                 {/* 수정 5: 매수▲ 하단, 매도▼ 상단 모두 표시 */}
@@ -913,7 +950,7 @@ export default function App(){
               <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("%")}/>
-                <Tooltip content={<MTip/>}/>
+                <Tooltip content={<MTip/>} cursor={false}/>
                 <ReferenceArea y1={-100} y2={-20} fill={`${C.green}10`}/>
                 <ReferenceArea y1={200} y2={500} fill={`${C.red}08`}/>
                 <ReferenceLine y={0}   stroke={C.dim}   strokeDasharray="2 2"/>
@@ -937,7 +974,7 @@ export default function App(){
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                    <Tooltip content={<MTip/>}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
                     <Area dataKey="perHi" name="PER 20배" stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1} dot={false}/>
                     <Area dataKey="perMid" name="PER 13배" stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1} dot={false}/>
                     <Area dataKey="perLo" name="PER 7배"  stroke={C.green} fill={`${C.green}10`} strokeWidth={1} dot={false}/>
@@ -949,7 +986,7 @@ export default function App(){
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                    <Tooltip content={<MTip/>}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
                     <Area dataKey="pbrHi" name="PBR 3.5배" stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1} dot={false}/>
                     <Area dataKey="pbrLo" name="PBR 1배"   stroke={C.green} fill={`${C.green}10`} strokeWidth={1} dot={false}/>
                     <Line dataKey="price" name="주가"       stroke={C.blueL} strokeWidth={2.5}    dot={false}/>
@@ -977,7 +1014,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(u1)}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Bar dataKey="rev" name="매출액"   fill={C.blue}   opacity={0.7} maxBarSize={24}/>
                       <Bar dataKey="op"  name="영업이익" fill={C.green}  opacity={0.8} maxBarSize={24}/>
                       <Bar dataKey="net" name="순이익"   fill={C.purple} opacity={0.7} maxBarSize={24}/>
@@ -990,7 +1027,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp("%")}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       {/* 수정 3: 0선 점선 추가 */}
                       <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
                       <Line dataKey="revGrowth" name="매출 YoY%" stroke={C.blue}  strokeWidth={2} dot={{r:4}}/>
@@ -1003,7 +1040,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp("%")}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Line dataKey="opm" name="OPM%" stroke={C.gold}  strokeWidth={2} dot={{r:3}}/>
                       <Line dataKey="roe" name="ROE%" stroke={C.green} strokeWidth={2} dot={{r:3}}/>
                       <Line dataKey="roa" name="ROA%" stroke={C.blueL} strokeWidth={2} dot={{r:3}}/>
@@ -1017,7 +1054,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(uc,52)}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
                       <Bar  dataKey="fcf" name={`FCF(${uc})`} fill={C.gold}   opacity={0.9} maxBarSize={20} radius={[3,3,0,0]}/>
                       <Line dataKey="cfo" name="영업CF" stroke={C.teal}   strokeWidth={2} dot={{r:3}} connectNulls/>
@@ -1035,7 +1072,7 @@ export default function App(){
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left"  {...yp("",44)}/>
                           <YAxis yAxisId="right" orientation="right" {...yp("원",52)} tickFormatter={v=>v.toLocaleString()}/>
-                          <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                           <Bar  yAxisId="left"  dataKey="eps" name="EPS(원)" fill={C.purple} opacity={0.7} maxBarSize={20}/>
                           <Bar  yAxisId="left"  dataKey="fcf" name="FCF(억)" fill={C.teal}   opacity={0.6} maxBarSize={20}/>
                           <Line yAxisId="right" dataKey="price" name="주가(원)" stroke={C.gold} strokeWidth={2.5} dot={{r:4,fill:C.gold}}/>
@@ -1062,7 +1099,7 @@ export default function App(){
               <ComposedChart data={withG} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                 <Line dataKey="price" name="주가"    stroke={C.blue}   strokeWidth={2.5} dot={false}/>
                 <Line dataKey="g1" name="G1 무릎"   stroke={C.green}  strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>
                 <Line dataKey="g2" name="G2 허벅지" stroke={C.blueL}  strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
@@ -1075,7 +1112,7 @@ export default function App(){
               <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                 <Area dataKey="price" name="주가" stroke={C.blue} strokeWidth={2} fill={`${C.blue}18`} dot={false}/>
                 <Line dataKey="ma60" name="60MA" stroke={C.gold} strokeWidth={2} dot={false} strokeDasharray="5 3"/>
               </ComposedChart>
@@ -1085,7 +1122,7 @@ export default function App(){
               <ComposedChart data={withRSI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
-                <Tooltip content={<MTip/>}/>
+                <Tooltip content={<MTip/>} cursor={false}/>
                 <ReferenceArea y1={70} y2={100} fill={`${C.red}12`}/><ReferenceArea y1={0} y2={30} fill={`${C.green}12`}/>
                 <ReferenceLine y={70} stroke={C.red}   strokeDasharray="4 2" label={{value:"과매수70",fill:C.red,  fontSize:9}}/>
                 <ReferenceLine y={30} stroke={C.green} strokeDasharray="4 2" label={{value:"과매도30",fill:C.green,fontSize:9}}/>
@@ -1097,7 +1134,7 @@ export default function App(){
               <ComposedChart data={withMACD} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",38)}/>
-                <Tooltip content={<MTip/>}/>
+                <Tooltip content={<MTip/>} cursor={false}/>
                 <ReferenceLine y={0} stroke={C.dim}/>
                 <Bar dataKey="hist" name="히스토그램" maxBarSize={6} radius={[2,2,0,0]} fill={C.blueL} fillOpacity={0.65}/>
                 <Line dataKey="macd"   name="MACD"   stroke={C.blueL}  strokeWidth={2}   dot={false}/>
@@ -1113,7 +1150,7 @@ export default function App(){
                 </linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",44)} tickFormatter={v=>`${(v/1e6).toFixed(1)}M`}/>
-                <Tooltip content={<MTip/>}/>
+                <Tooltip content={<MTip/>} cursor={false}/>
                 <Area dataKey="obv" name="OBV" stroke={C.teal} strokeWidth={2} fill="url(#obvG)" dot={false}/>
               </AreaChart>
             </CW>
@@ -1122,7 +1159,7 @@ export default function App(){
               <ComposedChart data={withMFI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
-                <Tooltip content={<MTip/>}/>
+                <Tooltip content={<MTip/>} cursor={false}/>
                 <ReferenceArea y1={80} y2={100} fill={`${C.red}12`}/><ReferenceArea y1={0} y2={20} fill={`${C.green}12`}/>
                 <ReferenceLine y={80} stroke={C.red}   strokeDasharray="4 2" label={{value:"과열80",  fill:C.red,  fontSize:9}}/>
                 <ReferenceLine y={20} stroke={C.green} strokeDasharray="4 2" label={{value:"과매도20",fill:C.green,fontSize:9}}/>
@@ -1168,15 +1205,16 @@ export default function App(){
               </div>
             </Box>
             <Box style={{border:`2px solid ${C.gold}33`}}>
-              <ST accent={C.gold}>3가지 내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
+              <ST accent={C.gold}>4가지 내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
               {hasFinData?(
                 <>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:12}}>
                     {[
-                      {label:"A. DCF (금리기반)",sub:`할인율 ${(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% · 성장률 ${dcfApplied.gr}%`,val:dcfResults.a,color:C.blue},
-                      {label:"B. 그레이엄 멀티플",sub:`V=EPS×(8.5+2g)×4.4/Y`,val:dcfResults.b,color:C.purple},
-                      {label:"C. ROE 멀티플",sub:`적정가=ROE×EPS (적정PER=ROE)`,val:dcfResults.c,color:C.teal},
-                      {label:"3가지 평균",sub:"교차검증 종합",val:dcfResults.avg,color:C.gold},
+                      {label:"A. 오너이익 DCF",sub:"버핏 방식 · 순이익+감가추정-CAPEX추정",val:dcfResults.d,color:C.orange},
+                      {label:"B. DCF (금리기반)",sub:`할인율 ${(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% · 성장률 ${dcfApplied.gr}%`,val:dcfResults.a,color:C.blue},
+                      {label:"C. 그레이엄 멀티플",sub:"V=EPS×(8.5+2g)×4.4/Y",val:dcfResults.b,color:C.purple},
+                      {label:"D. ROE 멀티플",sub:"적정가=ROE×EPS (적정PER=ROE)",val:dcfResults.c,color:C.teal},
+                      {label:"4가지 평균",sub:"교차검증 종합",val:dcfResults.avg,color:C.gold},
                     ].map(item=>{
                       const diff=price&&item.val?Math.round((item.val/price-1)*100):null;
                       return(
@@ -1189,6 +1227,37 @@ export default function App(){
                       );
                     })}
                   </div>
+
+                  {/* 역DCF 박스 */}
+                  {dcfResults.impliedGr!==null&&price>0&&(
+                    <div style={{background:`linear-gradient(135deg,${C.cyan}10,${C.card2})`,border:`1.5px solid ${C.cyan}44`,borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                        <div>
+                          <div style={{color:C.cyan,fontSize:11,fontWeight:800,marginBottom:3}}>🔍 역DCF — 버핏의 질문</div>
+                          <div style={{color:C.muted,fontSize:9,lineHeight:1.6}}>
+                            현재 주가 <span style={{color:C.text,fontWeight:700}}>{price.toLocaleString()}원</span>이 정당하려면<br/>
+                            앞으로 <span style={{color:C.cyan,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>{dcfResults.impliedGr}%</span> 연간 성장이 필요합니다.
+                          </div>
+                        </div>
+                        <div style={{textAlign:"center",background:C.bg,borderRadius:10,padding:"8px 14px"}}>
+                          <div style={{color:C.muted,fontSize:8,marginBottom:2}}>내재 성장률</div>
+                          <div style={{color:dcfResults.impliedGr<=dcfApplied.gr?C.green:dcfResults.impliedGr<=dcfApplied.gr*1.5?C.gold:C.red,
+                            fontSize:22,fontWeight:900,fontFamily:"monospace"}}>{dcfResults.impliedGr}%</div>
+                          <div style={{marginTop:4}}>
+                            <Tag color={dcfResults.impliedGr<=dcfApplied.gr?C.green:dcfResults.impliedGr<=dcfApplied.gr*1.5?C.gold:C.red} size={8}>
+                              {dcfResults.impliedGr<=dcfApplied.gr?"달성가능":dcfResults.impliedGr<=dcfApplied.gr*1.5?"도전적":"매우높음"}
+                            </Tag>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{marginTop:10,padding:"8px 10px",background:C.bg,borderRadius:8,fontSize:9,color:C.muted,lineHeight:1.7}}>
+                        💡 설정 성장률 <span style={{color:C.gold,fontWeight:700}}>{dcfApplied.gr}%</span> 대비 내재 성장률이
+                        <span style={{color:dcfResults.impliedGr<=dcfApplied.gr?C.green:C.red,fontWeight:700}}>
+                          {dcfResults.impliedGr<=dcfApplied.gr?" 낮으면 저평가":" 높으면 고평가"}
+                        </span> 가능성 — 할인율 {(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% 기준
+                      </div>
+                    </div>
+                  )}
                   {dcfHistory.length>=2&&(
                     <>
                       <ST accent={C.gold}>연도별 DCF 추이</ST>
@@ -1198,7 +1267,7 @@ export default function App(){
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left"  {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                           <YAxis yAxisId="right" orientation="right" {...yp("억",40)}/>
-                          <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                           <Bar yAxisId="right" dataKey="fcf" name="FCF(억)" fill={C.teal} opacity={0.6} maxBarSize={32}/>
                           <Line yAxisId="left" dataKey="intrinsic" name="DCF 내재가치" stroke={C.gold} strokeWidth={2.5} dot={{r:4,fill:C.gold}}/>
                           {price>0&&<ReferenceLine yAxisId="left" y={price} stroke={C.blueL} strokeDasharray="4 2"
@@ -1230,7 +1299,7 @@ export default function App(){
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
                       <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <ReferenceLine yAxisId="right" y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"부채100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
                       <Bar  yAxisId="right" dataKey="debt"     name="부채비율%"   fill={C.red}  opacity={0.55} maxBarSize={28}/>
                       <Line yAxisId="left"  dataKey="retained" name="자본유보율%" stroke={C.teal} strokeWidth={2.5} dot={{r:3}}/>
@@ -1243,7 +1312,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(ua)}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Bar dataKey="assets" name="자산총계" fill={C.blue}  opacity={0.6} maxBarSize={24}/>
                       <Bar dataKey="liab"   name="부채총계" fill={C.red}   opacity={0.6} maxBarSize={24}/>
                       <Bar dataKey="equity" name="자본총계" fill={C.green} opacity={0.7} maxBarSize={24}/>
@@ -1256,7 +1325,7 @@ export default function App(){
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp(ua,48)}/>
                       <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
-                      <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Bar yAxisId="left" dataKey="equity" name="자본총계" stackId="s" fill={C.green} opacity={0.75} maxBarSize={28}/>
                       <Bar yAxisId="left" dataKey="liab"   name="부채총계" stackId="s" fill={C.red}   opacity={0.65} maxBarSize={28}/>
                       <Line yAxisId="right" dataKey="debt" name="부채비율%" stroke={C.orange} strokeWidth={2.5} dot={{r:3}}/>
@@ -1281,7 +1350,7 @@ export default function App(){
                   <ComposedChart data={co.divData} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
-                    <YAxis {...yp("원")}/><Tooltip content={<MTip/>}/>
+                    <YAxis {...yp("원")}/><Tooltip content={<MTip/>} cursor={false}/>
                     <Bar dataKey="dps" name="DPS(원)" fill={C.gold} opacity={0.8} maxBarSize={40} radius={[4,4,0,0]}/>
                   </ComposedChart>
                 </CW>
@@ -1292,7 +1361,7 @@ export default function App(){
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
                     <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
                     <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
-                    <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
+                    <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                     <Bar  yAxisId="right" dataKey="divYield"  name="배당수익률%" fill={C.green}  opacity={0.8} maxBarSize={36} radius={[4,4,0,0]}/>
                     <Line yAxisId="left"  dataKey="divPayout" name="배당성향%"   stroke={C.purple} strokeWidth={2.5} dot={{r:4}}/>
                   </ComposedChart>
