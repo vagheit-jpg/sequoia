@@ -448,7 +448,7 @@ export default function App(){
   // 종목 목록: localStorage 캐시 → /api/corplist → FALLBACK
   useEffect(()=>{
     try{const raw=localStorage.getItem("sq_corplist");if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<86400000&&data?.length>100){setStockList(data);return;}}}catch{}
-    fetch("/api/corplist").then(r=>r.json()).then(data=>{
+    fetch("/corplist.json").then(r=>r.json()).then(data=>{
       if(data?.length>100){setStockList(data);try{localStorage.setItem("sq_corplist",JSON.stringify({data,ts:Date.now()}));}catch{}}
     }).catch(()=>{});
   },[]);
