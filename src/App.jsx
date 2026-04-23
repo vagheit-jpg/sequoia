@@ -32,9 +32,10 @@ let C=DARK;
 const SB_URL="https://ozbosdkdwechddpdajgy.supabase.co";
 const SB_KEY="sb_publishable_m6hqPF2sFbHJDlm5iYtjfQ_WhXBBQSV";
 const sbFetch=async(path,opts={})=>{
+  const {headers:extraHeaders={},...restOpts}=opts;
   const r=await fetch(`${SB_URL}/rest/v1/${path}`,{
-    headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`,"Content-Type":"application/json","Prefer":"return=representation",...opts.headers},
-    ...opts,
+    headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`,"Content-Type":"application/json","Prefer":"return=representation",...extraHeaders},
+    ...restOpts,
   });
   const txt=await r.text();
   return txt?JSON.parse(txt):null;
