@@ -448,7 +448,7 @@ export default function App(){
   // 종목 목록: localStorage 캐시 → /api/corplist → FALLBACK
   useEffect(()=>{
     try{const raw=localStorage.getItem("sq_corplist");if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<86400000&&data?.length>100){setStockList(data);return;}}}catch{}
-    fetch("/corplist.json").then(r=>r.json()).then(data=>{
+    fetch("/api/corplist").then(r=>r.json()).then(data=>{
       if(data?.length>100){setStockList(data);try{localStorage.setItem("sq_corplist",JSON.stringify({data,ts:Date.now()}));}catch{}}
     }).catch(()=>{});
   },[]);
@@ -1023,12 +1023,12 @@ export default function App(){
               const hasPriceZone=re.gap!==null;
               const hasFin=hasFinData;
 
-              // 데이터가 하나도 없으면 업로드 안내
-              if(!hasPriceZone&&!hasFin){return(
+              // 재무 데이터 없으면 업로드 안내
+              if(!hasFin){return(
                 <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 16px",marginBottom:12}}>
                   <div style={{color:C.muted,fontSize:10,letterSpacing:"0.1em",marginBottom:6}}>🔍 SEQUOIA 판독</div>
                   <div style={{color:C.muted,fontSize:12,textAlign:"center",padding:"8px 0",lineHeight:1.8}}>
-                    📂 엑셀 재무자료 업로드 후<br/>자동 판독이 시작됩니다.
+                    📂 재무 데이터를 업로드해야<br/>판독을 볼 수 있습니다.
                   </div>
                 </div>
               );}
