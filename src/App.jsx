@@ -41,7 +41,7 @@ const sbFetch=async(path,opts={})=>{
   return txt?JSON.parse(txt):null;
 };
 const sbGetStocks=()=>sbFetch("stocks?select=*&order=name");
-const sbUpsertStock=(s)=>sbFetch("stocks",{method:"POST",
+const sbUpsertStock=(s)=>sbFetch("stocks?on_conflict=ticker",{method:"POST",
   headers:{"Prefer":"resolution=merge-duplicates,return=representation"},
   body:JSON.stringify({ticker:s.ticker,name:s.name,ann_data:s.annData||[],qtr_data:s.qtrData||[],div_data:s.divData||[],updated_at:new Date().toISOString()}),
 });
