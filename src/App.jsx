@@ -661,12 +661,10 @@ export default function App(){
       {/* ── 상단 타이틀 바 */}
       <div style={{background:`linear-gradient(135deg,#040C1A,#071428)`,borderBottom:`1px solid ${C.border}`,
         padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
           <span style={{fontSize:16}}>🌲</span>
-          <div>
-            <div style={{color:C.gold,fontSize:13,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.12em",lineHeight:1.1}}>SEQUOIA QUANTUM</div>
-            <div style={{color:C.muted,fontSize:8,fontFamily:"monospace",letterSpacing:"0.22em",marginTop:1}}>ANALYSIS SYSTEM</div>
-          </div>
+          <span style={{color:C.gold,fontSize:13,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.12em"}}>SEQUOIA QUANTUM</span>
+          <span style={{color:C.muted,fontSize:9,fontFamily:"monospace",letterSpacing:"0.18em"}}>ANALYSIS SYSTEM</span>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
@@ -677,7 +675,7 @@ export default function App(){
       {/* ── 헤더 */}
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,
         padding:"8px 12px",display:"flex",alignItems:"center",gap:8,position:"sticky",top:0,zIndex:100}}>
-        <div style={{color:C.gold,fontSize:15,fontWeight:900,fontFamily:"monospace",flexShrink:0}}>🌲</div>
+
         <div style={{position:"relative",flex:1,minWidth:0}}>
           <select value={activeIdx} onChange={e=>{setActiveIdx(+e.target.value);setTab("overview");}}
             style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.blue}`,
@@ -1013,7 +1011,7 @@ export default function App(){
                   </CW>
                   {/* 수정 3: 현금흐름 — 막대 4개 + 0선 점선 */}
                   {(()=>{const {unit:uc,scale:sc}=autoUnit(data,["fcf","cfo","cfi","cff"]);const dc=scaleData(data,["fcf","cfo","cfi","cff"],sc);return(<>
-                  <ST accent={C.cyan} right={`FCF막대(좌)·CF꺾은선(우) ${uc}원`}>현금흐름</ST>
+                  <ST accent={C.cyan} >현금흐름</ST>
                   <CW h={230}>
                     <ComposedChart data={dc} margin={{top:4,right:52,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
