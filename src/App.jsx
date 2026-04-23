@@ -48,54 +48,27 @@ const sbDeleteStock=(ticker)=>sbFetch(`stocks?ticker=eq.${ticker}`,{method:"DELE
 const rowToStock=(r)=>({ticker:r.ticker,name:r.name,annData:r.ann_data||[],qtrData:r.qtr_data||[],divData:r.div_data||[]});
 
 // ══════════════════════════════════════════════════════════════
-// 2. Yahoo Finance — 수정 2: 지수 심볼 인코딩 문제 해결
+// 2. 주가: 키움 REST API 서버리스 중계 + localStorage 캐시
 // ══════════════════════════════════════════════════════════════
-const PROXY="https://api.allorigins.win/raw?url=";
+const PRICE_CACHE_TTL=60*60*1000;
 
-
-const fetchYahoo = async (symbol) => {
-  try {
-    // ^ 를 %5E 로 미리 치환해서 이중인코딩 방지
-    const safe = symbol.replace(/\^/g, "%5E");
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${safe}?interval=1mo&range=10y`;
-    const r = await fetch(PROXY + encodeURIComponent(url));
-    const d = await r.json();
-    const chart = d?.chart?.result?.[0];
-    if (!chart) return null;
-
-    // 1. 여기서 ts는 타임스탬프 '배열'입니다.
-    const ts = chart.timestamp || [], q = chart.indicators.quote[0];
-    
-    const monthly = ts.map((t, i) => {
-      const dt = new Date(t * 1000);
-      return {
-        ts: t,
-        label: `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}`,
-        year: dt.getFullYear(),
-        month: dt.getMonth() + 1,
-        price: Math.round(q.close[i] || 0),
-        open: Math.round(q.open[i] || 0),
-        high: Math.round(q.high[i] || 0),
-        low: Math.round(q.low[i] || 0),
-        volume: q.volume[i] || 0
-      };
-    }).filter(d => d.price > 0);
-
-    const cur = Math.round(chart.meta?.regularMarketPrice || q.close[q.close.length - 1] || 0);
-    const prv = Math.round(chart.meta?.chartPreviousClose || 0);
-
-    // 2. [수정됨] 변수 이름을 marketTs로 변경하여 중복 선언을 방지합니다.
-    const marketTs = chart.meta?.regularMarketTime; 
-    
-    // 3. [수정됨] 아래 변수명도 marketTs로 맞춰줍니다.
-    const priceDate = marketTs ? new Date(marketTs * 1000) : new Date(monthly[monthly.length - 1]?.ts * 1000 || Date.now());
-    
-    const priceDateStr = `${priceDate.getFullYear()}.${String(priceDate.getMonth() + 1).padStart(2, "0")}.${String(priceDate.getDate()).padStart(2, "0")} (월봉 기준)`;
-    const chg = cur - prv;
-    const chgPct = prv > 100 ? +((chg / prv) * 100).toFixed(2) : null;
-
-    return { monthly, currentPrice: cur, prevClose: prv, change: chg, changePct: chgPct, priceDateStr };
-  } catch {
+const fetchKiwoom=async(ticker)=>{
+  try{
+    const raw=localStorage.getItem(`sq_price_${ticker}`);
+    if(raw){
+      const{data,ts}=JSON.parse(raw);
+      if(Date.now()-ts<PRICE_CACHE_TTL&&data?.monthly?.length)return data;
+    }
+  }catch{}
+  try{
+    const res=await fetch(`/api/price?ticker=${ticker}`);
+    if(!res.ok)throw new Error(`price API ${res.status}`);
+    const data=await res.json();
+    if(!data?.monthly?.length)return null;
+    try{localStorage.setItem(`sq_price_${ticker}`,JSON.stringify({data,ts:Date.now()}));}catch{}
+    return data;
+  }catch(e){
+    console.warn("[fetchKiwoom] 실패:",e.message);
     return null;
   }
 };
@@ -272,25 +245,7 @@ const parseExcel=(file)=>new Promise((resolve,reject)=>{
 // ══════════════════════════════════════════════════════════════
 // 6. 종목 목록
 // ══════════════════════════════════════════════════════════════
-// ── KRX 전체 종목 동적 로드 (앱 시작 시 1회)
-const KRX_PROXY = "https://api.allorigins.win/raw?url=";
-const KRX_URL   = "http://data.krx.co.kr/comm/bldAttendant/getJsonData.cmd";
-
-const fetchKRXMarket = async (mktId, market) => {
-  try {
-    const body = `bld=dbms/MDC/STAT/standard/MDCSTAT01901&mktId=${mktId}&share=1&csvxls_isNo=false`;
-    const target = `${KRX_URL}?${body}`;
-    const r = await fetch(KRX_PROXY + encodeURIComponent(target));
-    const d = await r.json();
-    return (d?.OutBlock_1 || []).map(item => ({
-      name:   item.ISU_ABBRV?.trim() || "",
-      ticker: item.ISU_SRT_CD?.trim() || "",
-      market,
-    })).filter(s => s.name && s.ticker && /^\d{6}$/.test(s.ticker));
-  } catch { return []; }
-};
-
-// 폴백용 기본 목록 (KRX 실패 시)
+// 폴백용 기본 목록 (/api/corplist 실패 시)
 const FALLBACK_STOCKS = [
   {name:"삼성전자",ticker:"005930",market:"KS"},{name:"SK하이닉스",ticker:"000660",market:"KS"},
   {name:"LG에너지솔루션",ticker:"373220",market:"KS"},{name:"삼성바이오로직스",ticker:"207940",market:"KS"},
@@ -427,35 +382,43 @@ export default function App(){
   const searchRef=useRef();
   const RANGES=[{label:"10년",months:120},{label:"5년",months:60},{label:"3년",months:36},{label:"1년",months:12}];
 
-  // Supabase 로드
+  // Supabase 로드 + localStorage 이중 보장
   useEffect(()=>{
     setDbLoading(true);
+    const loadFromLocal=()=>{
+      try{const s=localStorage.getItem("sequoia_v3");if(s){const p=JSON.parse(s);if(p?.length){setStocks(p);return true;}}}catch{}
+      return false;
+    };
     sbGetStocks().then(rows=>{
-      if(rows?.length)setStocks(rows.map(rowToStock));
-    }).catch(()=>{
-      try{const s=localStorage.getItem("sequoia_v2");if(s){const p=JSON.parse(s);if(p?.length)setStocks(p);}}catch{}
-    }).finally(()=>setDbLoading(false));
+      if(rows?.length){
+        const mapped=rows.map(rowToStock);
+        setStocks(mapped);
+        try{localStorage.setItem("sequoia_v3",JSON.stringify(mapped));}catch{}
+      }else{loadFromLocal();}
+    }).catch(()=>{loadFromLocal();}).finally(()=>setDbLoading(false));
   },[]);
 
-  // KRX 전체 종목 로드 (백그라운드)
+  // 종목 목록 로드: localStorage 캐시 → /api/corplist → FALLBACK
   useEffect(()=>{
-    Promise.all([
-      fetchKRXMarket("STK","KS"),
-      fetchKRXMarket("KSQ","KQ"),
-    ]).then(([kospi,kosdaq])=>{
-      const all=[...kospi,...kosdaq];
-      if(all.length>100) setStockList(all);
+    try{
+      const raw=localStorage.getItem("sq_corplist");
+      if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<86400000&&data?.length>100){setStockList(data);return;}}
+    }catch{}
+    fetch("/api/corplist").then(r=>r.json()).then(data=>{
+      if(data?.length>100){
+        setStockList(data);
+        try{localStorage.setItem("sq_corplist",JSON.stringify({data,ts:Date.now()}));}catch{}
+      }
     }).catch(()=>{});
   },[]);
 
   const co=stocks[activeIdx]||null;
 
-  // 종목 주가 로드
+  // 종목 주가 로드 (키움 REST API)
   useEffect(()=>{
     if(!co?.ticker)return;
     setPriceLoading(true);setMonthly([]);setPriceInfo(null);
-    const market=stockList.find(s=>s.ticker===co.ticker)?.market||"KQ";
-    fetchYahoo(`${co.ticker}.${market}`).then(res=>{
+    fetchKiwoom(co.ticker).then(res=>{
       if(res?.monthly?.length){setMonthly(res.monthly);setPriceInfo(res);}
       setPriceLoading(false);
     });
@@ -579,10 +542,13 @@ export default function App(){
     setUploading(true);
     try{
       const results=await Promise.all(files.map(parseExcel));
-      for(const res of results)await sbUpsertStock(res).catch(()=>{});
+      await Promise.allSettled(results.map(res=>sbUpsertStock(res)));
       const rows=await sbGetStocks().catch(()=>null);
-      if(rows?.length)setStocks(rows.map(rowToStock));
-      else setStocks(prev=>{const m=[...prev];results.forEach(res=>{const i=m.findIndex(s=>s.ticker===res.ticker);if(i>=0)m[i]=res;else m.push(res);});return m;});
+      let next;
+      if(rows?.length){next=rows.map(rowToStock);}
+      else{next=[...stocks];results.forEach(res=>{const i=next.findIndex(s=>s.ticker===res.ticker);if(i>=0)next[i]=res;else next.push(res);});}
+      setStocks(next);
+      try{localStorage.setItem("sequoia_v3",JSON.stringify(next));}catch{}
     }catch(err){alert("업로드 실패: "+err.message);}
     setUploading(false);e.target.value="";
   };
@@ -590,7 +556,9 @@ export default function App(){
   const removeStock=async(idx)=>{
     const s=stocks[idx];
     if(s?.ticker)await sbDeleteStock(s.ticker).catch(()=>{});
-    setStocks(prev=>prev.filter((_,i)=>i!==idx));
+    const next=stocks.filter((_,i)=>i!==idx);
+    setStocks(next);
+    try{localStorage.setItem("sequoia_v3",JSON.stringify(next));}catch{}
     setActiveIdx(0);
   };
 
@@ -1329,7 +1297,7 @@ export default function App(){
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
           <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.1</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-            <Tag color={C.blue}  size={8}>주가:Yahoo</Tag>
+            <Tag color={C.blue}  size={8}>주가:키움REST</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
             <Tag color={C.purple} size={8}>DB:Supabase</Tag>
             <Tag color={C.gold}  size={8}>투자참고용</Tag>
