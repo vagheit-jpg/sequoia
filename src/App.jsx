@@ -124,25 +124,30 @@ const calcPositionBands=(monthly)=>{
 const buildBandsFromQtr=(monthly,qtrData,annData)=>{
   if(!monthly.length)return monthly;
   const epsMap={},bpsMap={};
-  (annData||[]).forEach(r=>{epsMap[`${r.year}.12`]=r.eps;bpsMap[`${r.year}.12`]=r.bps;});
-  (qtrData||[]).forEach(r=>{
-    if(r.eps){const mo=String(r.month||((r.quarter||1)*3)).padStart(2,"0");epsMap[`${r.year}.${mo}`]=r.eps;}
-    if(r.bps){const mo=String(r.month||((r.quarter||1)*3)).padStart(2,"0");bpsMap[`${r.year}.${mo}`]=r.bps;}
+  // 연간 데이터만 사용 — 분기 EPS는 미완성값이 밴드를 왜곡시킴
+  (annData||[]).forEach(r=>{
+    if(r.eps!=null)epsMap[`${r.year}.12`]=r.eps;
+    if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;
   });
   const interp=(label,map)=>{
     const keys=Object.keys(map).sort();if(!keys.length)return 0;
     const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
     let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
     let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
-    if(!k0)k0=keys[0];if(!k1)return map[k0]||0;
+    if(!k0)k0=keys[0];
+    // k1 없으면 마지막 값 그대로 유지 (최신 연도 이후 구간)
+    if(!k1)return map[k0]||0;
     const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
     const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
     return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
   return monthly.map(d=>({...d,
-    perLo:Math.round(interp(d.label,epsMap)*7),perHi:Math.round(interp(d.label,epsMap)*20),
-    perMid:Math.round(interp(d.label,epsMap)*13),pbrLo:Math.round(interp(d.label,bpsMap)*1.0),
-    pbrHi:Math.round(interp(d.label,bpsMap)*3.5),
+    perLo :Math.round(interp(d.label,epsMap)*7),
+    perMid:Math.round(interp(d.label,epsMap)*13),
+    perHi :Math.round(interp(d.label,epsMap)*20),
+    per30 :Math.round(interp(d.label,epsMap)*30),
+    pbrLo :Math.round(interp(d.label,bpsMap)*1.0),
+    pbrHi :Math.round(interp(d.label,bpsMap)*3.5),
   }));
 };
 
@@ -1267,16 +1272,17 @@ export default function App(){
           <div style={{animation:"fadeIn 0.3s ease"}}>
             {co?.annData?.length||co?.qtrData?.length?(
               <>
-                <ST accent={C.purple}>PER 밴드 (7배·13배·20배)</ST>
+                <ST accent={C.purple}>PER 밴드 (7배·13배·20배·30배)</ST>
                 <CW h={270}>
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <Area dataKey="perHi" name="PER 20배" stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1} dot={false}/>
+                    <Area dataKey="per30" name="PER 30배" stroke={C.pink}   fill={`${C.pink}08`}  strokeWidth={1} dot={false}/>
+                    <Area dataKey="perHi" name="PER 20배" stroke={C.red}    fill={`${C.red}10`}   strokeWidth={1} dot={false}/>
                     <Area dataKey="perMid" name="PER 13배" stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1} dot={false}/>
-                    <Area dataKey="perLo" name="PER 7배"  stroke={C.green} fill={`${C.green}10`} strokeWidth={1} dot={false}/>
-                    <Line dataKey="price" name="주가"     stroke={C.blueL} strokeWidth={2.5}     dot={false}/>
+                    <Area dataKey="perLo" name="PER 7배"  stroke={C.green}  fill={`${C.green}10`} strokeWidth={1} dot={false}/>
+                    <Line dataKey="price" name="주가"      stroke={C.blueL}  strokeWidth={2.5}    dot={false}/>
                   </ComposedChart>
                 </CW>
                 <ST accent={C.cyan}>PBR 밴드 (1배·3.5배)</ST>
@@ -1319,7 +1325,7 @@ export default function App(){
                     </ComposedChart>
                   </CW></>);})()}
                   {/* 영업이익률·순이익률(막대·좌축) + 성장률 YoY(꺾은선·우축) */}
-                  <ST accent={C.gold} right="막대:이익률% (좌) / 선:YoY% (우)">이익률 & 성장률</ST>
+                  <ST accent={C.gold}>이익률 & 성장률</ST>
                   <CW h={220}>
                     {(()=>{
                       const merged=growthData.map(r=>{
@@ -1374,7 +1380,7 @@ export default function App(){
                   {/* EPS · FCF · 주가 동행 */}
                   {epsPriceData.length>=2&&(
                     <>
-                      <ST accent={C.purple} right="EPS/FCF 좌축 · 주가 우축">EPS · FCF · 주가 동행 추이</ST>
+                      <ST accent={C.purple}>EPS · FCF · 주가 동행 추이</ST>
                       <CW h={240}>
                         <ComposedChart data={epsPriceData} margin={{top:4,right:4,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -1471,94 +1477,6 @@ export default function App(){
               </ComposedChart>
             </CW>
 
-            {/* 메인 위치 밴드 차트 */}
-            <ST accent={C.gold} right="60MA 배수 기준 위치 밴드">가격 위치 밴드</ST>
-            <CW h={310}>
-              <ComposedChart data={withPositionBands} margin={{top:8,right:40,left:0,bottom:8}}>
-                <defs>
-                  {/* 초침체 음영 그라디언트 */}
-                  <linearGradient id="floorShade" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.blue} stopOpacity={0.0}/>
-                    <stop offset="100%" stopColor={C.blue} stopOpacity={0.18}/>
-                  </linearGradient>
-                  {/* 초과열 음영 그라디언트 */}
-                  <linearGradient id="peakShade" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor={C.purple} stopOpacity={0.18}/>
-                    <stop offset="100%" stopColor={C.purple} stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                <XAxis {...xp()}/>
-                <YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
-                <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
-
-                <Area dataKey="bKnee"  name="L ×0.8"
-                  stroke={C.blue} strokeWidth={2} strokeDasharray="6 3"
-                  fill="url(#floorShade)" dot={false} legendType="line"
-                  label={false}
-                />
-                <Area dataKey="bFloor" name="VL ×0.6"
-                  stroke="#3B7DD8" strokeWidth={1} strokeDasharray="3 4"
-                  fill={`${C.blue}00`} dot={false} legendType="none"
-                />
-
-                {/* ── 기준선 (60MA) */}
-                <Line dataKey="bBase" name="60MA"
-                  stroke={C.goldL} strokeWidth={2.5}
-                  dot={false} legendType="line"
-                />
-
-                {/* ── 어깨선 */}
-                <Line dataKey="bShoulder" name="H ×1.5"
-                  stroke={C.orange} strokeWidth={2} strokeDasharray="8 3"
-                  dot={false}
-                />
-
-                {/* ── 상투선 */}
-                <Line dataKey="bTop" name="VH ×2.0"
-                  stroke={C.red} strokeWidth={2} strokeDasharray="5 3"
-                  dot={false}
-                />
-
-                {/* ── 초과열 음영: bTop ~ bPeak */}
-                <Area dataKey="bPeak" name="VVH ×2.5"
-                  stroke={C.purple} strokeWidth={1.5} strokeDasharray="3 4"
-                  fill="url(#peakShade)" dot={false} legendType="line"
-                />
-
-                {/* ── 주가 (맨 위에 렌더, 가장 두껍게) */}
-                <Line dataKey="price" name="주가"
-                  stroke={C.blueL} strokeWidth={3}
-                  dot={false} legendType="line"
-                />
-
-                {/* ── 우측 끝 라벨 (ReferenceDot 대신 마지막 데이터 포인트 활용) */}
-                {(()=>{
-                  const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
-                  if(!last)return null;
-                  return[
-                    {key:"bPeak",    color:C.purple, label:"VVH"},
-                    {key:"bTop",     color:C.red,    label:"VH"},
-                    {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:"60MA"},
-                    {key:"bKnee",    color:C.blue,   label:"L"},
-                    {key:"bFloor",   color:"#3B7DD8",label:"VL"},
-                  ].map(b=>(
-                    <ReferenceDot key={b.key}
-                      x={last.label} y={last[b.key]} r={0}
-                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}
-                    />
-                  ));
-                })()}
-
-                {/* ── 매수/매도 신호 */}
-                {signalPts.map((pt,i)=>(
-                  <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
-                    label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:16,fontWeight:900}}/>
-                ))}
-              </ComposedChart>
-            </CW>
 
             {/* 현재 위치 상태 카드 */}
             {lastGap!==null&&(()=>{
