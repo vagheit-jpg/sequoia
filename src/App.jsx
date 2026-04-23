@@ -1959,12 +1959,20 @@ export default function App(){
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
         html,body{overflow-x:hidden;background:#040710;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-        ::-webkit-scrollbar{width:6px;height:6px;}
-        ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:${C.border};border-radius:6px;}
-        ::-webkit-scrollbar-thumb:hover{background:${C.muted};}
-        *{scrollbar-width:thin;scrollbar-color:${C.border} transparent;}
         *{-webkit-tap-highlight-color:transparent;}
+        /* PC (마우스 환경): 슬림 스크롤바 표시 */
+        @media (hover:hover) and (pointer:fine){
+          ::-webkit-scrollbar{width:6px;height:6px;}
+          ::-webkit-scrollbar-track{background:transparent;}
+          ::-webkit-scrollbar-thumb{background:${C.border};border-radius:6px;}
+          ::-webkit-scrollbar-thumb:hover{background:${C.muted};}
+          *{scrollbar-width:thin;scrollbar-color:${C.border} transparent;}
+        }
+        /* 모바일·터치 환경: 스크롤바 완전 숨김 */
+        @media (hover:none),(pointer:coarse){
+          ::-webkit-scrollbar{display:none !important;}
+          *{scrollbar-width:none !important;}
+        }
       `}</style>
     </div>
   );
