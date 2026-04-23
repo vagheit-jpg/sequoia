@@ -1011,19 +1011,18 @@ export default function App(){
                   </CW>
                   {/* 수정 3: 현금흐름 — 막대 4개 + 0선 점선 */}
                   {(()=>{const {unit:uc,scale:sc}=autoUnit(data,["fcf","cfo","cfi","cff"]);const dc=scaleData(data,["fcf","cfo","cfi","cff"],sc);return(<>
-                  <ST accent={C.cyan} >현금흐름</ST>
+                  <ST accent={C.cyan} right={uc+"원"}>현금흐름</ST>
                   <CW h={230}>
-                    <ComposedChart data={dc} margin={{top:4,right:52,left:0,bottom:8}}>
+                    <ComposedChart data={dc} margin={{top:4,right:8,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                      <YAxis yAxisId="left" {...yp(uc,48)}/>
-                      <YAxis yAxisId="right" orientation="right" {...yp(uc,52)}/>
+                      <YAxis {...yp(uc,52)}/>
                       <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <ReferenceLine yAxisId="left" y={0} stroke={C.muted} strokeDasharray="4 3"/>
-                      <Bar  yAxisId="left"  dataKey="fcf" name={`FCF(${uc})`}  fill={C.gold}   opacity={0.9} maxBarSize={20} radius={[3,3,0,0]}/>
-                      <Line yAxisId="right" dataKey="cfo" name="영업CF"   stroke={C.teal}   strokeWidth={2} dot={{r:3}} connectNulls/>
-                      <Line yAxisId="right" dataKey="cfi" name="투자CF"   stroke={C.red}    strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="4 2"/>
-                      <Line yAxisId="right" dataKey="cff" name="재무CF"   stroke={C.purple} strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="2 2"/>
+                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
+                      <Bar  dataKey="fcf" name={`FCF(${uc})`} fill={C.gold}   opacity={0.9} maxBarSize={20} radius={[3,3,0,0]}/>
+                      <Line dataKey="cfo" name="영업CF" stroke={C.teal}   strokeWidth={2} dot={{r:3}} connectNulls/>
+                      <Line dataKey="cfi" name="투자CF" stroke={C.red}    strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="4 2"/>
+                      <Line dataKey="cff" name="재무CF" stroke={C.purple} strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="2 2"/>
                     </ComposedChart>
                   </CW></>);})()}
                   {/* EPS · FCF · 주가 동행 */}
