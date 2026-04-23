@@ -30,7 +30,7 @@ let C=DARK;
 // 1. Supabase
 // ══════════════════════════════════════════════════════════════
 const SB_URL="https://ozbosdkdwechddpdajgy.supabase.co";
-const SB_KEY="sb_publishable_m6hqPF2sFbHJDlm5iYtjfQ_WhXBBQSV";
+const SB_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Ym9zZGtkd2VjaGRkcGRhamd5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY4NDUxOTIsImV4cCI6MjA5MjQyMTE5Mn0.ZtlROqDAeDOMdkj7nXMB9wsJz_m2fe-PLhB8BL-yByk";
 const sbFetch=async(path,opts={})=>{
   const r=await fetch(`${SB_URL}/rest/v1/${path}`,{
     headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`,"Content-Type":"application/json","Prefer":"return=representation",...opts.headers},
