@@ -103,15 +103,23 @@ const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
   sl.forEach((s,j)=>{if(j===0)return;const mfr=s.price*s.volume;if(s.price>sl[j-1].price)pos+=mfr;else neg+=mfr;});
   return{...d,mfi:+(neg===0?100:100-(100/(1+pos/neg))).toFixed(1)};
 });
-const calcGBands=(monthly)=>monthly.map((d,i)=>{
-  const g1=i>=8?Math.round(monthly.slice(Math.max(0,i-8),i+1).reduce((s,x)=>s+x.price,0)/Math.min(9,i+1)):null;
-  const b60=i>=59?monthly.slice(i-59,i+1).reduce((s,x)=>s+x.price,0)/60:null;
-  const g2=b60?Math.round(b60*1.10):null,g3=b60?Math.round(b60*1.25):null;
-  let g4=null;
-  if(i>=19){const sl=monthly.slice(i-19,i+1),mean=sl.reduce((s,x)=>s+x.price,0)/20;
-    g4=Math.round(mean+2*Math.sqrt(sl.reduce((s,x)=>s+(x.price-mean)**2,0)/20));}
-  return{...d,g1,g2,g3,g4};
-});
+// 가격 위치 밴드 — ma60 배수 기반 통일
+// 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
+const calcPositionBands=(monthly)=>{
+  const N=60;
+  return monthly.map((d,i)=>{
+    if(i<N-1)return{...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null};
+    const ma=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
+    return{...d,
+      bFloor   :Math.round(ma*0.6),
+      bKnee    :Math.round(ma*0.8),
+      bBase    :Math.round(ma*1.0),
+      bShoulder:Math.round(ma*1.5),
+      bTop     :Math.round(ma*2.0),
+      bPeak    :Math.round(ma*2.5),
+    };
+  });
+};
 
 const buildBandsFromQtr=(monthly,qtrData,annData)=>{
   if(!monthly.length)return monthly;
@@ -481,7 +489,7 @@ export default function App(){
 
   const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
   const withBands =useMemo(()=>buildBandsFromQtr(withMA60,co?.qtrData,co?.annData),[withMA60,co?.qtrData,co?.annData]);
-  const withG     =useMemo(()=>calcGBands(displayMonthly),[displayMonthly]);
+  const withPositionBands=useMemo(()=>calcPositionBands(displayMonthly),[displayMonthly]);
   const withRSI   =useMemo(()=>calcRSI(displayMonthly),[displayMonthly]);
   const withMACD  =useMemo(()=>calcMACD(displayMonthly),[displayMonthly]);
   const withOBV   =useMemo(()=>calcOBV(displayMonthly),[displayMonthly]);
@@ -599,40 +607,181 @@ export default function App(){
     setActiveIdx(0);
   };
 
-  const masterJudge=useMemo(()=>{
-    if(!co||!price)return[];
-    const last=co.annData?.slice(-1)?.[0]||{},prev=co.annData?.slice(-2,-1)?.[0]||{};
-    const opm=last.opm||0,prevOpm=prev.opm||0,rev=last.rev||0,prevRev=prev.rev||0;
-    const revGrowth=prevRev?Math.round((rev-prevRev)/prevRev*100):0;
-    const eps=last.eps||0,prevEps=prev.eps||0,epsGrowth=prevEps?Math.round((eps-prevEps)/prevEps*100):0;
-    const bps=last.bps||0,fcf=last.fcf||0,debt=last.debt||0;
-    const mktCap=price*(last.shares||0)/1e8,netCash=Math.round((last.assets||0)-(last.liab||0));
-    const roic=Math.round(opm*(rev/(last.assets||1)));
-    const avgRoe3=(co.annData?.slice(-3)||[]).reduce((s,r)=>s+(r.roe||0),0)/3;
-    const ttmEps=(co.qtrData?.slice(-4)||[]).reduce((s,r)=>s+(r.eps||0),0)||eps;
-    const ttmPer=ttmEps?Math.round(price/ttmEps*10)/10:per;
-    const peg=epsGrowth>0?Math.round(ttmPer/epsGrowth*10)/10:99;
-    const divYield=co.divData?.slice(-1)?.[0]?.divYield||0;
-    const neffRatio=ttmPer>0?Math.round((divYield+epsGrowth)/ttmPer*10)/10:0;
-    const j=(good,bad,reason)=>({verdict:good?"추천":bad?"비추천":"중립",color:good?C.green:bad?C.red:C.gold,icon:good?"✅":bad?"❌":"⚖️",reason});
-    return[
-      {ko:"벤저민 그레이엄",style:"안전마진·자산가치",calc:j(pbr<1.5&&ttmPer<15&&debt<50,pbr>2.5||ttmPer>25,`PBR ${pbr}배 | PER ${ttmPer}배 | 부채 ${debt}%`),detail:[{k:"PBR",v:`${pbr}배`},{k:"PER",v:`${ttmPer}배`},{k:"부채",v:`${debt}%`}]},
-      {ko:"워런 버핏",style:"ROE·경제적 해자",calc:j(avgRoe3>=15&&debt<50&&opm>=15,avgRoe3<10||opm<5,`3년ROE ${avgRoe3.toFixed(1)}% | OPM ${opm}%`),detail:[{k:"3년ROE",v:`${avgRoe3.toFixed(1)}%`},{k:"OPM",v:`${opm}%`},{k:"부채",v:`${debt}%`}]},
-      {ko:"피터 린치",style:"PEG·성장가치",calc:j(peg!==99&&peg<1.5,peg>2.5||epsGrowth<0,`PEG ${peg===99?"N/A":peg} | EPS성장 ${epsGrowth}%`),detail:[{k:"PEG",v:peg===99?"N/A":peg},{k:"PER",v:`${ttmPer}배`},{k:"EPS성장",v:`${epsGrowth}%`}]},
-      {ko:"필립 피셔",style:"탁월한 경영·성장",calc:j(opm>=15&&opm>prevOpm&&revGrowth>10,opm<8||revGrowth<0,`OPM ${opm}% | 매출성장 ${revGrowth}%`),detail:[{k:"OPM",v:`${opm}%`},{k:"전년OPM",v:`${prevOpm}%`},{k:"매출YoY",v:`${revGrowth}%`}]},
-      {ko:"찰리 멍거",style:"ROIC·독점적 해자",calc:j(roic>=15&&debt<30,roic<8||debt>80,`ROIC ${roic}% | 부채 ${debt}%`),detail:[{k:"추정ROIC",v:`${roic}%`},{k:"부채비율",v:`${debt}%`},{k:"OPM",v:`${opm}%`}]},
-      {ko:"모니시 파브라이",style:"하방제한·턴어라운드",calc:j(pbr<1.5&&fcf>0&&revGrowth>0,pbr>3.0||fcf<0,`PBR ${pbr}배 | FCF ${fcf}억`),detail:[{k:"PBR",v:`${pbr}배`},{k:"FCF",v:`${fcf}억`},{k:"매출YoY",v:`${revGrowth}%`}]},
-      {ko:"존 네프",style:"저PER·배당+성장",calc:j(ttmPer<15&&neffRatio>=2,ttmPer>20||neffRatio<1,`Neff ${neffRatio} | PER ${ttmPer}배`),detail:[{k:"PER",v:`${ttmPer}배`},{k:"Neff Ratio",v:neffRatio},{k:"EPS성장",v:`${epsGrowth}%`}]},
-      {ko:"세스 클라만",style:"극단적 안전마진",calc:j(netCash>mktCap*0.5||pbr<1.0,pbr>2.5&&netCash<mktCap*0.2,`순현금 ${netCash}억 | PBR ${pbr}배`),detail:[{k:"추정순현금",v:`${netCash}억`},{k:"시총",v:`${Math.round(mktCap)}억`},{k:"PBR",v:`${pbr}배`}]},
-    ];
-  },[co,price,per,pbr,ma60val,lastAnn,priceInfo]);
+  // ══════════════════════════════════════════════════════════════
+  // SEQUOIA 판독 엔진 (8거장 대체 — 가격위치 × 펀더멘털 조합)
+  // ══════════════════════════════════════════════════════════════
+  const readingEngine=useMemo(()=>{
+    // ── 기본값: 데이터 없을 때 최소 구조 반환
+    const noData={ready:false};
+    if(!co)return noData;
+
+    // ── ① 가격 위치 (ma60 이격도)
+    const gap=lastGap;
+    let priceZone="—",priceZoneEn="none",priceZoneColor=C.muted;
+    if(gap!==null){
+      if(gap<=-20){priceZone="무릎권";priceZoneEn="knee";priceZoneColor=C.blue;}
+      else if(gap<0){priceZone="허벅지";priceZoneEn="thigh";priceZoneColor=C.teal;}
+      else if(gap<100){priceZone="중립확장";priceZoneEn="neutral";priceZoneColor=C.green;}
+      else if(gap<200){priceZone="어깨";priceZoneEn="shoulder";priceZoneColor=C.orange;}
+      else if(gap<300){priceZone="상투";priceZoneEn="top";priceZoneColor=C.red;}
+      else{priceZone="초상투";priceZoneEn="peak";priceZoneColor=C.purple;}
+    }
+
+    // ── ② EPS 추세 (최근 3년)
+    const ann3=(co.annData||[]).slice(-3);
+    let epsTrend="정체",epsTrendIcon="→",epsTrendColor=C.muted;
+    if(ann3.length>=2){
+      const ups=ann3.filter((r,i)=>i>0&&r.eps!=null&&ann3[i-1].eps!=null&&r.eps>ann3[i-1].eps).length;
+      const dns=ann3.filter((r,i)=>i>0&&r.eps!=null&&ann3[i-1].eps!=null&&r.eps<ann3[i-1].eps).length;
+      if(ups>=Math.min(2,ann3.length-1)){epsTrend="개선";epsTrendIcon="↑";epsTrendColor=C.green;}
+      else if(dns>=Math.min(2,ann3.length-1)){epsTrend="악화";epsTrendIcon="↓";epsTrendColor=C.red;}
+    }
+
+    // ── ③ FCF 추세 (최근 2년)
+    const ann2=(co.annData||[]).slice(-2);
+    let fcfTrend="확인불가",fcfTrendIcon="?",fcfTrendColor=C.muted;
+    if(ann2.length>=1){
+      const pos=ann2.filter(r=>r.fcf!=null&&r.fcf>0).length;
+      const neg=ann2.filter(r=>r.fcf!=null&&r.fcf<0).length;
+      if(pos===ann2.length){fcfTrend="흑자안정";fcfTrendIcon="↑";fcfTrendColor=C.green;}
+      else if(pos>0&&neg>0){fcfTrend="흑자전환";fcfTrendIcon="↗";fcfTrendColor=C.teal;}
+      else if(neg===ann2.length){fcfTrend="적자지속";fcfTrendIcon="↓";fcfTrendColor=C.red;}
+    }
+
+    // ── ④ 실적 모멘텀 (최근 opGrowth — annTimeline 기반)
+    const recentGrowth=annTimeline.slice(-2);
+    let momentum="정체",momentumColor=C.muted;
+    if(recentGrowth.length>=2){
+      const og=recentGrowth[1].op!=null&&recentGrowth[0].op!=null&&recentGrowth[0].op!==0
+        ?((recentGrowth[1].op-recentGrowth[0].op)/Math.abs(recentGrowth[0].op)*100):null;
+      if(og!=null){
+        if(og>=15){momentum="성장지속";momentumColor=C.green;}
+        else if(og>=0){momentum="둔화";momentumColor=C.gold;}
+        else{momentum="훼손";momentumColor=C.red;}
+      }
+    }
+
+    // ── ⑤ 수익성
+    const opm=lastAnn.opm||0,roe=lastAnn.roe||0;
+    let profitability="취약",profitabilityColor=C.red;
+    if(opm>=15&&roe>=15){profitability="우량";profitabilityColor=C.green;}
+    else if(opm>=8||roe>=10){profitability="보통";profitabilityColor=C.gold;}
+
+    // ── ⑥ 재무안정성
+    const debt=lastAnn.debt||0;
+    let debtLevel="주의",debtColor=C.red;
+    if(debt<50){debtLevel="안전";debtColor=C.green;}
+    else if(debt<=100){debtLevel="보통";debtColor=C.gold;}
+
+    // ── ⑦ 밸류에이션 (내재가치 대비)
+    const avg=dcfResults.avg||0;
+    let valuation="—",valuationColor=C.muted,valuationPct=null;
+    if(avg>0&&price>0){
+      valuationPct=Math.round((price/avg-1)*100);
+      if(price<avg*0.85){valuation="저평가";valuationColor=C.green;}
+      else if(price<=avg*1.15){valuation="적정";valuationColor=C.gold;}
+      else{valuation="고평가";valuationColor=C.red;}
+    }
+
+    // ── ⑧ 판독 매트릭스
+    let verdict="중립",verdictColor=C.muted,verdictIcon="⚪",reason="",interpretation="";
+    const fundGood=epsTrend==="개선"&&(fcfTrend==="흑자안정"||fcfTrend==="흑자전환");
+    const fundBad=epsTrend==="악화"||fcfTrend==="적자지속";
+    const momentumGood=momentum==="성장지속";
+    const momentumBad=momentum==="훼손";
+
+    if(priceZoneEn==="knee"){
+      if(fundGood){
+        verdict="핵심 관심 구간";verdictColor=C.blue;verdictIcon="🔵";
+        reason=`EPS ${epsTrendIcon}${epsTrend} + FCF ${fcfTrend}`;
+        interpretation="장기 저점권, 실적 개선 중 — 분할 매수 검토 구간";
+      } else if(fundBad){
+        verdict="가치함정 주의";verdictColor=C.red;verdictIcon="🔴";
+        reason=`EPS ${epsTrendIcon}${epsTrend} + FCF ${fcfTrend}`;
+        interpretation="저점처럼 보이나 펀더멘털 훼손 — 구조적 원인 확인 필요";
+      } else {
+        verdict="저점 대기 관망";verdictColor=C.muted;verdictIcon="⚪";
+        reason="가격 저점권, 실적 방향 불명확";
+        interpretation="추세 확인 후 진입 검토";
+      }
+    } else if(priceZoneEn==="thigh"){
+      if(profitability==="우량"&&momentumGood){
+        verdict="우량 진입 구간";verdictColor=C.green;verdictIcon="🟢";
+        reason=`OPM ${opm}% · ROE ${roe}% + 모멘텀 ${momentum}`;
+        interpretation="수익성 우량 + 가격 합리적 — 핵심 매수 구간";
+      } else {
+        verdict="관망";verdictColor=C.muted;verdictIcon="⚪";
+        reason="수익성 또는 모멘텀 미충족";
+        interpretation="수익성 개선 확인 후 재검토";
+      }
+    } else if(priceZoneEn==="neutral"){
+      if(momentumGood){
+        verdict="추세 동행 구간";verdictColor=C.green;verdictIcon="🟢";
+        reason=`실적 모멘텀 ${momentum} 지속`;
+        interpretation="실적이 주가를 견인 중 — 추세 유지 여부 모니터링";
+      } else if(momentumBad){
+        verdict="관망";verdictColor=C.muted;verdictIcon="⚪";
+        reason=`모멘텀 ${momentum}, 방향 재확인 필요`;
+        interpretation="실적 둔화 신호 — 다음 분기 확인 필요";
+      } else {
+        verdict="중립";verdictColor=C.muted;verdictIcon="⚪";
+        reason="가격·실적 모두 중립 구간";
+        interpretation="특이 신호 없음 — 관망 유지";
+      }
+    } else if(priceZoneEn==="shoulder"||priceZoneEn==="top"){
+      if(momentumGood&&profitability==="우량"){
+        verdict="재평가 가능 구간";verdictColor=C.purple;verdictIcon="🟣";
+        reason=`고가권이나 실적 ${momentum} + 수익성 ${profitability}`;
+        interpretation="실적이 밸류를 정당화 중 — 과열 vs 재평가 판단 필요";
+      } else if(momentumBad||fundBad){
+        verdict="차익 고려 구간";verdictColor=C.orange;verdictIcon="🟠";
+        reason=`고가권 + 모멘텀 ${momentum}`;
+        interpretation="가격 고점권에서 실적 둔화 — 비중 축소 검토";
+      } else {
+        verdict="경계 구간";verdictColor=C.orange;verdictIcon="🟠";
+        reason="고가권 진입, 실적 모니터링 강화 필요";
+        interpretation="추가 상승 여력 제한적 — 신규 진입 자제";
+      }
+    } else if(priceZoneEn==="peak"){
+      verdict="극단 과열 주의";verdictColor=C.red;verdictIcon="🔴";
+      reason="60MA 대비 +300% 초과 — 역사적 극단 과열";
+      interpretation="어떤 실적에도 리스크 극단적으로 높음";
+    } else {
+      verdict="데이터 대기";verdictColor=C.muted;verdictIcon="⚪";
+      reason="주가 데이터 로딩 중";
+      interpretation="주가 연동 후 판독 가능";
+    }
+
+    // ── TTM EPS
+    const ttmEps=(co.qtrData?.slice(-4)||[]).reduce((s,r)=>s+(r.eps||0),0)||(lastAnn.eps||0);
+    const ttmPer=ttmEps&&price?Math.round(price/ttmEps*10)/10:per;
+    const avgRoe3=ann3.reduce((s,r)=>s+(r.roe||0),0)/(ann3.length||1);
+
+    return{
+      ready:true,
+      // 가격
+      priceZone,priceZoneColor,gap,
+      // 펀더멘털
+      epsTrend,epsTrendIcon,epsTrendColor,
+      fcfTrend,fcfTrendIcon,fcfTrendColor,
+      momentum,momentumColor,
+      profitability,profitabilityColor,
+      debtLevel,debtColor,debt,
+      valuation,valuationColor,valuationPct,
+      // 수치
+      opm,roe,avgRoe3:+avgRoe3.toFixed(1),
+      ttmPer,pbr,
+      fcfVal:lastAnn.fcf||null,
+      // 판독
+      verdict,verdictColor,verdictIcon,reason,interpretation,
+    };
+  },[co,lastGap,lastAnn,dcfResults,price,per,pbr,annTimeline]);
 
   const TABS=[
     {id:"overview",label:"📊 종합"},{id:"price60",label:"📈 주가"},
     {id:"perbpr",label:"💹 PER/PBR"},{id:"financial",label:"💰 재무"},
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
-    {id:"masters",label:"👑 8거장"},
   ];
 
   if(dbLoading)return(
@@ -700,7 +849,8 @@ export default function App(){
 
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontSize:13,
-      fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
+      fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      overflowX:"hidden",WebkitOverflowScrolling:"touch"}}>
 
       {/* ── 상단 타이틀 바 */}
       <div style={{background:`linear-gradient(135deg,#040C1A,#071428)`,borderBottom:`1px solid ${C.border}`,
@@ -821,11 +971,13 @@ export default function App(){
             {k:"PBR",v:pbr?`${pbr}배`:"—",c:C.gold},
             {k:"이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
             {k:"신호",v:gs.label,c:gs.color},
-            {k:"내재가치",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL},
+            {k:"내재가치",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL,
+              sub:(()=>{if(!dcfResults.avg||!price)return null;const pct=Math.round((price/dcfResults.avg-1)*100);return{v:`${pct>0?"+":""}${pct}%`,c:pct>0?C.red:C.green,label:pct>0?"고평가":"저평가"};})()},
           ].map(k=>(
             <div key={k.k} style={{textAlign:"center",background:C.bg,borderRadius:7,padding:"5px 8px",flexShrink:0}}>
               <div style={{color:C.muted,fontSize:9}}>{k.k}</div>
               <div style={{color:k.c,fontSize:12,fontWeight:700,fontFamily:"monospace"}}>{k.v}</div>
+              {k.sub&&<div style={{color:k.sub.c,fontSize:9,fontWeight:700,fontFamily:"monospace",marginTop:1}}>{k.sub.v} {k.sub.label}</div>}
             </div>
           ))}
         </div>
@@ -861,6 +1013,157 @@ export default function App(){
         {/* ════ 종합 ════ */}
         {tab==="overview"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+
+            {/* ── SEQUOIA 판독 카드 ── */}
+            {(()=>{
+              const re=readingEngine;
+              const hasPriceZone=re.gap!==null;
+              const hasFin=hasFinData;
+
+              // 데이터가 하나도 없으면 업로드 안내
+              if(!hasPriceZone&&!hasFin){return(
+                <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:14,padding:"16px 16px",marginBottom:12}}>
+                  <div style={{color:C.muted,fontSize:10,letterSpacing:"0.1em",marginBottom:6}}>🔍 SEQUOIA 판독</div>
+                  <div style={{color:C.muted,fontSize:12,textAlign:"center",padding:"8px 0",lineHeight:1.8}}>
+                    주가 로딩 또는 엑셀 업로드 후<br/>자동 판독이 시작됩니다.
+                  </div>
+                </div>
+              );}
+
+              const vc=re.verdictColor||C.muted;
+              return(
+                <div style={{
+                  background:`linear-gradient(135deg,${vc}12,${C.card})`,
+                  border:`2px solid ${vc}55`,
+                  borderRadius:14,padding:"14px 15px",marginBottom:12,
+                  position:"relative",overflow:"hidden",
+                }}>
+                  {/* 배경 글로우 */}
+                  <div style={{position:"absolute",top:-30,right:-30,width:100,height:100,
+                    background:`radial-gradient(circle,${vc}20,transparent 70%)`,pointerEvents:"none"}}/>
+
+                  {/* 헤더 행 */}
+                  <div style={{display:"flex",alignItems:"flex-start",justifyContent:"space-between",marginBottom:10,gap:8}}>
+                    <div style={{flex:1}}>
+                      <div style={{color:C.muted,fontSize:9,letterSpacing:"0.12em",marginBottom:5}}>
+                        🔍 SEQUOIA 판독 &nbsp;·&nbsp; <span style={{color:C.dim}}>알고리즘 자동 분석 · 투자 참고용</span>
+                      </div>
+                      <div style={{display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                        <span style={{fontSize:18}}>{re.verdictIcon||"⚪"}</span>
+                        <span style={{
+                          fontSize:17,fontWeight:900,color:vc,fontFamily:"monospace",
+                          letterSpacing:"0.04em",lineHeight:1.2,
+                        }}>{re.verdict}</span>
+                      </div>
+                    </div>
+                    {/* 가격 위치 뱃지 */}
+                    {hasPriceZone&&(
+                      <div style={{
+                        background:`${re.priceZoneColor}22`,border:`1.5px solid ${re.priceZoneColor}55`,
+                        borderRadius:9,padding:"6px 11px",textAlign:"center",flexShrink:0,
+                      }}>
+                        <div style={{color:re.priceZoneColor,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>{re.priceZone}</div>
+                        <div style={{color:re.priceZoneColor,fontSize:10,fontFamily:"monospace",marginTop:1,opacity:0.85}}>
+                          {re.gap!=null?`${re.gap>0?"+":""}${re.gap}%`:"—"}
+                        </div>
+                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>60MA 이격도</div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* 판독 내용 */}
+                  {re.reason&&(
+                    <div style={{
+                      background:`${vc}10`,borderLeft:`3px solid ${vc}`,
+                      borderRadius:"0 8px 8px 0",padding:"8px 11px",marginBottom:9,
+                    }}>
+                      <div style={{color:C.muted,fontSize:9,marginBottom:3,letterSpacing:"0.05em"}}>핵심 근거</div>
+                      <div style={{color:vc,fontSize:12,fontWeight:700,lineHeight:1.4}}>{re.reason}</div>
+                    </div>
+                  )}
+                  {re.interpretation&&(
+                    <div style={{color:C.text,fontSize:11,lineHeight:1.6,marginBottom:11,paddingLeft:2}}>
+                      💬 {re.interpretation}
+                    </div>
+                  )}
+
+                  {/* 구분선 */}
+                  <div style={{borderTop:`1px solid ${C.border}`,marginBottom:10}}/>
+
+                  {/* 근거 지표 그리드 */}
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                    {[
+                      {
+                        label:"EPS 추세",
+                        value:`${re.epsTrendIcon||""} ${re.epsTrend||"—"}`,
+                        color:re.epsTrendColor||C.muted,
+                        sub: hasFin&&lastAnn.eps?`${(lastAnn.eps||0).toLocaleString()}원`:null,
+                      },
+                      {
+                        label:"FCF 상태",
+                        value:`${re.fcfTrendIcon||""} ${re.fcfTrend||"—"}`,
+                        color:re.fcfTrendColor||C.muted,
+                        sub: hasFin&&re.fcfVal!=null?`${re.fcfVal}억`:null,
+                      },
+                      {
+                        label:"실적 모멘텀",
+                        value:re.momentum||"—",
+                        color:re.momentumColor||C.muted,
+                        sub:null,
+                      },
+                      {
+                        label:"수익성",
+                        value:re.profitability||"—",
+                        color:re.profitabilityColor||C.muted,
+                        sub: hasFin?`OPM ${re.opm}% · ROE ${re.roe}%`:null,
+                      },
+                      {
+                        label:"재무안정성",
+                        value:re.debtLevel||"—",
+                        color:re.debtColor||C.muted,
+                        sub: hasFin?`부채비율 ${re.debt}%`:null,
+                      },
+                      {
+                        label:"밸류에이션",
+                        value:re.valuation||"—",
+                        color:re.valuationColor||C.muted,
+                        sub: re.valuationPct!=null?`내재가치 대비 ${re.valuationPct>0?"+":""}${re.valuationPct}%`:
+                             hasFin?`PER ${re.ttmPer}배 · PBR ${re.pbr}배`:null,
+                      },
+                    ].map((item,i)=>(
+                      <div key={i} style={{
+                        background:C.bg,borderRadius:9,padding:"8px 10px",
+                        border:`1px solid ${C.border}`,
+                      }}>
+                        <div style={{color:C.muted,fontSize:8,marginBottom:3,letterSpacing:"0.04em"}}>{item.label}</div>
+                        <div style={{color:item.color,fontSize:12,fontWeight:800,fontFamily:"monospace",lineHeight:1}}>{item.value}</div>
+                        {item.sub&&<div style={{color:C.muted,fontSize:8,marginTop:3,lineHeight:1.3}}>{item.sub}</div>}
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* 3년 평균 ROE 보조 행 */}
+                  {hasFin&&re.avgRoe3>0&&(
+                    <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
+                      {[
+                        {k:"3년평균ROE",v:`${re.avgRoe3}%`,c:re.avgRoe3>=15?C.green:re.avgRoe3>=10?C.gold:C.red},
+                        {k:"TTM PER",v:re.ttmPer?`${re.ttmPer}배`:"—",c:re.ttmPer&&re.ttmPer<15?C.green:re.ttmPer&&re.ttmPer<25?C.gold:C.red},
+                        {k:"PBR",v:re.pbr?`${re.pbr}배`:"—",c:re.pbr&&re.pbr<1.5?C.green:re.pbr&&re.pbr<3?C.gold:C.red},
+                      ].map((it,i)=>(
+                        <div key={i} style={{
+                          display:"flex",alignItems:"center",gap:5,
+                          background:C.bg,borderRadius:7,padding:"4px 9px",
+                          border:`1px solid ${C.border}`,
+                        }}>
+                          <span style={{color:C.muted,fontSize:9}}>{it.k}</span>
+                          <span style={{color:it.c,fontSize:11,fontWeight:800,fontFamily:"monospace"}}>{it.v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
             {hasFinData?(
             <Box>
               <div style={{color:C.muted,fontSize:9,marginBottom:8,letterSpacing:"0.05em"}}>
@@ -937,15 +1240,50 @@ export default function App(){
                 <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:과열 / +200%:매도 / +300%:적극매도</div>
               </div>
             )}
-            <ST accent={C.blue} right="▲매수 ▼매도">주가 & 60MA</ST>
-            <CW h={300}>
-              <ComposedChart data={withMA60} margin={{top:20,right:20,left:0,bottom:8}}>
+            <ST accent={C.blue} right="▲매수 ▼매도">주가 & 60MA 위치밴드</ST>
+            <CW h={310}>
+              <ComposedChart data={withPositionBands} margin={{top:20,right:56,left:0,bottom:8}}>
+                <defs>
+                  <linearGradient id="floorShadeP" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.blue} stopOpacity={0.0}/>
+                    <stop offset="100%" stopColor={C.blue} stopOpacity={0.14}/>
+                  </linearGradient>
+                  <linearGradient id="peakShadeP" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.purple} stopOpacity={0.14}/>
+                    <stop offset="100%" stopColor={C.purple} stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                <Area dataKey="price" name="주가" stroke={C.blue} strokeWidth={2} fill={`${C.blue}18`} dot={false}/>
-                <Line dataKey="ma60" name="60MA" stroke={C.gold} strokeWidth={2} dot={false} strokeDasharray="5 3"/>
-                {/* 수정 5: 매수▲ 하단, 매도▼ 상단 모두 표시 */}
+                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
+                {/* 초침체 음영 */}
+                <Area dataKey="bKnee"  name="무릎 ×0.8" stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
+                <Area dataKey="bFloor" name="초침체 ×0.6" stroke="#3B7DD8" strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="none"/>
+                {/* 기준선 */}
+                <Line dataKey="bBase"     name="기준 60MA"  stroke="#8AA8C8" strokeWidth={2}   dot={false}/>
+                {/* 어깨·상투 */}
+                <Line dataKey="bShoulder" name="어깨 ×1.5"  stroke={C.orange} strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
+                <Line dataKey="bTop"      name="상투 ×2.0"  stroke={C.red}    strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                {/* 초과열 음영 */}
+                <Area dataKey="bPeak"     name="초과열 ×2.5" stroke={C.purple} strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeP)" dot={false} legendType="line"/>
+                {/* 주가 (가장 위) */}
+                <Area dataKey="price" name="주가" stroke={C.blueL} strokeWidth={2.5} fill={`${C.blueL}14`} dot={false}/>
+                {/* 우측 라벨 */}
+                {(()=>{
+                  const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
+                  if(!last)return null;
+                  return[
+                    {key:"bPeak",    color:C.purple, label:"초과열"},
+                    {key:"bTop",     color:C.red,    label:"상투"},
+                    {key:"bShoulder",color:C.orange, label:"어깨"},
+                    {key:"bBase",    color:"#8AA8C8",label:"60MA"},
+                    {key:"bKnee",   color:C.blue,   label:"무릎"},
+                  ].map(b=>(
+                    <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
+                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                  ));
+                })()}
+                {/* 매수/매도 신호 */}
                 {signalPts.map((pt,i)=>(
                   <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
                     label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:18,fontWeight:900}}/>
@@ -1027,19 +1365,30 @@ export default function App(){
                       <Bar dataKey="net" name="순이익"   fill={C.purple} opacity={0.7} maxBarSize={24}/>
                     </ComposedChart>
                   </CW></>);})()}
-                  {/* 수정 3: 성장률 YoY */}
-                  <ST accent={C.gold} right="YoY %">매출·영업이익 성장률</ST>
-                  <CW h={190}>
-                    <ComposedChart data={growthData} margin={{top:4,right:20,left:0,bottom:8}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                      <YAxis {...yp("%")}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      {/* 수정 3: 0선 점선 추가 */}
-                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
-                      <Line dataKey="revGrowth" name="매출 YoY%" stroke={C.blue}  strokeWidth={2} dot={{r:4}}/>
-                      <Line dataKey="opGrowth"  name="영업이익 YoY%" stroke={C.green} strokeWidth={2} dot={{r:4}}/>
-                    </ComposedChart>
+                  {/* 영업이익률·순이익률(막대·좌축) + 성장률 YoY(꺾은선·우축) */}
+                  <ST accent={C.gold} right="막대:이익률% (좌) / 선:YoY% (우)">이익률 & 성장률</ST>
+                  <CW h={220}>
+                    {(()=>{
+                      const merged=growthData.map(r=>{
+                        const base=finView==="연간"?annTimeline:qtrTimeline;
+                        const match=base.find(b=>b.period===r.period);
+                        return{...r,opm:match?.opm??null,npm:match?.npm??null};
+                      });
+                      return(
+                        <ComposedChart data={merged} margin={{top:4,right:44,left:0,bottom:8}}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                          <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                          <YAxis yAxisId="left"  {...yp("%",44)} domain={["auto","auto"]}/>
+                          <YAxis yAxisId="right" orientation="right" {...yp("%",48)} domain={["auto","auto"]}/>
+                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                          <ReferenceLine yAxisId="right" y={0} stroke={C.muted} strokeDasharray="4 3"/>
+                          <Bar yAxisId="left" dataKey="opm" name="영업이익률%" fill={C.gold}   opacity={0.75} maxBarSize={22} radius={[3,3,0,0]}/>
+                          <Bar yAxisId="left" dataKey="npm" name="순이익률%"   fill={C.purple} opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
+                          <Line yAxisId="right" dataKey="revGrowth" name="매출 YoY%"   stroke={C.blue}  strokeWidth={2} dot={{r:3}} connectNulls/>
+                          <Line yAxisId="right" dataKey="opGrowth"  name="영업이익 YoY%" stroke={C.green} strokeWidth={2} dot={{r:3}} connectNulls/>
+                        </ComposedChart>
+                      );
+                    })()}
                   </CW>
                   <ST accent={C.gold} right="%">OPM · ROE · ROA</ST>
                   <CW h={190}>
@@ -1098,30 +1447,208 @@ export default function App(){
         {/* ════ 기술분석 ════ */}
         {tab==="technical"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
-            <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}33`,borderRadius:9,padding:"8px 12px",marginBottom:10,fontSize:10,color:C.muted}}>
-              <span style={{color:C.green}}>G1 무릎</span> 200일MA / <span style={{color:C.blueL}}>G2 허벅지</span> 60MA+10% / <span style={{color:C.orange}}>G3 어깨</span> 60MA+25% / <span style={{color:C.red}}>G4 상투</span> 볼린저(2σ)
+
+            {/* 위치 판독 안내 뱃지 */}
+            <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
+              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📐 60MA 가격 위치 밴드 기준</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {[
+                  {label:"초침체",sub:"×0.6↓",color:"#3B7DD8"},
+                  {label:"무릎",sub:"×0.8",color:C.blue},
+                  {label:"기준(60MA)",sub:"×1.0",color:"#7A8FA8"},
+                  {label:"어깨",sub:"×1.5",color:C.orange},
+                  {label:"상투",sub:"×2.0",color:C.red},
+                  {label:"초과열",sub:"×2.0↑",color:C.purple},
+                ].map(b=>(
+                  <div key={b.label} style={{display:"flex",alignItems:"center",gap:4,
+                    background:`${b.color}18`,borderRadius:6,padding:"3px 8px",
+                    border:`1px solid ${b.color}44`}}>
+                    <div style={{width:8,height:8,borderRadius:2,background:b.color,flexShrink:0}}/>
+                    <span style={{color:b.color,fontSize:9,fontWeight:700}}>{b.label}</span>
+                    <span style={{color:C.muted,fontSize:8}}>{b.sub}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <ST accent={C.gold}>G1·G2·G3·G4 밴드</ST>
-            <CW h={270}>
-              <ComposedChart data={withG} margin={{top:4,right:20,left:0,bottom:8}}>
+
+            {/* 메인 위치 밴드 차트 */}
+            <ST accent={C.gold} right="60MA 배수 기준 위치 밴드">가격 위치 밴드 (무릎·어깨·상투)</ST>
+            <CW h={310}>
+              <ComposedChart data={withPositionBands} margin={{top:8,right:56,left:0,bottom:8}}>
+                <defs>
+                  {/* 초침체 음영 그라디언트 */}
+                  <linearGradient id="floorShade" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.blue} stopOpacity={0.0}/>
+                    <stop offset="100%" stopColor={C.blue} stopOpacity={0.18}/>
+                  </linearGradient>
+                  {/* 초과열 음영 그라디언트 */}
+                  <linearGradient id="peakShade" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.purple} stopOpacity={0.18}/>
+                    <stop offset="100%" stopColor={C.purple} stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                <Line dataKey="price" name="주가"    stroke={C.blue}   strokeWidth={2.5} dot={false}/>
-                <Line dataKey="g1" name="G1 무릎"   stroke={C.green}  strokeWidth={1.5} dot={false} strokeDasharray="4 2"/>
-                <Line dataKey="g2" name="G2 허벅지" stroke={C.blueL}  strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
-                <Line dataKey="g3" name="G3 어깨"   stroke={C.orange} strokeWidth={1.5} dot={false} strokeDasharray="3 2"/>
-                <Line dataKey="g4" name="G4 상투"   stroke={C.red}    strokeWidth={1.5} dot={false} strokeDasharray="2 2"/>
+                <XAxis {...xp(rangeIdx===0)}/>
+                <YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
+                <Tooltip content={<MTip/>} cursor={false}/>
+                <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
+
+                {/* ── 초침체 음영: bFloor ~ bKnee */}
+                <Area dataKey="bKnee"  name="무릎 ×0.8"
+                  stroke={C.blue} strokeWidth={2} strokeDasharray="6 3"
+                  fill="url(#floorShade)" dot={false} legendType="line"
+                  label={false}
+                />
+                <Area dataKey="bFloor" name="초침체 ×0.6"
+                  stroke="#3B7DD8" strokeWidth={1} strokeDasharray="3 4"
+                  fill={`${C.blue}00`} dot={false} legendType="none"
+                />
+
+                {/* ── 기준선 (60MA) */}
+                <Line dataKey="bBase" name="기준 60MA"
+                  stroke="#8AA8C8" strokeWidth={2.5}
+                  dot={false} legendType="line"
+                />
+
+                {/* ── 어깨선 */}
+                <Line dataKey="bShoulder" name="어깨 ×1.5"
+                  stroke={C.orange} strokeWidth={2} strokeDasharray="8 3"
+                  dot={false}
+                />
+
+                {/* ── 상투선 */}
+                <Line dataKey="bTop" name="상투 ×2.0"
+                  stroke={C.red} strokeWidth={2} strokeDasharray="5 3"
+                  dot={false}
+                />
+
+                {/* ── 초과열 음영: bTop ~ bPeak */}
+                <Area dataKey="bPeak" name="초과열 ×2.5"
+                  stroke={C.purple} strokeWidth={1.5} strokeDasharray="3 4"
+                  fill="url(#peakShade)" dot={false} legendType="line"
+                />
+
+                {/* ── 주가 (맨 위에 렌더, 가장 두껍게) */}
+                <Line dataKey="price" name="주가"
+                  stroke={C.blueL} strokeWidth={3}
+                  dot={false} legendType="line"
+                />
+
+                {/* ── 우측 끝 라벨 (ReferenceDot 대신 마지막 데이터 포인트 활용) */}
+                {(()=>{
+                  const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
+                  if(!last)return null;
+                  return[
+                    {key:"bPeak",    color:C.purple, label:"초과열"},
+                    {key:"bTop",     color:C.red,    label:"상투"},
+                    {key:"bShoulder",color:C.orange, label:"어깨"},
+                    {key:"bBase",    color:"#8AA8C8",label:"기준"},
+                    {key:"bKnee",   color:C.blue,   label:"무릎"},
+                    {key:"bFloor",  color:"#3B7DD8", label:"초침체"},
+                  ].map(b=>(
+                    <ReferenceDot key={b.key}
+                      x={last.label} y={last[b.key]} r={0}
+                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}
+                    />
+                  ));
+                })()}
+
+                {/* ── 매수/매도 신호 */}
+                {signalPts.map((pt,i)=>(
+                  <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
+                    label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:16,fontWeight:900}}/>
+                ))}
               </ComposedChart>
             </CW>
-            <ST accent={C.blue}>주가 & 60MA</ST>
-            <CW h={240}>
-              <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
+
+            {/* 현재 위치 상태 카드 */}
+            {lastGap!==null&&(()=>{
+              const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
+              if(!last)return null;
+              const {priceZone,priceZoneColor,gap}=readingEngine;
+              return(
+                <div style={{
+                  background:`${priceZoneColor}12`,
+                  border:`1.5px solid ${priceZoneColor}44`,
+                  borderRadius:10,padding:"10px 14px",marginBottom:10,
+                  display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,
+                }}>
+                  <div>
+                    <div style={{color:C.muted,fontSize:9,marginBottom:3}}>현재 가격 위치</div>
+                    <div style={{color:priceZoneColor,fontSize:15,fontWeight:900,fontFamily:"monospace"}}>{priceZone}</div>
+                  </div>
+                  <div style={{textAlign:"center"}}>
+                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>60MA 이격도</div>
+                    <div style={{color:priceZoneColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>
+                      {gap>0?"+":""}{gap}%
+                    </div>
+                  </div>
+                  <div style={{flex:1,minWidth:120}}>
+                    <div style={{color:C.muted,fontSize:8,marginBottom:4}}>구간 기준</div>
+                    <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                      {[
+                        {z:"초침체",r:"×0.6↓",c:"#3B7DD8"},
+                        {z:"무릎",r:"×0.8",c:C.blue},
+                        {z:"중립",r:"×1.0~1.5",c:C.green},
+                        {z:"어깨",r:"×1.5",c:C.orange},
+                        {z:"상투",r:"×2.0",c:C.red},
+                        {z:"초과열",r:"×2.0↑",c:C.purple},
+                      ].map(z=>(
+                        <span key={z.z} style={{
+                          background:priceZone===z.z||
+                            (priceZone==="중립확장"&&z.z==="중립")
+                            ?`${z.c}30`:"transparent",
+                          color:priceZone===z.z||
+                            (priceZone==="중립확장"&&z.z==="중립")
+                            ?z.c:C.muted,
+                          border:`1px solid ${priceZone===z.z||
+                            (priceZone==="중립확장"&&z.z==="중립")
+                            ?z.c:C.border}`,
+                          borderRadius:4,padding:"2px 5px",fontSize:8,fontWeight:700,
+                        }}>{z.z}</span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            <ST accent={C.blue}>주가 & 60MA (밴드 포함)</ST>
+            <CW h={260}>
+              <ComposedChart data={withPositionBands} margin={{top:4,right:56,left:0,bottom:8}}>
+                <defs>
+                  <linearGradient id="floorShadeT" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.blue} stopOpacity={0.0}/>
+                    <stop offset="100%" stopColor={C.blue} stopOpacity={0.12}/>
+                  </linearGradient>
+                  <linearGradient id="peakShadeT" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={C.purple} stopOpacity={0.12}/>
+                    <stop offset="100%" stopColor={C.purple} stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                <Area dataKey="price" name="주가" stroke={C.blue} strokeWidth={2} fill={`${C.blue}18`} dot={false}/>
-                <Line dataKey="ma60" name="60MA" stroke={C.gold} strokeWidth={2} dot={false} strokeDasharray="5 3"/>
+                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
+                <Area dataKey="bKnee"     name="무릎 ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeT)" dot={false} legendType="line"/>
+                <Area dataKey="bFloor"    name="초침체 ×0.6"  stroke="#3B7DD8"  strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}       dot={false} legendType="none"/>
+                <Line dataKey="bBase"     name="기준 60MA"    stroke="#8AA8C8"   strokeWidth={2}   dot={false}/>
+                <Line dataKey="bShoulder" name="어깨 ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
+                <Line dataKey="bTop"      name="상투 ×2.0"   stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                <Area dataKey="bPeak"     name="초과열 ×2.5"  stroke={C.purple}  strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeT)" dot={false} legendType="line"/>
+                <Area dataKey="price"     name="주가"         stroke={C.blueL}   strokeWidth={2.5} fill={`${C.blueL}14`} dot={false}/>
+                {(()=>{
+                  const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
+                  if(!last)return null;
+                  return[
+                    {key:"bPeak",    color:C.purple, label:"초과열"},
+                    {key:"bTop",     color:C.red,    label:"상투"},
+                    {key:"bShoulder",color:C.orange, label:"어깨"},
+                    {key:"bBase",    color:"#8AA8C8",label:"60MA"},
+                    {key:"bKnee",   color:C.blue,   label:"무릎"},
+                  ].map(b=>(
+                    <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
+                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                  ));
+                })()}
               </ComposedChart>
             </CW>
             <ST accent={C.green}>RSI (14개월)</ST>
@@ -1304,7 +1831,7 @@ export default function App(){
                           ].map(([sector,ratio])=>(
                             <div key={sector} style={{display:"flex",justifyContent:"space-between",
                               padding:"5px 8px",background:C.bg,borderRadius:6,alignItems:"center"}}>
-                              <span style={{color:C.muted,fontSize:10}}>{sector}</span>
+                              <span style={{color:C.muted,fontSize:sector==="⚡ 전기·에너지·유틸리티"?9:10}}>{sector}</span>
                               <span style={{color:C.gold,fontSize:10,fontWeight:700,fontFamily:"monospace"}}>{ratio}</span>
                             </div>
                           ))}
@@ -1414,70 +1941,11 @@ export default function App(){
           </div>
         )}
 
-        {/* ════ 8거장 ════ */}
-        {tab==="masters"&&(
-          <div style={{animation:"fadeIn 0.3s ease"}}>
-            {/* 수정 6: 재무데이터 없으면 업로드 안내 */}
-            {!hasFinData?(
-              <Box><div style={{color:C.muted,textAlign:"center",padding:24,lineHeight:1.8,fontSize:12}}>
-                👑 8인의 거장 판정을 위해<br/><b style={{color:C.gold}}>엑셀 재무자료를 업로드</b>해주세요.<br/>
-                <span style={{fontSize:10}}>파일명: 179290_엠아이텍.xlsx 형식</span>
-              </div></Box>
-            ):masterJudge.length?(()=>{
-              const passCount=masterJudge.filter(m=>m.calc.verdict==="추천").length;
-              const consensus=passCount>=5?"강력매수":passCount>=3?"중립":"관망";
-              const cc=passCount>=5?C.green:passCount>=3?C.gold:C.red;
-              return(
-                <>
-                  <div style={{background:`linear-gradient(135deg,${cc}18,${C.card2})`,border:`2px solid ${cc}55`,borderRadius:14,padding:"12px 14px",marginBottom:12}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                      <div>
-                        <div style={{color:C.muted,fontSize:9,letterSpacing:"0.1em",marginBottom:2}}>👑 8인의 거장 컨센서스</div>
-                        <div style={{fontSize:18,fontWeight:900,color:cc,fontFamily:"monospace"}}>SEQUOIA: {consensus}</div>
-                        <div style={{color:C.muted,fontSize:10,marginTop:3}}>※ 알고리즘 판정 · 투자 참고용</div>
-                      </div>
-                      <div style={{display:"flex",gap:6}}>
-                        {[{l:"✅",v:"추천",c:C.green},{l:"⚖️",v:"중립",c:C.gold},{l:"❌",v:"비추천",c:C.red}].map(s=>(
-                          <div key={s.l} style={{background:C.bg,borderRadius:7,padding:"5px 10px",textAlign:"center"}}>
-                            <span style={{color:s.c,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>{masterJudge.filter(m=>m.calc.verdict===s.v).length}</span>
-                            <span style={{color:C.muted,fontSize:9,marginLeft:3}}>{s.l}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{display:"flex",gap:2,marginTop:8}}>
-                      {masterJudge.map((m,i)=><div key={i} style={{flex:1,height:22,borderRadius:3,background:m.calc.color,opacity:0.8}}/>)}
-                    </div>
-                  </div>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:7}}>
-                    {masterJudge.map((m,i)=>(
-                      <div key={i} style={{background:C.card,border:`1.5px solid ${m.calc.color}44`,borderTop:`3px solid ${m.calc.color}`,borderRadius:10,padding:"9px",position:"relative"}}>
-                        <div style={{position:"absolute",top:7,right:7,fontSize:13}}>{m.calc.icon}</div>
-                        <div style={{color:m.calc.color,fontSize:11,fontWeight:800,marginBottom:1}}>{m.ko}</div>
-                        <div style={{color:C.muted,fontSize:8,marginBottom:4,lineHeight:1.3}}>{m.style}</div>
-                        <div style={{display:"inline-block",background:`${m.calc.color}22`,color:m.calc.color,fontSize:10,fontWeight:900,padding:"1px 6px",borderRadius:3,marginBottom:5}}>{m.calc.verdict}</div>
-                        <div style={{color:C.muted,fontSize:7.5,lineHeight:1.5,marginBottom:5,minHeight:24}}>{m.calc.reason}</div>
-                        <div style={{borderTop:`1px solid ${C.border}`,paddingTop:4}}>
-                          {m.detail.map((d,j)=>(<div key={j} style={{display:"flex",justifyContent:"space-between",marginBottom:1}}>
-                            <span style={{color:C.muted,fontSize:8}}>{d.k}</span>
-                            <span style={{color:C.text,fontSize:8,fontFamily:"monospace",fontWeight:700}}>{d.v}</span>
-                          </div>))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              );
-            })():(
-              <Box><div style={{color:C.muted,textAlign:"center",padding:20,fontSize:12}}>주가 데이터 로딩 후 판정이 표시됩니다.</div></Box>
-            )}
-          </div>
-        )}
 
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.1</div>
+          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.3</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             <Tag color={C.blue}  size={8}>주가:키움REST</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
@@ -1489,6 +1957,9 @@ export default function App(){
 
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+        html,body{overflow-x:hidden;overscroll-behavior:none;background:#040710;}
+        ::-webkit-scrollbar{display:none;}
+        *{scrollbar-width:none;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         ::-webkit-scrollbar{width:3px;height:3px;}
         ::-webkit-scrollbar-track{background:transparent;}
