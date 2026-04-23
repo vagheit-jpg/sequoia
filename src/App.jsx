@@ -821,7 +821,7 @@ export default function App(){
             {k:"PBR",v:pbr?`${pbr}배`:"—",c:C.gold},
             {k:"이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
             {k:"신호",v:gs.label,c:gs.color},
-            {k:"DCF평균",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL},
+            {k:"내재가치",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL},
           ].map(k=>(
             <div key={k.k} style={{textAlign:"center",background:C.bg,borderRadius:7,padding:"5px 8px",flexShrink:0}}>
               <div style={{color:C.muted,fontSize:9}}>{k.k}</div>
@@ -1213,7 +1213,7 @@ export default function App(){
               </div>
             </Box>
             <Box style={{border:`2px solid ${C.gold}33`}}>
-              <ST accent={C.gold}>4가지 내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
+              <ST accent={C.gold}>내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
               {hasFinData?(
                 <>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:12}}>
@@ -1222,7 +1222,7 @@ export default function App(){
                       {label:"B. DCF(금리기반)",sub:`할인율 ${(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% · 성장률 ${dcfApplied.gr}%`,val:dcfResults.a,color:C.blue},
                       {label:"C. 그레이엄멀티플",sub:"V=EPS×(8.5+2g)×4.4/Y",val:dcfResults.b,color:C.purple},
                       {label:"D. ROE멀티플",sub:"적정가=ROE×EPS (적정PER=ROE)",val:dcfResults.c,color:C.teal},
-                      {label:"4가지 평균",sub:"교차검증 종합",val:dcfResults.avg,color:C.gold},
+                      {label:"내재가치 평균",sub:"4가지 방식 교차검증 종합",val:dcfResults.avg,color:C.gold},
                     ].map(item=>{
                       const diff=price&&item.val?Math.round((item.val/price-1)*100):null;
                       return(
@@ -1280,7 +1280,7 @@ export default function App(){
                           <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
                           <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
                           <Line yAxisId="left"  dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
-                          <Line yAxisId="left"  dataKey="roe"    name="ROE멀티플"      stroke={C.teal}   strokeWidth={2}   dot={{r:3,fill:C.teal}}   connectNulls strokeDasharray="2 2"/>
+                          <Line yAxisId="left"  dataKey="roe"    name="ROE멀티플"      stroke={C.pink}   strokeWidth={2}   dot={{r:3,fill:C.pink}}   connectNulls strokeDasharray="2 2"/>
                           {price>0&&<ReferenceLine yAxisId="left" y={price} stroke={C.blueL} strokeDasharray="4 2"
                             label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
                         </ComposedChart>
@@ -1304,8 +1304,8 @@ export default function App(){
                           ].map(([sector,ratio])=>(
                             <div key={sector} style={{display:"flex",justifyContent:"space-between",
                               padding:"5px 8px",background:C.bg,borderRadius:6,alignItems:"center"}}>
-                              <span style={{color:C.muted,fontSize:9}}>{sector}</span>
-                              <span style={{color:C.gold,fontSize:9,fontWeight:700,fontFamily:"monospace"}}>{ratio}</span>
+                              <span style={{color:C.muted,fontSize:10}}>{sector}</span>
+                              <span style={{color:C.gold,fontSize:10,fontWeight:700,fontFamily:"monospace"}}>{ratio}</span>
                             </div>
                           ))}
                         </div>
