@@ -73,14 +73,14 @@ const fetchPrice=async(ticker,market)=>{
 // ══════════════════════════════════════════════════════════════
 const ema=(arr,n)=>{const k=2/(n+1);let e=arr[0];return arr.map((v,i)=>{if(i===0)return e;e=v*k+e*(1-k);return+e.toFixed(2);});};
 
-const calcMA60=(monthly)=>{
-  const N=60;
+const calcMAn=(monthly,N)=>{
   return monthly.map((d,i)=>{
     if(i<N-1)return{...d,ma60:null,gap60:null};
     const avg=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
     return{...d,ma60:+avg.toFixed(0),gap60:+((d.price/avg-1)*100).toFixed(2)};
   });
 };
+const calcMA60=(monthly)=>calcMAn(monthly,60);
 const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
   if(i<n)return{...d,rsi:null};
   const sl=monthly.slice(i-n+1,i+1);let g=0,l=0;
@@ -105,8 +105,7 @@ const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
 });
 // 가격 위치 밴드 — ma60 배수 기반 통일
 // 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
-const calcPositionBands=(monthly)=>{
-  const N=60;
+const calcPositionBands=(monthly,N=60)=>{
   return monthly.map((d,i)=>{
     if(i<N-1)return{...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null};
     const ma=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
@@ -158,11 +157,11 @@ const calcSignalPoints=(data)=>{
     if(d.gap60===null||d.ma60===null)return;
     const prev=i>0?data[i-1]:null;
     if(!prev||prev.gap60===null)return;
-    if(prev.gap60>-20&&d.gap60<=-20) pts.push({label:d.label,price:d.price,type:"적극매수",color:"#00C878",arrow:"▲",pos:"bottom"});
-    else if(prev.gap60>0&&d.gap60<=0) pts.push({label:d.label,price:d.price,type:"매수",color:"#10A898",arrow:"▲",pos:"bottom"});
-    else if(prev.gap60<100&&d.gap60>=100) pts.push({label:d.label,price:d.price,type:"매도",color:"#FF7830",arrow:"▼",pos:"top"});
-    else if(prev.gap60<200&&d.gap60>=200) pts.push({label:d.label,price:d.price,type:"적극매도",color:"#FF3D5A",arrow:"▼",pos:"top"});
-    else if(prev.gap60<300&&d.gap60>=300) pts.push({label:d.label,price:d.price,type:"극단매도",color:"#8855FF",arrow:"▼",pos:"top"});
+    if(prev.gap60>-20&&d.gap60<=-20) pts.push({label:d.label,price:d.price,type:"적극매수",color:"#00FF99",arrow:"▲",pos:"bottom"});
+    else if(prev.gap60>0&&d.gap60<=0) pts.push({label:d.label,price:d.price,type:"매수",color:"#00DDBB",arrow:"▲",pos:"bottom"});
+    else if(prev.gap60<100&&d.gap60>=100) pts.push({label:d.label,price:d.price,type:"매도",color:"#FFB020",arrow:"▼",pos:"top"});
+    else if(prev.gap60<200&&d.gap60>=200) pts.push({label:d.label,price:d.price,type:"적극매도",color:"#FF4466",arrow:"▼",pos:"top"});
+    else if(prev.gap60<300&&d.gap60>=300) pts.push({label:d.label,price:d.price,type:"극단매도",color:"#CC44FF",arrow:"▼",pos:"top"});
   });
   return pts;
 };
@@ -291,6 +290,29 @@ const parseExcel=(file)=>new Promise((resolve,reject)=>{
   reader.readAsBinaryString(file);
 });
 
+
+// 샤프한 SVG 화살표 시그널 — 매수(위쪽 뾰족), 매도(아래쪽 뾰족)
+const SignalArrow=({cx,cy,type,color})=>{
+  const isBuy=type.includes("매수");
+  const w=7,h=11,stem=4;
+  if(isBuy){
+    // 위쪽 뾰족 화살표 (▲ 샤프)
+    return(
+      <g transform={`translate(${cx},${cy+18})`}>
+        <polygon points={`0,${-h} ${-w},0 ${w},0`} fill={color} opacity={0.95}/>
+        <rect x={-2} y={0} width={4} height={stem} fill={color} opacity={0.85}/>
+      </g>
+    );
+  }else{
+    // 아래쪽 뾰족 화살표 (▼ 샤프)
+    return(
+      <g transform={`translate(${cx},${cy-18})`}>
+        <rect x={-2} y={-stem} width={4} height={stem} fill={color} opacity={0.85}/>
+        <polygon points={`0,${h} ${-w},0 ${w},0`} fill={color} opacity={0.95}/>
+      </g>
+    );
+  }
+};
 // ══════════════════════════════════════════════════════════════
 // 6. 종목 목록
 // ══════════════════════════════════════════════════════════════
@@ -431,7 +453,7 @@ export default function App(){
   const [stockList,setStockList]=useState(FALLBACK_STOCKS);
   const fileRef=useRef();
   const searchRef=useRef();
-  const RANGES=[{label:"10년",months:120},{label:"5년",months:60},{label:"3년",months:36},{label:"1년",months:12}];
+  const RANGES=[{label:"10년",months:120,maN:60,maLabel:"60월선"},{label:"5년",months:60,maN:60,maLabel:"60월선"},{label:"3년",months:36,maN:14,maLabel:"60주선"},{label:"1년",months:12,maN:3,maLabel:"60일선"}];
 
   // Supabase 로드 + localStorage 이중 보장
   // PC 마우스 환경에서만 스크롤바 표시
@@ -496,13 +518,16 @@ export default function App(){
 
   const displayMonthly=useMemo(()=>monthly.slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
 
-  const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
+  const curRange =RANGES[rangeIdx];
+  const maLabel  =curRange.maLabel;
+  // 전체 monthly로 MA 계산 후 slice → 5년/3년/1년 버그 수정
+  const withMA60  =useMemo(()=>calcMAn(monthly,curRange.maN).slice(-curRange.months),[monthly,rangeIdx]);
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
-    const full=calcMA60(monthly);
-    return buildBandsFromQtr(full,co?.qtrData,co?.annData).slice(-RANGES[rangeIdx].months);
+    const full=calcMAn(monthly,curRange.maN);
+    return buildBandsFromQtr(full,co?.qtrData,co?.annData).slice(-curRange.months);
   },[monthly,co?.qtrData,co?.annData,rangeIdx]);
-  const withPositionBands=useMemo(()=>calcPositionBands(displayMonthly),[displayMonthly]);
+  const withPositionBands=useMemo(()=>calcPositionBands(monthly,curRange.maN).slice(-curRange.months),[monthly,rangeIdx]);
   const withRSI   =useMemo(()=>calcRSI(displayMonthly),[displayMonthly]);
   const withMACD  =useMemo(()=>calcMACD(displayMonthly),[displayMonthly]);
   const withOBV   =useMemo(()=>calcOBV(displayMonthly),[displayMonthly]);
@@ -1077,7 +1102,7 @@ export default function App(){
                         <div style={{color:re.priceZoneColor,fontSize:10,fontFamily:"monospace",marginTop:1,opacity:0.85}}>
                           {re.gap!=null?`${re.gap>0?"+":""}${re.gap}%`:"—"}
                         </div>
-                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>60MA 이격도</div>
+                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>{maLabel} 이격도</div>
                       </div>
                     )}
                   </div>
@@ -1208,7 +1233,7 @@ export default function App(){
             {lastGap!==null&&(
               <div style={{background:`${gs.color}15`,border:`1px solid ${gs.color}44`,borderRadius:9,
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
-                <div style={{color:gs.color,fontWeight:700,fontSize:12}}>60MA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
+                <div style={{color:gs.color,fontWeight:700,fontSize:12}}>{maLabel} 이격도: {lastGap>0?"+":""}{lastGap}%</div>
                 <Tag color={gs.color} size={11}>{gs.label}</Tag>
                 <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
               </div>
@@ -1243,20 +1268,23 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:"60MA"},
+                    {key:"bBase",    color:C.goldL,  label:maLabel},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
                       label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
                   ));
                 })()}
-                {signalPts.map((pt,i)=>(
-                  <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
-                    label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:18,fontWeight:900}}/>
-                ))}
+                {signalPts.map((pt,i)=>{
+                  const coord=withPositionBands.findIndex(d=>d.label===pt.label);
+                  return coord<0?null:(
+                    <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
+                      shape={({cx,cy})=><SignalArrow cx={cx} cy={cy} type={pt.type} color={pt.color}/>}/>
+                  );
+                })}
               </ComposedChart>
             </CW>
-            <ST accent={C.teal}>60MA 이격도 (%)</ST>
+            <ST accent={C.teal}>{maLabel} 이격도 (%)</ST>
             <CW h={180}>
               <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -1470,7 +1498,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:"60MA"},
+                    {key:"bBase",    color:C.goldL,  label:maLabel},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                   ].map(b=>(
@@ -1480,7 +1508,7 @@ export default function App(){
                 })()}
                 {signalPts.map((pt,i)=>(
                   <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
-                    label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:16,fontWeight:900}}/>
+                    shape={({cx,cy})=><SignalArrow cx={cx} cy={cy} type={pt.type} color={pt.color}/>}/>
                 ))}
               </ComposedChart>
             </CW>
@@ -1503,7 +1531,7 @@ export default function App(){
                     <div style={{color:priceZoneColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{priceZone}</div>
                   </div>
                   <div style={{textAlign:"center"}}>
-                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>60MA 이격도</div>
+                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>{maLabel} 이격도</div>
                     <div style={{color:priceZoneColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>
                       {gap>0?"+":""}{gap}%
                     </div>
