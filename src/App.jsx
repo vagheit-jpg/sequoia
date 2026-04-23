@@ -627,7 +627,7 @@ export default function App(){
       else if(gap<100){priceZone="M";priceZoneEn="neutral";priceZoneColor=C.green;}
       else if(gap<200){priceZone="H";priceZoneEn="shoulder";priceZoneColor=C.orange;}
       else if(gap<300){priceZone="VH";priceZoneEn="top";priceZoneColor=C.red;}
-      else{priceZone="VVH";priceZoneEn="peak";priceZoneColor=C.purple;}
+      else{priceZone="EH";priceZoneEn="peak";priceZoneColor=C.purple;}
     }
 
     // ── ② EPS 추세 (최근 3년)
@@ -1226,20 +1226,20 @@ export default function App(){
                 <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2}   dot={false}/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
-                <Area dataKey="bPeak"     name="VVH ×2.5" stroke={C.purple}  strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeP)" dot={false} legendType="line"/>
+                <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeP)" dot={false} legendType="line"/>
                 <Area dataKey="price"     name="주가"      stroke={C.blueL}   strokeWidth={2.5} fill={`${C.blueL}14`} dot={false}/>
                 {(()=>{
                   const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
                   if(!last)return null;
                   return[
-                    {key:"bPeak",    color:C.purple, label:"VVH"},
+                    {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
                     {key:"bBase",    color:C.goldL,  label:"60MA"},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
-                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                      label={{value:b.label,position:b.key==="bKnee"?"insideTopRight":"right",fill:b.color,fontSize:9,fontWeight:700}}/>
                   ));
                 })()}
                 {signalPts.map((pt,i)=>(
@@ -1417,7 +1417,7 @@ export default function App(){
                   {label:"60MA",sub:"×1.0",  color:C.goldL},
                   {label:"H",   sub:"×1.5",  color:C.orange},
                   {label:"VH",  sub:"×2.0",  color:C.red},
-                  {label:"VVH", sub:"×2.0↑", color:C.purple},
+                  {label:"EH", sub:"×2.0↑", color:C.purple},
                 ].map(b=>(
                   <div key={b.label} style={{display:"flex",alignItems:"center",gap:4,
                     background:`${b.color}18`,borderRadius:6,padding:"3px 8px",
@@ -1453,13 +1453,13 @@ export default function App(){
                 <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2.5} dot={false} legendType="line"/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={2}   strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={2}   strokeDasharray="5 3" dot={false}/>
-                <Area dataKey="bPeak"     name="VVH ×2.5" stroke={C.purple}  strokeWidth={1.5} strokeDasharray="3 4" fill="url(#peakShade)"  dot={false} legendType="line"/>
+                <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1.5} strokeDasharray="3 4" fill="url(#peakShade)"  dot={false} legendType="line"/>
                 <Line dataKey="price"     name="주가"      stroke={C.blueL}   strokeWidth={3}   dot={false} legendType="line"/>
                 {(()=>{
                   const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
                   if(!last)return null;
                   return[
-                    {key:"bPeak",    color:C.purple, label:"VVH"},
+                    {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
                     {key:"bBase",    color:C.goldL,  label:"60MA"},
@@ -1467,7 +1467,7 @@ export default function App(){
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
-                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                      label={{value:b.label,position:b.key==="bFloor"?"insideTopRight":"right",fill:b.color,fontSize:9,fontWeight:700}}/>
                   ));
                 })()}
                 {signalPts.map((pt,i)=>(
@@ -1509,7 +1509,7 @@ export default function App(){
                         {z:"M",   r:"×1.0~1.5",c:C.green},
                         {z:"H",   r:"×1.5",  c:C.orange},
                         {z:"VH",  r:"×2.0",  c:C.red},
-                        {z:"VVH", r:"×2.0↑", c:C.purple},
+                        {z:"EH", r:"×2.0↑", c:C.purple},
                       ].map(z=>(
                         <span key={z.z} style={{
                           background:priceZone===z.z?`${z.c}30`:"transparent",
@@ -1841,7 +1841,11 @@ export default function App(){
           *{scrollbar-width:thin;scrollbar-color:${C.border} transparent;}
         }
         /* 모바일·터치 환경: 스크롤바 완전 숨김 */
-        @media (hover:none),(pointer:coarse){
+        @media (hover:none){
+          ::-webkit-scrollbar{display:none !important;}
+          *{scrollbar-width:none !important;}
+        }
+        @media (pointer:coarse){
           ::-webkit-scrollbar{display:none !important;}
           *{scrollbar-width:none !important;}
         }
