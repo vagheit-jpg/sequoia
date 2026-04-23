@@ -1470,6 +1470,11 @@ export default function App(){
                 ))}
               </ComposedChart>
             </CW>
+
+            {/* 메인 위치 밴드 차트 */}
+            <ST accent={C.gold} right="60MA 배수 기준 위치 밴드">가격 위치 밴드</ST>
+            <CW h={310}>
+              <ComposedChart data={withPositionBands} margin={{top:8,right:40,left:0,bottom:8}}>
                 <defs>
                   {/* 초침체 음영 그라디언트 */}
                   <linearGradient id="floorShade" x1="0" y1="0" x2="0" y2="1">
@@ -1483,7 +1488,7 @@ export default function App(){
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                <XAxis {...xp(rangeIdx===0)}/>
+                <XAxis {...xp()}/>
                 <YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>} cursor={false}/>
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
