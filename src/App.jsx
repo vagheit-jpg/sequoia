@@ -1958,12 +1958,12 @@ export default function App(){
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
         html,body{overflow-x:hidden;overscroll-behavior:none;background:#040710;}
-        ::-webkit-scrollbar{display:none;}
-        *{scrollbar-width:none;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
-        ::-webkit-scrollbar{width:3px;height:3px;}
+        ::-webkit-scrollbar{width:6px;height:6px;}
         ::-webkit-scrollbar-track{background:transparent;}
-        ::-webkit-scrollbar-thumb{background:${C.border};border-radius:3px;}
+        ::-webkit-scrollbar-thumb{background:${C.border};border-radius:6px;}
+        ::-webkit-scrollbar-thumb:hover{background:${C.muted};}
+        *{scrollbar-width:thin;scrollbar-color:${C.border} transparent;}
         *{-webkit-tap-highlight-color:transparent;}
       `}</style>
     </div>
