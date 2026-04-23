@@ -172,23 +172,29 @@ const calcDCF_roe=({roe,eps})=>{
   if(!roe||!eps||roe<=0)return 0;
   return Math.round(roe*eps);
 };
-const buildDCFHistory=(annData,gr,dr)=>{
+const buildDCFHistory=(annData,gr,dr,bondYield,capexRatio)=>{
   if(!annData?.length)return[];
-  return annData.filter(r=>r.fcf&&r.shares&&r.year).map(r=>({
-    year:r.year,fcf:r.fcf,intrinsic:calcDCF_rate({fcf:r.fcf,gr,dr,shares:r.shares/1e8}),
-  }));
+  return annData.filter(r=>r.shares&&r.year).map(r=>{
+    const sh=r.shares/1e8;
+    const owner=calcDCF_owner({net:r.net,cfo:r.cfo,cfi:r.cfi,capex:r.capex,capexRatio,gr,dr,shares:sh});
+    const rate=r.fcf?calcDCF_rate({fcf:r.fcf,gr,dr,shares:sh}):0;
+    const graham=calcDCF_graham({eps:r.eps,gr,bondYield});
+    const roe=calcDCF_roe({roe:r.roe,eps:r.eps});
+    return{year:r.year,fcf:r.fcf||null,owner:owner||null,rate:rate||null,graham:graham||null,roe:roe||null};
+  });
 };
 
 // ── 오너이익 DCF (버핏 방식)
 // 오너이익 = 순이익 + 추정감가상각(영업CF - 순이익) - CAPEX(투자CF 음수부분 근사)
-const calcOwnerEarnings=({net,cfo,cfi,capex})=>{
+const calcOwnerEarnings=({net,cfo,cfi,capex,capexRatio=50})=>{
   if(!net||!cfo)return null;
-  const depEst=cfo-net;                                        // 감가상각 근사
-  const capexEst=capex?Math.abs(capex):cfi<0?Math.abs(cfi)*0.7:0; // 실제CAPEX 우선, 없으면 투자CF 70% 추정
-  return net+depEst-capexEst;
+  const depEst=cfo-net;                                            // 감가상각 근사
+  const totalCapex=capex?Math.abs(capex):cfi<0?Math.abs(cfi)*0.7:0; // 실제CAPEX 우선
+  const maintCapex=totalCapex*(capexRatio/100);                    // 유지CAPEX = 전체 × 비율
+  return net+depEst-maintCapex;
 };
-const calcDCF_owner=({net,cfo,cfi,capex,gr,dr,shares})=>{
-  const oe=calcOwnerEarnings({net,cfo,cfi,capex});
+const calcDCF_owner=({net,cfo,cfi,capex,capexRatio,gr,dr,shares})=>{
+  const oe=calcOwnerEarnings({net,cfo,cfi,capex,capexRatio});
   if(!oe||oe<=0||!shares||shares<=0)return 0;
   let pv=0,cf=oe;
   for(let y=1;y<=10;y++){cf*=(1+gr);pv+=cf/Math.pow(1+dr,y);}
@@ -405,8 +411,8 @@ export default function App(){
   const [searchQuery,setSearchQuery]=useState("");
   const [searchResults,setSearchResults]=useState([]);
   const [showSearch,setShowSearch]=useState(false);
-  const [dcfDraft,setDcfDraft]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0});
-  const [dcfApplied,setDcfApplied]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0});
+  const [dcfDraft,setDcfDraft]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
+  const [dcfApplied,setDcfApplied]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
   // 전체 종목 목록 (KRX 동적 로드)
   const [stockList,setStockList]=useState(FALLBACK_STOCKS);
   const fileRef=useRef();
@@ -490,7 +496,7 @@ export default function App(){
     const a=shares?calcDCF_rate({fcf:lastAnn.fcf,gr,dr,shares}):0;
     const b=calcDCF_graham({eps:lastAnn.eps,gr,bondYield:dcfApplied.bondYield});
     const c=calcDCF_roe({roe:lastAnn.roe,eps:lastAnn.eps});
-    const d=shares?calcDCF_owner({net:lastAnn.net,cfo:lastAnn.cfo,cfi:lastAnn.cfi,capex:lastAnn.capex,gr,dr,shares}):0;
+    const d=shares?calcDCF_owner({net:lastAnn.net,cfo:lastAnn.cfo,cfi:lastAnn.cfi,capex:lastAnn.capex,capexRatio:dcfApplied.capexRatio,gr,dr,shares}):0;
     const valid=[a,b,c,d].filter(v=>v>0);
     const avg=valid.length?Math.round(valid.reduce((s,v)=>s+v,0)/valid.length):0;
     // 역DCF — 현재 주가에 내재된 성장률 (priceInfo에서 직접 읽기)
@@ -499,7 +505,7 @@ export default function App(){
     return{a,b,c,d,avg,impliedGr};
   },[lastAnn,dcfApplied,priceInfo]);
 
-  const dcfHistory=useMemo(()=>buildDCFHistory(co?.annData,dcfApplied.gr/100,(dcfApplied.bondYield+dcfApplied.riskPrem)/100),[co?.annData,dcfApplied]);
+  const dcfHistory=useMemo(()=>buildDCFHistory(co?.annData,dcfApplied.gr/100,(dcfApplied.bondYield+dcfApplied.riskPrem)/100,dcfApplied.bondYield,dcfApplied.capexRatio),[co?.annData,dcfApplied]);
 
   const annTimeline=useMemo(()=>(co?.annData||[]).map(r=>({...r,period:`${r.year}년`})),[co?.annData]);
   const qtrTimeline=useMemo(()=>(co?.qtrData||[]).map(r=>({...r,period:r.label})),[co?.qtrData]);
@@ -1181,6 +1187,7 @@ export default function App(){
                   {key:"riskPrem", label:"리스크 프리미엄(%)",min:0,max:10,step:0.5},
                   {key:"gr",       label:"기업 성장률(%)",min:0,max:30,step:0.5},
                   {key:"reqReturn",label:"요구수익률(%)",min:1,max:20,step:0.5},
+                  {key:"capexRatio",label:"유지CAPEX 비율(%)",min:0,max:100,step:5},
                 ].map(f=>(
                   <div key={f.key}>
                     <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
@@ -1211,10 +1218,10 @@ export default function App(){
                 <>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:12}}>
                     {[
-                      {label:"A. 오너이익 DCF",sub:"버핏 방식 · 순이익+감가추정-CAPEX추정",val:dcfResults.d,color:C.orange},
-                      {label:"B. DCF (금리기반)",sub:`할인율 ${(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% · 성장률 ${dcfApplied.gr}%`,val:dcfResults.a,color:C.blue},
-                      {label:"C. 그레이엄 멀티플",sub:"V=EPS×(8.5+2g)×4.4/Y",val:dcfResults.b,color:C.purple},
-                      {label:"D. ROE 멀티플",sub:"적정가=ROE×EPS (적정PER=ROE)",val:dcfResults.c,color:C.teal},
+                      {label:"A. DCF(오너이익)",sub:`버핏 방식 · 유지CAPEX ${dcfApplied.capexRatio}% 적용`,val:dcfResults.d,color:C.orange},
+                      {label:"B. DCF(금리기반)",sub:`할인율 ${(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% · 성장률 ${dcfApplied.gr}%`,val:dcfResults.a,color:C.blue},
+                      {label:"C. 그레이엄멀티플",sub:"V=EPS×(8.5+2g)×4.4/Y",val:dcfResults.b,color:C.purple},
+                      {label:"D. ROE멀티플",sub:"적정가=ROE×EPS (적정PER=ROE)",val:dcfResults.c,color:C.teal},
                       {label:"4가지 평균",sub:"교차검증 종합",val:dcfResults.avg,color:C.gold},
                     ].map(item=>{
                       const diff=price&&item.val?Math.round((item.val/price-1)*100):null;
@@ -1261,20 +1268,51 @@ export default function App(){
                   )}
                   {dcfHistory.length>=2&&(
                     <>
-                      <ST accent={C.gold}>연도별 DCF 추이</ST>
-                      <CW h={190}>
+                      <ST accent={C.gold}>연도별 적정주가 추이 (4가지 방식)</ST>
+                      <CW h={260}>
                         <ComposedChart data={dcfHistory} margin={{top:4,right:12,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left"  {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
+                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                           <YAxis yAxisId="right" orientation="right" {...yp("억",40)}/>
                           <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                          <Bar yAxisId="right" dataKey="fcf" name="FCF(억)" fill={C.teal} opacity={0.6} maxBarSize={32}/>
-                          <Line yAxisId="left" dataKey="intrinsic" name="DCF 내재가치" stroke={C.gold} strokeWidth={2.5} dot={{r:4,fill:C.gold}}/>
+                          <Bar  yAxisId="right" dataKey="fcf"    name="FCF(억)"        fill={C.teal}   opacity={0.4} maxBarSize={28}/>
+                          <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
+                          <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
+                          <Line yAxisId="left"  dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
+                          <Line yAxisId="left"  dataKey="roe"    name="ROE멀티플"      stroke={C.teal}   strokeWidth={2}   dot={{r:3,fill:C.teal}}   connectNulls strokeDasharray="2 2"/>
                           {price>0&&<ReferenceLine yAxisId="left" y={price} stroke={C.blueL} strokeDasharray="4 2"
                             label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
                         </ComposedChart>
                       </CW>
+
+                      {/* 유지CAPEX 비율 업종 참조표 */}
+                      <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
+                        <div style={{color:C.gold,fontSize:10,fontWeight:700,marginBottom:8}}>📋 유지CAPEX 비율 업종별 참조</div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                          {[
+                            ["🏭 중공업·조선·철강","80~90%"],
+                            ["⚙️ 자동차·부품 제조","70~80%"],
+                            ["🔬 의료기기·정밀기계","50~65%"],
+                            ["💊 제약·바이오","40~55%"],
+                            ["🏗 건설·건자재","60~75%"],
+                            ["🛒 유통·소비재","40~55%"],
+                            ["💻 IT·소프트웨어","20~35%"],
+                            ["📱 플랫폼·인터넷","15~30%"],
+                            ["🏦 금융·보험","10~20%"],
+                            ["⚡ 전기·에너지·유틸리티","75~85%"],
+                          ].map(([sector,ratio])=>(
+                            <div key={sector} style={{display:"flex",justifyContent:"space-between",
+                              padding:"5px 8px",background:C.bg,borderRadius:6,alignItems:"center"}}>
+                              <span style={{color:C.muted,fontSize:9}}>{sector}</span>
+                              <span style={{color:C.gold,fontSize:9,fontWeight:700,fontFamily:"monospace"}}>{ratio}</span>
+                            </div>
+                          ))}
+                        </div>
+                        <div style={{color:C.dim,fontSize:8,marginTop:8,lineHeight:1.5}}>
+                          ※ 유지CAPEX = 사업 현상유지에 필요한 최소 설비투자. 높을수록 보수적 평가. DCF 파라미터에서 조정 가능.
+                        </div>
+                      </div>
                     </>
                   )}
                 </>
