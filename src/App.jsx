@@ -850,7 +850,7 @@ export default function App(){
   return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontSize:13,
       fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
-      overflowX:"hidden",WebkitOverflowScrolling:"touch"}}>
+      overflowX:"hidden"}}>
 
       {/* ── 상단 타이틀 바 */}
       <div style={{background:`linear-gradient(135deg,#040C1A,#071428)`,borderBottom:`1px solid ${C.border}`,
@@ -984,7 +984,7 @@ export default function App(){
       </div>
 
       {/* ── 탭 */}
-      <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"6px 12px",display:"flex",gap:4,overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
+      <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"6px 12px",display:"flex",gap:4,overflowX:"auto"}}>
         {TABS.map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)}
             style={{background:tab===t.id?C.blue:"transparent",color:tab===t.id?"#fff":C.muted,
@@ -1957,7 +1957,7 @@ export default function App(){
 
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-        html,body{overflow-x:hidden;overscroll-behavior:none;background:#040710;}
+        html,body{overflow-x:hidden;background:#040710;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         ::-webkit-scrollbar{width:6px;height:6px;}
         ::-webkit-scrollbar-track{background:transparent;}
