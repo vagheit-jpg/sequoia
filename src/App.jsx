@@ -160,8 +160,9 @@ const calcSignalPoints=(data)=>{
     if(!prev||prev.gap60===null)return;
     if(prev.gap60>-20&&d.gap60<=-20) pts.push({label:d.label,price:d.price,type:"적극매수",color:"#00C878",arrow:"▲",pos:"bottom"});
     else if(prev.gap60>0&&d.gap60<=0) pts.push({label:d.label,price:d.price,type:"매수",color:"#10A898",arrow:"▲",pos:"bottom"});
-    else if(prev.gap60<200&&d.gap60>=200) pts.push({label:d.label,price:d.price,type:"매도",color:"#FF7830",arrow:"▼",pos:"top"});
-    else if(prev.gap60<300&&d.gap60>=300) pts.push({label:d.label,price:d.price,type:"적극매도",color:"#FF3D5A",arrow:"▼",pos:"top"});
+    else if(prev.gap60<100&&d.gap60>=100) pts.push({label:d.label,price:d.price,type:"매도",color:"#FF7830",arrow:"▼",pos:"top"});
+    else if(prev.gap60<200&&d.gap60>=200) pts.push({label:d.label,price:d.price,type:"적극매도",color:"#FF3D5A",arrow:"▼",pos:"top"});
+    else if(prev.gap60<300&&d.gap60>=300) pts.push({label:d.label,price:d.price,type:"극단매도",color:"#8855FF",arrow:"▼",pos:"top"});
   });
   return pts;
 };
@@ -433,6 +434,13 @@ export default function App(){
   const RANGES=[{label:"10년",months:120},{label:"5년",months:60},{label:"3년",months:36},{label:"1년",months:12}];
 
   // Supabase 로드 + localStorage 이중 보장
+  // PC 마우스 환경에서만 스크롤바 표시
+  useEffect(()=>{
+    const isPC=window.matchMedia("(hover:hover) and (pointer:fine)").matches;
+    if(isPC) document.documentElement.classList.add("show-scrollbar");
+    return()=>document.documentElement.classList.remove("show-scrollbar");
+  },[]);
+
   useEffect(()=>{
     setDbLoading(true);
     const loadFromLocal=()=>{
@@ -1202,7 +1210,7 @@ export default function App(){
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
                 <div style={{color:gs.color,fontWeight:700,fontSize:12}}>60MA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
                 <Tag color={gs.color} size={11}>{gs.label}</Tag>
-                <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:과열 / +200%:매도 / +300%:적극매도</div>
+                <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
               </div>
             )}
             <ST accent={C.blue} right="▲매수 ▼매도">주가 & 60MA 위치밴드</ST>
@@ -1239,7 +1247,7 @@ export default function App(){
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
-                      label={{value:b.label,position:b.key==="bKnee"?"insideTopRight":"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
                   ));
                 })()}
                 {signalPts.map((pt,i)=>(
@@ -1258,9 +1266,9 @@ export default function App(){
                 <ReferenceArea y1={200} y2={500} fill={`${C.red}08`}/>
                 <ReferenceLine y={0}   stroke={C.dim}   strokeDasharray="2 2"/>
                 <ReferenceLine y={-20} stroke={C.green} strokeDasharray="4 2" label={{value:"적극매수-20%",fill:C.green,fontSize:9,position:"insideTopRight"}}/>
-                <ReferenceLine y={100} stroke={C.gold}  strokeDasharray="4 2" label={{value:"과열+100%",fill:C.gold,fontSize:9,position:"insideTopRight"}}/>
-                <ReferenceLine y={200} stroke={C.orange} strokeDasharray="4 2" label={{value:"매도+200%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
-                <ReferenceLine y={300} stroke={C.red}   strokeDasharray="4 2" label={{value:"적극매도+300%",fill:C.red,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"매도+100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={200} stroke={C.orange} strokeDasharray="4 2" label={{value:"적극매도+200%",fill:C.red,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={300} stroke={C.red}   strokeDasharray="4 2" label={{value:"극단매도+300%",fill:C.purple,fontSize:9,position:"insideTopRight"}}/>
                 <Bar dataKey="gap60" name="이격도(%)" maxBarSize={8} radius={[2,2,0,0]} fill={C.teal}/>
               </ComposedChart>
             </CW>
@@ -1467,7 +1475,7 @@ export default function App(){
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
-                      label={{value:b.label,position:b.key==="bFloor"?"insideTopRight":"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
                   ));
                 })()}
                 {signalPts.map((pt,i)=>(
@@ -1832,23 +1840,15 @@ export default function App(){
         html,body{overflow-x:hidden;background:#040710;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         *{-webkit-tap-highlight-color:transparent;}
-        /* PC (마우스 환경): 슬림 스크롤바 표시 */
-        @media (hover:hover) and (pointer:fine){
-          ::-webkit-scrollbar{width:6px;height:6px;}
-          ::-webkit-scrollbar-track{background:transparent;}
-          ::-webkit-scrollbar-thumb{background:${C.border};border-radius:6px;}
-          ::-webkit-scrollbar-thumb:hover{background:${C.muted};}
-          *{scrollbar-width:thin;scrollbar-color:${C.border} transparent;}
-        }
-        /* 모바일·터치 환경: 스크롤바 완전 숨김 */
-        @media (hover:none){
-          ::-webkit-scrollbar{display:none !important;}
-          *{scrollbar-width:none !important;}
-        }
-        @media (pointer:coarse){
-          ::-webkit-scrollbar{display:none !important;}
-          *{scrollbar-width:none !important;}
-        }
+        /* 기본: 스크롤바 전체 숨김 (모바일 포함 모든 환경) */
+        ::-webkit-scrollbar{display:none !important;}
+        *{scrollbar-width:none !important;}
+        /* PC 마우스 환경에서만 .show-scrollbar 클래스로 되살림 */
+        .show-scrollbar ::-webkit-scrollbar{display:block !important;width:6px;height:6px;}
+        .show-scrollbar ::-webkit-scrollbar-track{background:transparent;}
+        .show-scrollbar ::-webkit-scrollbar-thumb{background:${C.border};border-radius:6px;}
+        .show-scrollbar ::-webkit-scrollbar-thumb:hover{background:${C.muted};}
+        .show-scrollbar *{scrollbar-width:thin !important;scrollbar-color:${C.border} transparent;}
       `}</style>
     </div>
   );
