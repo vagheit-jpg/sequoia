@@ -1512,9 +1512,9 @@ export default function App(){
                         {z:"VVH", r:"×2.0↑", c:C.purple},
                       ].map(z=>(
                         <span key={z.z} style={{
-                          background:re.priceZone===z.z?`${z.c}30`:"transparent",
-                          color:re.priceZone===z.z?z.c:C.muted,
-                          border:`1px solid ${re.priceZone===z.z?z.c:C.border}`,
+                          background:priceZone===z.z?`${z.c}30`:"transparent",
+                          color:priceZone===z.z?z.c:C.muted,
+                          border:`1px solid ${priceZone===z.z?z.c:C.border}`,
                           borderRadius:4,padding:"2px 5px",fontSize:8,fontWeight:700,
                         }}>{z.z}</span>
                       ))}
