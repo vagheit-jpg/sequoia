@@ -895,7 +895,7 @@ export default function App(){
             )}
             <ST accent={C.blue} right="▲매수 ▼매도">주가 & 60MA</ST>
             <CW h={300}>
-              <ComposedChart data={withMA60} margin={{top:20,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMA60} margin={{top:20,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -910,7 +910,7 @@ export default function App(){
             </CW>
             <ST accent={C.teal}>60MA 이격도 (%)</ST>
             <CW h={180}>
-              <ComposedChart data={withMA60} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("%")}/>
                 <Tooltip content={<MTip/>}/>
@@ -934,7 +934,7 @@ export default function App(){
               <>
                 <ST accent={C.purple}>PER 밴드 (7배·13배·20배)</ST>
                 <CW h={270}>
-                  <ComposedChart data={withBands} margin={{top:4,right:10,left:0,bottom:8}}>
+                  <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>}/>
@@ -946,7 +946,7 @@ export default function App(){
                 </CW>
                 <ST accent={C.cyan}>PBR 밴드 (1배·3.5배)</ST>
                 <CW h={240}>
-                  <ComposedChart data={withBands} margin={{top:4,right:10,left:0,bottom:8}}>
+                  <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>}/>
@@ -973,7 +973,7 @@ export default function App(){
                   {(()=>{const {unit:u1,scale:s1}=autoUnit(data,["rev","op","net"]);const d1=scaleData(data,["rev","op","net"],s1);return(<>
                   <ST accent={C.green} right={u1+"원"}>매출·영업이익·순이익</ST>
                   <CW h={240}>
-                    <ComposedChart data={d1} margin={{top:4,right:10,left:0,bottom:8}}>
+                    <ComposedChart data={d1} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(u1)}/>
@@ -986,7 +986,7 @@ export default function App(){
                   {/* 수정 3: 성장률 YoY */}
                   <ST accent={C.gold} right="YoY %">매출·영업이익 성장률</ST>
                   <CW h={190}>
-                    <ComposedChart data={growthData} margin={{top:4,right:10,left:0,bottom:8}}>
+                    <ComposedChart data={growthData} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp("%")}/>
@@ -999,7 +999,7 @@ export default function App(){
                   </CW>
                   <ST accent={C.gold} right="%">OPM · ROE · ROA</ST>
                   <CW h={190}>
-                    <ComposedChart data={data} margin={{top:4,right:10,left:0,bottom:8}}>
+                    <ComposedChart data={data} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp("%")}/>
@@ -1059,7 +1059,7 @@ export default function App(){
             </div>
             <ST accent={C.gold}>G1·G2·G3·G4 밴드</ST>
             <CW h={270}>
-              <ComposedChart data={withG} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withG} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -1072,7 +1072,7 @@ export default function App(){
             </CW>
             <ST accent={C.blue}>주가 & 60MA</ST>
             <CW h={240}>
-              <ComposedChart data={withMA60} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>}/><Legend wrapperStyle={{fontSize:10}}/>
@@ -1082,7 +1082,7 @@ export default function App(){
             </CW>
             <ST accent={C.green}>RSI (14개월)</ST>
             <CW h={148}>
-              <ComposedChart data={withRSI} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withRSI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
                 <Tooltip content={<MTip/>}/>
@@ -1094,7 +1094,7 @@ export default function App(){
             </CW>
             <ST accent={C.blueL}>MACD</ST>
             <CW h={148}>
-              <ComposedChart data={withMACD} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMACD} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",38)}/>
                 <Tooltip content={<MTip/>}/>
@@ -1106,7 +1106,7 @@ export default function App(){
             </CW>
             <ST accent={C.teal}>OBV</ST>
             <CW h={128}>
-              <AreaChart data={withOBV} margin={{top:4,right:10,left:0,bottom:8}}>
+              <AreaChart data={withOBV} margin={{top:4,right:20,left:0,bottom:8}}>
                 <defs><linearGradient id="obvG" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%"  stopColor={C.teal} stopOpacity={0.3}/>
                   <stop offset="95%" stopColor={C.teal} stopOpacity={0}/>
@@ -1119,7 +1119,7 @@ export default function App(){
             </CW>
             <ST accent={C.pink}>MFI</ST>
             <CW h={128}>
-              <ComposedChart data={withMFI} margin={{top:4,right:10,left:0,bottom:8}}>
+              <ComposedChart data={withMFI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
                 <Tooltip content={<MTip/>}/>
@@ -1193,7 +1193,7 @@ export default function App(){
                     <>
                       <ST accent={C.gold} right="참고용">연도별 DCF 추이</ST>
                       <CW h={190}>
-                        <ComposedChart data={dcfHistory} margin={{top:4,right:10,left:0,bottom:8}}>
+                        <ComposedChart data={dcfHistory} margin={{top:4,right:20,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left"  {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
@@ -1225,7 +1225,7 @@ export default function App(){
                   <ViewToggle view={stabView} setView={setStabView}/>
                   <ST accent={C.teal}>부채비율(우축) · 자본유보율(좌축)</ST>
                   <CW h={230}>
-                    <ComposedChart data={data} margin={{top:4,right:52,left:0,bottom:8}}>
+                    <ComposedChart data={data} margin={{top:4,right:16,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
@@ -1239,7 +1239,7 @@ export default function App(){
                   {(()=>{const {unit:ua,scale:sa}=autoUnit(data,["assets","liab","equity"]);const da=scaleData(data,["assets","liab","equity"],sa);return(<>
                   <ST accent={C.green}>자산·부채·자본 ({ua}원)</ST>
                   <CW h={220}>
-                    <ComposedChart data={da} margin={{top:4,right:10,left:0,bottom:8}}>
+                    <ComposedChart data={da} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(ua)}/>
@@ -1251,7 +1251,7 @@ export default function App(){
                   </CW>
                   <ST accent={C.blue}>자본·부채 적층(좌축) + 부채비율 꺾은선(우축)</ST>
                   <CW h={230}>
-                    <ComposedChart data={da} margin={{top:4,right:52,left:0,bottom:8}}>
+                    <ComposedChart data={da} margin={{top:4,right:16,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp(ua,48)}/>
@@ -1278,7 +1278,7 @@ export default function App(){
               <>
                 <ST accent={C.gold}>배당금 (DPS) 추이</ST>
                 <CW h={200}>
-                  <ComposedChart data={co.divData} margin={{top:4,right:10,left:0,bottom:8}}>
+                  <ComposedChart data={co.divData} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
                     <YAxis {...yp("원")}/><Tooltip content={<MTip/>}/>
@@ -1287,7 +1287,7 @@ export default function App(){
                 </CW>
                 <ST accent={C.green}>배당수익률(막대·우축) · 배당성향(꺾은선·좌축)</ST>
                 <CW h={200}>
-                  <ComposedChart data={co.divData} margin={{top:4,right:52,left:0,bottom:8}}>
+                  <ComposedChart data={co.divData} margin={{top:4,right:16,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
                     <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
