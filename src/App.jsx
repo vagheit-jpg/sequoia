@@ -1296,8 +1296,9 @@ export default function App(){
                   <div key={f.key}>
                     <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
                     <input type="number" step={f.step} min={0.1}
-                      value={bandDraft[f.key]}
-                      onChange={e=>setBandDraft(p=>({...p,[f.key]:+e.target.value}))}
+                      value={bandDraft[f.key]===0?"":bandDraft[f.key]}
+                      placeholder={String(BAND_DEFAULT[f.key])}
+                      onChange={e=>setBandDraft(p=>({...p,[f.key]:e.target.value===""?0:+e.target.value}))}
                       onFocus={e=>e.target.select()}
                       style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
                         borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
