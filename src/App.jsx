@@ -81,6 +81,113 @@ const calcMA60=(monthly)=>{
     return{...d,ma60:+avg.toFixed(0),gap60:+((d.price/avg-1)*100).toFixed(2)};
   });
 };
+const calcMAN=(monthly,N)=>{
+  if(!monthly||monthly.length<N)return null;
+  const slice=monthly.slice(-N);
+  return Math.round(slice.reduce((s,x)=>s+x.price,0)/N);
+};
+const calc3LineSignal=(monthly)=>{
+  // 최소 3개월치도 없으면 의미없음
+  if(!monthly||monthly.length<3)return null;
+  // 각 선: 가용 데이터 있을 때만 계산, 없으면 null
+  const ma60m=monthly.length>=60?calcMAN(monthly,60):null; // 60월선 — 5년 필요
+  const ma60w=monthly.length>=15?calcMAN(monthly,15):null; // 60주선 — 15개월 필요
+  const ma60d=monthly.length>=3 ?calcMAN(monthly,3) :null; // 60일선 — 3개월 필요
+  // 가용 선이 2개 미만이면 비교 불가
+  const available=[ma60m,ma60w,ma60d].filter(v=>v!==null);
+  if(available.length<2)return null;
+  const last=monthly[monthly.length-1];
+  const gapM=ma60m!=null?+(((last.price/ma60m)-1)*100).toFixed(1):null;
+  const gapW=ma60w!=null?+(((last.price/ma60w)-1)*100).toFixed(1):null;
+  const gapD=ma60d!=null?+(((last.price/ma60d)-1)*100).toFixed(1):null;
+  const toZone=(gap)=>{
+    if(gap===null)return null;
+    if(gap<=-20)return{label:"VL",score:-2,color:"#00C878"};
+    if(gap<0)   return{label:"L", score:-1,color:"#5BA0FF"};
+    if(gap<100) return{label:"M", score: 0,color:"#8AA8C8"};
+    if(gap<200) return{label:"H", score: 1,color:"#FF7830"};
+    if(gap<300) return{label:"VH",score: 2,color:"#FF3D5A"};
+    return      {label:"EH",score: 3,color:"#8855FF"};
+  };
+  const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
+  // 가용한 zone만으로 점수 계산
+  const activeZones=[zm,zw,zd].filter(z=>z!==null);
+  const scores=activeZones.map(z=>z.score);
+  const allNegStrict=scores.every(s=>s<0);
+  const allPosStrict=scores.every(s=>s>0);
+  const allNeg=scores.every(s=>s<=0);
+  const allPos=scores.every(s=>s>=0);
+  const maxScore=activeZones.length; // 가용 선 수가 최대 점수
+  let alignScore=0;
+  if(scores.every(s=>s===scores[0]))alignScore=maxScore;
+  else if(allNegStrict||allPosStrict)alignScore=Math.max(1,maxScore-1);
+  else if(allNeg||allPos)alignScore=1;
+  else alignScore=0;
+  // 배열: 가용한 MA값만으로 판단
+  let arrangement="혼재",arrangementColor="#8AA8C8",arrangementEn="mixed";
+  if(ma60m&&ma60w&&ma60d){
+    if(ma60d>ma60w&&ma60w>ma60m){arrangement="정배열";arrangementColor="#00C878";arrangementEn="bull";}
+    else if(ma60d<ma60w&&ma60w<ma60m){arrangement="역배열";arrangementColor="#FF3D5A";arrangementEn="bear";}
+  } else if(ma60w&&ma60d){
+    // 60월선 없을 때 — 60주/60일만으로 단기 배열 판단
+    if(ma60d>ma60w){arrangement="단기 정배열";arrangementColor="#10A898";arrangementEn="bull";}
+    else if(ma60d<ma60w){arrangement="단기 역배열";arrangementColor="#FF7830";arrangementEn="bear";}
+  }
+  const bearDir=allNegStrict;
+  const bullDir=allPosStrict;
+  // 데이터 부족 여부 플래그
+  const hasAll=ma60m!==null&&ma60w!==null&&ma60d!==null;
+  const missingLines=[
+    ma60m===null?"60월선(5년 데이터 부족)":null,
+    ma60w===null?"60주선(15개월 데이터 부족)":null,
+  ].filter(Boolean);
+  let verdictTitle="",verdictDesc="",verdictColor="#A0C0D8",borderColor="#4A6080",scoreColor="#A0C0D8";
+  if(alignScore===maxScore&&bearDir&&arrangementEn==="bull"){
+    verdictTitle=hasAll?"하루·주·달 모두 바닥권 — 추세는 살아있습니다":"가용 시간대 모두 바닥권 — 추세는 살아있습니다";
+    verdictDesc="확인된 시간대 모두 저점이고 정배열 중입니다.
+눌림목 매수 타이밍으로 신뢰도가 높습니다.";
+    verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
+  } else if(alignScore===maxScore&&bearDir&&arrangementEn==="bear"){
+    verdictTitle=hasAll?"하루·주·달 모두 바닥권 — 하락 추세 중 반등입니다":"가용 시간대 모두 바닥권 — 하락 추세 중 반등입니다";
+    verdictDesc="확인된 시간대 모두 저점이나 역배열 상태입니다.
+본격 추세 전환 확인 전까지 소량만 접근하세요.";
+    verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
+  } else if(alignScore===maxScore&&bearDir){
+    verdictTitle=hasAll?"하루·주·달 모두 바닥권입니다":"가용 시간대 모두 바닥권입니다";
+    verdictDesc="확인된 시간대 모두 저점을 가리킵니다.
+분할 매수를 진지하게 검토할 타이밍입니다.";
+    verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
+  } else if(alignScore===maxScore&&bullDir&&arrangementEn==="bear"){
+    verdictTitle=hasAll?"하루·주·달 모두 꼭대기 — 하락 추세 속 반등 고점입니다":"가용 시간대 모두 꼭대기 — 하락 추세 속 반등 고점입니다";
+    verdictDesc="확인된 시간대 모두 고점이고 역배열 중입니다.
+매도 타이밍으로 유효하며 신규 진입은 위험합니다.";
+    verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
+  } else if(alignScore===maxScore&&bullDir&&arrangementEn==="bull"){
+    verdictTitle=hasAll?"하루·주·달 모두 꼭대기 — 강한 상승 추세 중 과열입니다":"가용 시간대 모두 꼭대기 — 강한 상승 추세 중 과열입니다";
+    verdictDesc="확인된 시간대 모두 고점이나 정배열로 추세는 강합니다.
+추세 추종 vs 차익 실현, 개인 원칙에 따라 판단하세요.";
+    verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+  } else if(alignScore===maxScore&&bullDir){
+    verdictTitle=hasAll?"하루·주·달 모두 꼭대기권입니다":"가용 시간대 모두 꼭대기권입니다";
+    verdictDesc="확인된 시간대 모두 과열을 가리킵니다.
+신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";
+    verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
+  } else if(alignScore>=2){
+    verdictTitle="두 시간대가 같은 방향을 가리킵니다";
+    verdictDesc="완전한 정렬은 아니나 방향성이 보입니다.
+나머지 시간대 확인 후 판단하세요.";
+    verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
+  } else {
+    verdictTitle="시간대마다 가리키는 방향이 다릅니다";
+    verdictDesc="확인된 시간대 신호가 서로 엇갈립니다.
+지금은 관망이 가장 안전합니다.";
+    verdictColor="#C0D8F0";borderColor="#4A6080";scoreColor="#A0C0D8";
+  }
+  return{ma60m,ma60w,ma60d,gapM,gapW,gapD,zm,zw,zd,
+    alignScore,maxScore,hasAll,missingLines,
+    arrangement,arrangementColor,arrangementEn,
+    verdictTitle,verdictDesc,verdictColor,borderColor,scoreColor};
+};
 const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
   if(i<n)return{...d,rsi:null};
   const sl=monthly.slice(i-n+1,i+1);let g=0,l=0;
@@ -519,6 +626,7 @@ export default function App(){
     const firstLabel=displayMonthly[0]?.label;
     return allPts.filter(pt=>pt.label>=firstLabel);
   },[withMA60Full,displayMonthly]);
+  const threeLineSignal=useMemo(()=>calc3LineSignal(monthly),[monthly]);
   const lastGap   =withMA60.slice(-1)[0]?.gap60??null;
   const lastAnn   =co?.annData?.slice(-1)?.[0]||{};
 
@@ -1299,6 +1407,150 @@ export default function App(){
                 <Bar dataKey="gap60" name="이격도(%)" maxBarSize={8} radius={[2,2,0,0]} fill={C.teal}/>
               </ComposedChart>
             </CW>
+
+            {/* ── 3선 정렬 신호 카드 ── */}
+            {threeLineSignal&&(()=>{
+              const tl=threeLineSignal;
+              const rows=[
+                {label:"60월선",zone:tl.zm,gap:tl.gapM,ma:tl.ma60m,avail:tl.ma60m!==null},
+                {label:"60주선",zone:tl.zw,gap:tl.gapW,ma:tl.ma60w,avail:tl.ma60w!==null},
+                {label:"60일선",zone:tl.zd,gap:tl.gapD,ma:tl.ma60d,avail:tl.ma60d!==null},
+              ];
+              const isZero=tl.alignScore===0;
+              return(
+                <div style={{
+                  background:C.card,
+                  border:`2px solid ${tl.borderColor}88`,
+                  borderRadius:12,padding:"12px 14px",marginBottom:12,
+                }}>
+                  {/* ── 헤더: 제목 + 배열 배지 */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                    <div style={{color:C.gold,fontSize:11,fontWeight:700,letterSpacing:"0.05em",borderLeft:`3px solid ${C.gold}`,paddingLeft:8}}>
+                      3선 정렬 신호
+                    </div>
+                    <div style={{
+                      background:`${tl.arrangementColor}22`,
+                      border:`1px solid ${tl.arrangementColor}66`,
+                      borderRadius:6,padding:"3px 10px",
+                      color:tl.arrangementColor,fontSize:11,fontWeight:700,fontFamily:"monospace",
+                    }}>
+                      {tl.arrangement}
+                    </div>
+                  </div>
+
+                  {/* ── 3선 각 행 */}
+                  {rows.map((row,i)=>{
+                    const absGap=Math.abs(row.gap);
+                    const maxRef=row.gap<0?30:300;
+                    const barW=Math.min(100,Math.round(absGap/maxRef*100));
+                    if(!row.avail)return(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                        <span style={{fontSize:10,color:C.muted,width:40,flexShrink:0}}>{row.label}</span>
+                        <span style={{
+                          fontSize:10,fontWeight:700,fontFamily:"monospace",
+                          padding:"2px 7px",borderRadius:4,minWidth:30,textAlign:"center",flexShrink:0,
+                          background:C.dim,color:C.muted,border:`1px solid ${C.border}`,
+                        }}>—</span>
+                        <div style={{flex:1,height:6,borderRadius:3,background:C.dim}}/>
+                        <span style={{fontSize:10,color:C.muted,fontFamily:"monospace",minWidth:46,textAlign:"right",flexShrink:0}}>
+                          데이터 부족
+                        </span>
+                      </div>
+                    );
+                    return(
+                      <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                        <span style={{fontSize:10,color:C.muted,width:40,flexShrink:0}}>{row.label}</span>
+                        <span style={{
+                          fontSize:10,fontWeight:700,fontFamily:"monospace",
+                          padding:"2px 7px",borderRadius:4,
+                          minWidth:30,textAlign:"center",flexShrink:0,
+                          background:`${row.zone.color}22`,color:row.zone.color,
+                          border:`1px solid ${row.zone.color}44`,
+                        }}>{row.zone.label}</span>
+                        <div style={{flex:1,height:6,borderRadius:3,background:C.dim,overflow:"hidden"}}>
+                          <div style={{width:`${barW}%`,height:"100%",borderRadius:3,background:row.zone.color}}/>
+                        </div>
+                        <span style={{
+                          fontSize:10,color:row.zone.color,
+                          fontFamily:"monospace",minWidth:46,textAlign:"right",flexShrink:0,
+                        }}>
+                          {row.gap>0?"+":""}{row.gap}%
+                        </span>
+                      </div>
+                    );
+                  })}
+
+                  {/* ── 구분선 */}
+                  <div style={{borderTop:`1px solid ${C.border}`,margin:"8px 0"}}/>
+
+                  {/* ── 정렬 점수 */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
+                    <div>
+                      <span style={{fontSize:10,color:isZero?"#A0C0D8":C.muted}}>정렬 점수</span>
+                      {!tl.hasAll&&(
+                        <span style={{fontSize:9,color:C.muted,marginLeft:5}}>
+                          ({tl.maxScore}선 기준)
+                        </span>
+                      )}
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:6}}>
+                      <div style={{display:"flex",gap:3}}>
+                        {Array.from({length:tl.maxScore},(_,idx)=>(
+                          <div key={idx} style={{
+                            width:18,height:8,borderRadius:2,
+                            background:idx<tl.alignScore?tl.scoreColor:(isZero?"#3A5068":C.dim),
+                            border:`1px solid ${idx<tl.alignScore?tl.scoreColor+"88":(isZero?"#5A7890":C.border)}`,
+                          }}/>
+                        ))}
+                      </div>
+                      <span style={{
+                        fontSize:12,fontWeight:700,fontFamily:"monospace",
+                        color:tl.alignScore>0?tl.scoreColor:"#A0C0D8",
+                      }}>
+                        {tl.alignScore} / {tl.maxScore}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* ── verdict 박스 */}
+                  <div style={{
+                    background:`${tl.verdictColor}18`,
+                    border:`1px solid ${tl.borderColor}${isZero?"99":"55"}`,
+                    borderRadius:8,padding:"10px 12px",
+                  }}>
+                    <div style={{
+                      fontSize:12,fontWeight:700,marginBottom:4,
+                      color:tl.verdictColor,
+                    }}>
+                      {tl.verdictTitle}
+                    </div>
+                    <div style={{fontSize:10,lineHeight:1.6,color:isZero?"#90B8D8":tl.verdictColor,opacity:isZero?1:0.85}}>
+                      {tl.verdictDesc.split("\n").map((line,i)=>(
+                        <span key={i}>{line}{i===0?<br/>:null}</span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* ── 하단 MA 수치 */}
+                  <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
+                    {[
+                      {k:"60월MA",v:tl.ma60m!=null?tl.ma60m.toLocaleString()+"원":"—"},
+                      {k:"60주MA",v:tl.ma60w!=null?tl.ma60w.toLocaleString()+"원":"—"},
+                      {k:"60일MA",v:tl.ma60d!=null?tl.ma60d.toLocaleString()+"원":"—"},
+                    ].map((item,i)=>(
+                      <div key={i} style={{
+                        background:C.card2,borderRadius:6,padding:"3px 9px",
+                        border:`1px solid ${C.border}`,
+                        display:"flex",alignItems:"center",gap:5,
+                      }}>
+                        <span style={{fontSize:8,color:C.muted}}>{item.k}</span>
+                        <span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",color:C.text}}>{item.v}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
