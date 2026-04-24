@@ -102,12 +102,12 @@ const calc3LineSignal=(monthly)=>{
   const gapD=ma60d!=null?+(((last.price/ma60d)-1)*100).toFixed(1):null;
   const toZone=(gap)=>{
     if(gap===null)return null;
-    if(gap<=-20)return{label:"VL",score:-2,color:"#00C878"};
-    if(gap<0)   return{label:"L", score:-1,color:"#5BA0FF"};
-    if(gap<100) return{label:"M", score: 0,color:"#8AA8C8"};
-    if(gap<200) return{label:"H", score: 1,color:"#FF7830"};
-    if(gap<300) return{label:"VH",score: 2,color:"#FF3D5A"};
-    return      {label:"EH",score: 3,color:"#8855FF"};
+    if(gap<=-40)return{label:"VL",score:-2,color:"#00C878"};  // ×0.6 이하
+    if(gap<-20) return{label:"L", score:-1,color:"#5BA0FF"};  // ×0.8 이하
+    if(gap<50)  return{label:"M", score: 0,color:"#8AA8C8"};  // ×1.5 미만
+    if(gap<100) return{label:"H", score: 1,color:"#FF7830"};  // ×2.0 미만
+    if(gap<150) return{label:"VH",score: 2,color:"#FF3D5A"};  // ×2.5 미만
+    return      {label:"EH",score: 3,color:"#8855FF"};        // ×2.5 이상
   };
   const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
   // 가용한 zone만으로 점수 계산
@@ -144,43 +144,35 @@ const calc3LineSignal=(monthly)=>{
   let verdictTitle="",verdictDesc="",verdictColor="#A0C0D8",borderColor="#4A6080",scoreColor="#A0C0D8";
   if(alignScore===maxScore&&bearDir&&arrangementEn==="bull"){
     verdictTitle=hasAll?"하루·주·달 모두 바닥권 — 추세는 살아있습니다":"가용 시간대 모두 바닥권 — 추세는 살아있습니다";
-    verdictDesc="확인된 시간대 모두 저점이고 정배열 중입니다.
-눌림목 매수 타이밍으로 신뢰도가 높습니다.";
+    verdictDesc="확인된 시간대 모두 저점이고 정배열 중입니다.\n눌림목 매수 타이밍으로 신뢰도가 높습니다.";
     verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
   } else if(alignScore===maxScore&&bearDir&&arrangementEn==="bear"){
     verdictTitle=hasAll?"하루·주·달 모두 바닥권 — 하락 추세 중 반등입니다":"가용 시간대 모두 바닥권 — 하락 추세 중 반등입니다";
-    verdictDesc="확인된 시간대 모두 저점이나 역배열 상태입니다.
-본격 추세 전환 확인 전까지 소량만 접근하세요.";
+    verdictDesc="확인된 시간대 모두 저점이나 역배열 상태입니다.\n본격 추세 전환 확인 전까지 소량만 접근하세요.";
     verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
   } else if(alignScore===maxScore&&bearDir){
     verdictTitle=hasAll?"하루·주·달 모두 바닥권입니다":"가용 시간대 모두 바닥권입니다";
-    verdictDesc="확인된 시간대 모두 저점을 가리킵니다.
-분할 매수를 진지하게 검토할 타이밍입니다.";
+    verdictDesc="확인된 시간대 모두 저점을 가리킵니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";
     verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
   } else if(alignScore===maxScore&&bullDir&&arrangementEn==="bear"){
     verdictTitle=hasAll?"하루·주·달 모두 꼭대기 — 하락 추세 속 반등 고점입니다":"가용 시간대 모두 꼭대기 — 하락 추세 속 반등 고점입니다";
-    verdictDesc="확인된 시간대 모두 고점이고 역배열 중입니다.
-매도 타이밍으로 유효하며 신규 진입은 위험합니다.";
+    verdictDesc="확인된 시간대 모두 고점이고 역배열 중입니다.\n매도 타이밍으로 유효하며 신규 진입은 위험합니다.";
     verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
   } else if(alignScore===maxScore&&bullDir&&arrangementEn==="bull"){
     verdictTitle=hasAll?"하루·주·달 모두 꼭대기 — 강한 상승 추세 중 과열입니다":"가용 시간대 모두 꼭대기 — 강한 상승 추세 중 과열입니다";
-    verdictDesc="확인된 시간대 모두 고점이나 정배열로 추세는 강합니다.
-추세 추종 vs 차익 실현, 개인 원칙에 따라 판단하세요.";
+    verdictDesc="확인된 시간대 모두 고점이나 정배열로 추세는 강합니다.\n추세 추종 vs 차익 실현, 개인 원칙에 따라 판단하세요.";
     verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
   } else if(alignScore===maxScore&&bullDir){
     verdictTitle=hasAll?"하루·주·달 모두 꼭대기권입니다":"가용 시간대 모두 꼭대기권입니다";
-    verdictDesc="확인된 시간대 모두 과열을 가리킵니다.
-신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";
+    verdictDesc="확인된 시간대 모두 과열을 가리킵니다.\n신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";
     verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
   } else if(alignScore>=2){
     verdictTitle="두 시간대가 같은 방향을 가리킵니다";
-    verdictDesc="완전한 정렬은 아니나 방향성이 보입니다.
-나머지 시간대 확인 후 판단하세요.";
+    verdictDesc="완전한 정렬은 아니나 방향성이 보입니다.\n나머지 시간대 확인 후 판단하세요.";
     verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
   } else {
     verdictTitle="시간대마다 가리키는 방향이 다릅니다";
-    verdictDesc="확인된 시간대 신호가 서로 엇갈립니다.
-지금은 관망이 가장 안전합니다.";
+    verdictDesc="확인된 시간대 신호가 서로 엇갈립니다.\n지금은 관망이 가장 안전합니다.";
     verdictColor="#C0D8F0";borderColor="#4A6080";scoreColor="#A0C0D8";
   }
   return{ma60m,ma60w,ma60d,gapM,gapW,gapD,zm,zw,zd,
@@ -683,12 +675,12 @@ export default function App(){
 
   const gapSig=(gap)=>{
     if(gap===null)return{label:"—",color:C.muted};
-    if(gap<=-20)return{label:"적극매수",color:C.green};
-    if(gap<0)return{label:"매수",color:C.teal};
-    if(gap<100)return{label:"관망",color:C.gold};
-    if(gap<200)return{label:"과열",color:C.orange};
-    if(gap<300)return{label:"매도",color:"#FF6B00"};
-    return{label:"적극매도",color:C.red};
+    if(gap<=-40)return{label:"적극매수",color:C.green};   // VL: ×0.6 이하
+    if(gap<-20) return{label:"매수",color:C.teal};        // L:  ×0.8 이하
+    if(gap<50)  return{label:"관망",color:C.gold};        // M:  ×1.5 미만
+    if(gap<100) return{label:"과열",color:C.orange};      // H:  ×2.0 미만
+    if(gap<150) return{label:"매도",color:"#FF6B00"};     // VH: ×2.5 미만
+    return{label:"적극매도",color:C.red};                  // EH: ×2.5 이상
   };
   const gs=gapSig(lastGap);
   const price=priceInfo?.currentPrice||0;
@@ -749,12 +741,12 @@ export default function App(){
     const gap=lastGap;
     let priceZone="—",priceZoneEn="none",priceZoneColor=C.muted;
     if(gap!==null){
-      if(gap<=-20){priceZone="VL";priceZoneEn="knee";priceZoneColor=C.blue;}
-      else if(gap<0){priceZone="L";priceZoneEn="thigh";priceZoneColor=C.teal;}
-      else if(gap<100){priceZone="M";priceZoneEn="neutral";priceZoneColor=C.green;}
-      else if(gap<200){priceZone="H";priceZoneEn="shoulder";priceZoneColor=C.orange;}
-      else if(gap<300){priceZone="VH";priceZoneEn="top";priceZoneColor=C.red;}
-      else{priceZone="EH";priceZoneEn="peak";priceZoneColor=C.purple;}
+      if(gap<=-40){priceZone="VL";priceZoneEn="knee";priceZoneColor=C.blue;}      // ×0.6 이하
+      else if(gap<-20){priceZone="L";priceZoneEn="thigh";priceZoneColor=C.teal;}  // ×0.8 이하
+      else if(gap<50){priceZone="M";priceZoneEn="neutral";priceZoneColor=C.green;} // ×1.5 미만
+      else if(gap<100){priceZone="H";priceZoneEn="shoulder";priceZoneColor=C.orange;} // ×2.0 미만
+      else if(gap<150){priceZone="VH";priceZoneEn="top";priceZoneColor=C.red;}    // ×2.5 미만
+      else{priceZone="EH";priceZoneEn="peak";priceZoneColor=C.purple;}             // ×2.5 이상
     }
 
     // ── ② EPS 추세 (최근 3년)
@@ -1397,13 +1389,14 @@ export default function App(){
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("%")}/>
                 <Tooltip content={<MTip/>} cursor={false}/>
-                <ReferenceArea y1={-100} y2={-20} fill={`${C.green}10`}/>
-                <ReferenceArea y1={200} y2={500} fill={`${C.red}08`}/>
+                <ReferenceArea y1={-100} y2={-40} fill={`${C.green}10`}/>
+                <ReferenceArea y1={150} y2={500} fill={`${C.red}08`}/>
                 <ReferenceLine y={0}   stroke={C.dim}   strokeDasharray="2 2"/>
-                <ReferenceLine y={-20} stroke={C.green} strokeDasharray="4 2" label={{value:"적극매수-20%",fill:C.green,fontSize:9,position:"insideTopRight"}}/>
-                <ReferenceLine y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"매도+100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
-                <ReferenceLine y={200} stroke={C.orange} strokeDasharray="4 2" label={{value:"적극매도+200%",fill:C.red,fontSize:9,position:"insideTopRight"}}/>
-                <ReferenceLine y={300} stroke={C.red}   strokeDasharray="4 2" label={{value:"극단매도+300%",fill:C.purple,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={-40} stroke={C.green} strokeDasharray="4 2" label={{value:"VL -40%",fill:C.green,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={-20} stroke={C.teal}  strokeDasharray="4 2" label={{value:"L -20%",fill:C.teal,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={50}  stroke={C.gold}  strokeDasharray="4 2" label={{value:"H +50%",fill:C.gold,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"VH +100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
+                <ReferenceLine y={150} stroke={C.red}   strokeDasharray="4 2" label={{value:"EH +150%",fill:C.red,fontSize:9,position:"insideTopRight"}}/>
                 <Bar dataKey="gap60" name="이격도(%)" maxBarSize={8} radius={[2,2,0,0]} fill={C.teal}/>
               </ComposedChart>
             </CW>
@@ -1838,12 +1831,12 @@ export default function App(){
                     <div style={{color:C.muted,fontSize:8,marginBottom:4}}>구간 기준</div>
                     <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
                       {[
-                        {z:"VL",  r:"×0.6↓", c:"#3B7DD8"},
-                        {z:"L",   r:"×0.8",  c:C.blue},
-                        {z:"M",   r:"×1.0~1.5",c:C.green},
-                        {z:"H",   r:"×1.5",  c:C.orange},
-                        {z:"VH",  r:"×2.0",  c:C.red},
-                        {z:"EH", r:"×2.0↑", c:C.purple},
+                        {z:"VL",  r:"-40%↓", c:"#3B7DD8"},
+                        {z:"L",   r:"-20%",  c:C.blue},
+                        {z:"M",   r:"0~+50%",c:C.green},
+                        {z:"H",   r:"+50%",  c:C.orange},
+                        {z:"VH",  r:"+100%", c:C.red},
+                        {z:"EH",  r:"+150%↑",c:C.purple},
                       ].map(z=>(
                         <span key={z.z} style={{
                           background:priceZone===z.z?`${z.c}30`:"transparent",
