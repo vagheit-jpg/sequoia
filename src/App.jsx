@@ -73,14 +73,14 @@ const fetchPrice=async(ticker,market)=>{
 // ══════════════════════════════════════════════════════════════
 const ema=(arr,n)=>{const k=2/(n+1);let e=arr[0];return arr.map((v,i)=>{if(i===0)return e;e=v*k+e*(1-k);return+e.toFixed(2);});};
 
-const calcMAn=(monthly,N)=>{
+const calcMA60=(monthly)=>{
+  const N=60;
   return monthly.map((d,i)=>{
     if(i<N-1)return{...d,ma60:null,gap60:null};
     const avg=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
     return{...d,ma60:+avg.toFixed(0),gap60:+((d.price/avg-1)*100).toFixed(2)};
   });
 };
-const calcMA60=(monthly)=>calcMAn(monthly,60);
 const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
   if(i<n)return{...d,rsi:null};
   const sl=monthly.slice(i-n+1,i+1);let g=0,l=0;
@@ -105,7 +105,8 @@ const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
 });
 // 가격 위치 밴드 — ma60 배수 기반 통일
 // 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
-const calcPositionBands=(monthly,N=60)=>{
+const calcPositionBands=(monthly)=>{
+  const N=60;
   return monthly.map((d,i)=>{
     if(i<N-1)return{...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null};
     const ma=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
@@ -120,7 +121,7 @@ const calcPositionBands=(monthly,N=60)=>{
   });
 };
 
-const buildBandsFromQtr=(monthly,qtrData,annData)=>{
+const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   if(!monthly.length)return monthly;
   const epsMap={},bpsMap={};
   // 연간 데이터만 사용 — 분기 EPS는 미완성값이 밴드를 왜곡시킴
@@ -141,12 +142,12 @@ const buildBandsFromQtr=(monthly,qtrData,annData)=>{
     return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
   return monthly.map(d=>({...d,
-    perLo :Math.round(interp(d.label,epsMap)*7),
-    perMid:Math.round(interp(d.label,epsMap)*13),
-    perHi :Math.round(interp(d.label,epsMap)*20),
-    per30 :Math.round(interp(d.label,epsMap)*30),
-    pbrLo :Math.round(interp(d.label,bpsMap)*1.0),
-    pbrHi :Math.round(interp(d.label,bpsMap)*3.5),
+    perLo :Math.round(interp(d.label,epsMap)*(bandCfg?.perLo||7)),
+    perMid:Math.round(interp(d.label,epsMap)*(bandCfg?.perMid||13)),
+    perHi :Math.round(interp(d.label,epsMap)*(bandCfg?.perHi||20)),
+    pbrLo :Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrLo||1.0)),
+    pbrMid:Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrMid||2.0)),
+    pbrHi :Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrHi||3.5)),
   }));
 };
 
@@ -157,11 +158,11 @@ const calcSignalPoints=(data)=>{
     if(d.gap60===null||d.ma60===null)return;
     const prev=i>0?data[i-1]:null;
     if(!prev||prev.gap60===null)return;
-    if(prev.gap60>-20&&d.gap60<=-20) pts.push({label:d.label,price:d.price,type:"적극매수",color:"#00FF99",arrow:"▲",pos:"bottom"});
-    else if(prev.gap60>0&&d.gap60<=0) pts.push({label:d.label,price:d.price,type:"매수",color:"#00DDBB",arrow:"▲",pos:"bottom"});
-    else if(prev.gap60<100&&d.gap60>=100) pts.push({label:d.label,price:d.price,type:"매도",color:"#FFB020",arrow:"▼",pos:"top"});
-    else if(prev.gap60<200&&d.gap60>=200) pts.push({label:d.label,price:d.price,type:"적극매도",color:"#FF4466",arrow:"▼",pos:"top"});
-    else if(prev.gap60<300&&d.gap60>=300) pts.push({label:d.label,price:d.price,type:"극단매도",color:"#CC44FF",arrow:"▼",pos:"top"});
+    if(prev.gap60>-20&&d.gap60<=-20) pts.push({label:d.label,price:d.price,type:"적극매수",color:"#00C878",arrow:"▲",pos:"bottom"});
+    else if(prev.gap60>0&&d.gap60<=0) pts.push({label:d.label,price:d.price,type:"매수",color:"#10A898",arrow:"▲",pos:"bottom"});
+    else if(prev.gap60<100&&d.gap60>=100) pts.push({label:d.label,price:d.price,type:"매도",color:"#FF7830",arrow:"▼",pos:"top"});
+    else if(prev.gap60<200&&d.gap60>=200) pts.push({label:d.label,price:d.price,type:"적극매도",color:"#FF3D5A",arrow:"▼",pos:"top"});
+    else if(prev.gap60<300&&d.gap60>=300) pts.push({label:d.label,price:d.price,type:"극단매도",color:"#8855FF",arrow:"▼",pos:"top"});
   });
   return pts;
 };
@@ -290,29 +291,6 @@ const parseExcel=(file)=>new Promise((resolve,reject)=>{
   reader.readAsBinaryString(file);
 });
 
-
-// 샤프한 SVG 화살표 시그널 — 매수(위쪽 뾰족), 매도(아래쪽 뾰족)
-const SignalArrow=({cx,cy,type,color})=>{
-  const isBuy=type.includes("매수");
-  const w=7,h=11,stem=4;
-  if(isBuy){
-    // 위쪽 뾰족 화살표 (▲ 샤프)
-    return(
-      <g transform={`translate(${cx},${cy+18})`}>
-        <polygon points={`0,${-h} ${-w},0 ${w},0`} fill={color} opacity={0.95}/>
-        <rect x={-2} y={0} width={4} height={stem} fill={color} opacity={0.85}/>
-      </g>
-    );
-  }else{
-    // 아래쪽 뾰족 화살표 (▼ 샤프)
-    return(
-      <g transform={`translate(${cx},${cy-18})`}>
-        <rect x={-2} y={-stem} width={4} height={stem} fill={color} opacity={0.85}/>
-        <polygon points={`0,${h} ${-w},0 ${w},0`} fill={color} opacity={0.95}/>
-      </g>
-    );
-  }
-};
 // ══════════════════════════════════════════════════════════════
 // 6. 종목 목록
 // ══════════════════════════════════════════════════════════════
@@ -449,11 +427,14 @@ export default function App(){
   const [showSearch,setShowSearch]=useState(false);
   const [dcfDraft,setDcfDraft]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
   const [dcfApplied,setDcfApplied]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
+  const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
+  const [bandDraft,setBandDraft]=useState(BAND_DEFAULT);
+  const [bandApplied,setBandApplied]=useState(BAND_DEFAULT);
   // 전체 종목 목록 (KRX 동적 로드)
   const [stockList,setStockList]=useState(FALLBACK_STOCKS);
   const fileRef=useRef();
   const searchRef=useRef();
-  const RANGES=[{label:"10년",months:120,maN:60,maLabel:"60월선"},{label:"5년",months:60,maN:60,maLabel:"60월선"},{label:"3년",months:36,maN:14,maLabel:"60주선"},{label:"1년",months:12,maN:3,maLabel:"60일선"}];
+  const RANGES=[{label:"10년",months:120},{label:"5년",months:60},{label:"3년",months:36},{label:"1년",months:12}];
 
   // Supabase 로드 + localStorage 이중 보장
   // PC 마우스 환경에서만 스크롤바 표시
@@ -518,16 +499,13 @@ export default function App(){
 
   const displayMonthly=useMemo(()=>monthly.slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
 
-  const curRange =RANGES[rangeIdx];
-  const maLabel  =curRange.maLabel;
-  // 전체 monthly로 MA 계산 후 slice → 5년/3년/1년 버그 수정
-  const withMA60  =useMemo(()=>calcMAn(monthly,curRange.maN).slice(-curRange.months),[monthly,rangeIdx]);
+  const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
-    const full=calcMAn(monthly,curRange.maN);
-    return buildBandsFromQtr(full,co?.qtrData,co?.annData).slice(-curRange.months);
-  },[monthly,co?.qtrData,co?.annData,rangeIdx]);
-  const withPositionBands=useMemo(()=>calcPositionBands(monthly,curRange.maN).slice(-curRange.months),[monthly,rangeIdx]);
+    const full=calcMA60(monthly);
+    return buildBandsFromQtr(full,co?.qtrData,co?.annData,bandApplied).slice(-RANGES[rangeIdx].months);
+  },[monthly,co?.qtrData,co?.annData,rangeIdx,bandApplied]);
+  const withPositionBands=useMemo(()=>calcPositionBands(displayMonthly),[displayMonthly]);
   const withRSI   =useMemo(()=>calcRSI(displayMonthly),[displayMonthly]);
   const withMACD  =useMemo(()=>calcMACD(displayMonthly),[displayMonthly]);
   const withOBV   =useMemo(()=>calcOBV(displayMonthly),[displayMonthly]);
@@ -1102,7 +1080,7 @@ export default function App(){
                         <div style={{color:re.priceZoneColor,fontSize:10,fontFamily:"monospace",marginTop:1,opacity:0.85}}>
                           {re.gap!=null?`${re.gap>0?"+":""}${re.gap}%`:"—"}
                         </div>
-                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>{maLabel} 이격도</div>
+                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>60MA 이격도</div>
                       </div>
                     )}
                   </div>
@@ -1233,7 +1211,7 @@ export default function App(){
             {lastGap!==null&&(
               <div style={{background:`${gs.color}15`,border:`1px solid ${gs.color}44`,borderRadius:9,
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
-                <div style={{color:gs.color,fontWeight:700,fontSize:12}}>{maLabel} 이격도: {lastGap>0?"+":""}{lastGap}%</div>
+                <div style={{color:gs.color,fontWeight:700,fontSize:12}}>60MA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
                 <Tag color={gs.color} size={11}>{gs.label}</Tag>
                 <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
               </div>
@@ -1268,23 +1246,20 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:maLabel},
+                    {key:"bBase",    color:C.goldL,  label:"60MA"},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
                       label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
                   ));
                 })()}
-                {signalPts.map((pt,i)=>{
-                  const coord=withPositionBands.findIndex(d=>d.label===pt.label);
-                  return coord<0?null:(
-                    <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
-                      shape={({cx,cy})=><SignalArrow cx={cx} cy={cy} type={pt.type} color={pt.color}/>}/>
-                  );
-                })}
+                {signalPts.map((pt,i)=>(
+                  <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
+                    label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:18,fontWeight:900}}/>
+                ))}
               </ComposedChart>
             </CW>
-            <ST accent={C.teal}>{maLabel} 이격도 (%)</ST>
+            <ST accent={C.teal}>60MA 이격도 (%)</ST>
             <CW h={180}>
               <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -1306,30 +1281,76 @@ export default function App(){
         {/* ════ PER/PBR ════ */}
         {tab==="perbpr"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            {/* ── 밴드 배수 설정 ── */}
+            <Box>
+              <ST accent={C.gold}>📐 밴드 배수 설정</ST>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+                {[
+                  {key:"perLo", label:"PER 저평가(배)", step:1},
+                  {key:"perMid",label:"PER 적정(배)",   step:1},
+                  {key:"perHi", label:"PER 고평가(배)", step:1},
+                  {key:"pbrLo", label:"PBR 저평가(배)", step:0.5},
+                  {key:"pbrMid",label:"PBR 적정(배)",   step:0.5},
+                  {key:"pbrHi", label:"PBR 고평가(배)", step:0.5},
+                ].map(f=>(
+                  <div key={f.key}>
+                    <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
+                    <input type="number" step={f.step} min={0.1}
+                      value={bandDraft[f.key]}
+                      onChange={e=>setBandDraft(p=>({...p,[f.key]:+e.target.value}))}
+                      onFocus={e=>e.target.select()}
+                      style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
+                        borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
+                  </div>
+                ))}
+              </div>
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+                <div style={{color:C.muted,fontSize:11}}>
+                  PER <span style={{color:C.green,fontWeight:700}}>{bandApplied.perLo}</span>배 ·
+                  <span style={{color:C.gold,fontWeight:700}}> {bandApplied.perMid}</span>배 ·
+                  <span style={{color:C.red,fontWeight:700}}> {bandApplied.perHi}</span>배 &nbsp;|&nbsp;
+                  PBR <span style={{color:C.green,fontWeight:700}}>{bandApplied.pbrLo}</span>배 ·
+                  <span style={{color:C.gold,fontWeight:700}}> {bandApplied.pbrMid}</span>배 ·
+                  <span style={{color:C.red,fontWeight:700}}> {bandApplied.pbrHi}</span>배
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setBandDraft(BAND_DEFAULT)}
+                    style={{background:C.card2,color:C.muted,border:`1px solid ${C.border}`,
+                      borderRadius:8,padding:"7px 14px",fontSize:11,cursor:"pointer"}}>
+                    기본값
+                  </button>
+                  <button onClick={()=>setBandApplied({...bandDraft})}
+                    style={{background:`linear-gradient(135deg,${C.purple},${C.pink})`,color:"#fff",
+                      border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+                    ⚡ 밴드 재계산 적용
+                  </button>
+                </div>
+              </div>
+            </Box>
             {co?.annData?.length||co?.qtrData?.length?(
               <>
-                <ST accent={C.purple}>PER 밴드 (7배·13배·20배·30배)</ST>
+                <ST accent={C.purple}>PER 밴드 ({bandApplied.perLo}배·{bandApplied.perMid}배·{bandApplied.perHi}배)</ST>
                 <CW h={270}>
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <Area dataKey="per30" name="PER 30배" stroke={C.pink}   fill={`${C.pink}08`}  strokeWidth={1} dot={false}/>
-                    <Area dataKey="perHi" name="PER 20배" stroke={C.red}    fill={`${C.red}10`}   strokeWidth={1} dot={false}/>
-                    <Area dataKey="perMid" name="PER 13배" stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1} dot={false}/>
-                    <Area dataKey="perLo" name="PER 7배"  stroke={C.green}  fill={`${C.green}10`} strokeWidth={1} dot={false}/>
+                    <Area dataKey="perHi"  name={`PER ${bandApplied.perHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="perMid" name={`PER ${bandApplied.perMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="perLo"  name={`PER ${bandApplied.perLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Line dataKey="price" name="주가"      stroke={C.blueL}  strokeWidth={2.5}    dot={false}/>
                   </ComposedChart>
                 </CW>
-                <ST accent={C.cyan}>PBR 밴드 (1배·3.5배)</ST>
+                <ST accent={C.cyan}>PBR 밴드 ({bandApplied.pbrLo}배·{bandApplied.pbrMid}배·{bandApplied.pbrHi}배)</ST>
                 <CW h={240}>
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <Area dataKey="pbrHi" name="PBR 3.5배" stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1} dot={false}/>
-                    <Area dataKey="pbrLo" name="PBR 1배"   stroke={C.green} fill={`${C.green}10`} strokeWidth={1} dot={false}/>
-                    <Line dataKey="price" name="주가"       stroke={C.blueL} strokeWidth={2.5}    dot={false}/>
+                    <Area dataKey="pbrHi"  name={`PBR ${bandApplied.pbrHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="pbrMid" name={`PBR ${bandApplied.pbrMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="pbrLo"  name={`PBR ${bandApplied.pbrLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Line dataKey="price"  name="주가"       stroke={C.blueL}  strokeWidth={2.5}     dot={false}/>
                   </ComposedChart>
                 </CW>
               </>
@@ -1498,7 +1519,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:maLabel},
+                    {key:"bBase",    color:C.goldL,  label:"60MA"},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                   ].map(b=>(
@@ -1508,7 +1529,7 @@ export default function App(){
                 })()}
                 {signalPts.map((pt,i)=>(
                   <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
-                    shape={({cx,cy})=><SignalArrow cx={cx} cy={cy} type={pt.type} color={pt.color}/>}/>
+                    label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:16,fontWeight:900}}/>
                 ))}
               </ComposedChart>
             </CW>
@@ -1531,7 +1552,7 @@ export default function App(){
                     <div style={{color:priceZoneColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{priceZone}</div>
                   </div>
                   <div style={{textAlign:"center"}}>
-                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>{maLabel} 이격도</div>
+                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>60MA 이격도</div>
                     <div style={{color:priceZoneColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>
                       {gap>0?"+":""}{gap}%
                     </div>
