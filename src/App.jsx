@@ -631,6 +631,347 @@ const ViewToggle=({view,setView})=>(
 // ══════════════════════════════════════════════════════════════
 // BuffettTabInner — 버핏의 말 탭 컴포넌트
 // ══════════════════════════════════════════════════════════════
+// ══════════════════════════════════════════════════════════════
+// MoatTab — 경제적 해자 계량화 스코어 컴포넌트
+// ══════════════════════════════════════════════════════════════
+function MoatTab({annData,hasFinData}){
+  if(!hasFinData||!annData?.length){
+    return(
+      <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"24px",textAlign:"center"}}>
+        <div style={{fontSize:28,marginBottom:10}}>🛡️</div>
+        <div style={{color:C.gold,fontSize:13,fontWeight:700,marginBottom:6}}>경제적 해자 분석</div>
+        <div style={{color:C.muted,fontSize:11}}>재무제표를 업로드하면 경제적 해자 점수를 산출합니다.</div>
+      </div>
+    );
+  }
+
+  // ── 데이터 준비 (최대 5년)
+  const rows=annData.filter(r=>r.year).slice(-5);
+  const n=rows.length;
+  const avg=(arr)=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:null;
+  const stddev=(arr)=>{
+    if(arr.length<2)return 0;
+    const m=avg(arr);
+    return Math.sqrt(arr.reduce((s,v)=>s+(v-m)**2,0)/arr.length);
+  };
+
+  // ── 1. 자본 효율성 (40점)
+  // ROIC ≈ net / equity (equity가 없으면 assets-liab)
+  const roicArr=rows.filter(r=>r.net!=null&&(r.equity!=null||r.assets!=null)).map(r=>{
+    const invested=r.equity||(r.assets-(r.liab||0));
+    return invested>0?(r.net/invested*100):null;
+  }).filter(v=>v!=null);
+  const avgROIC=roicArr.length?avg(roicArr):null;
+
+  // ROE
+  const roeArr=rows.filter(r=>r.roe!=null).map(r=>r.roe);
+  const avgROE=roeArr.length?avg(roeArr):null;
+  const roeConsistent=roeArr.length>=2&&roeArr.every(v=>v>=10);
+
+  let roicScore=0,roeScore=0;
+  if(avgROIC!=null){
+    if(avgROIC>=20)roicScore=20;
+    else if(avgROIC>=15)roicScore=15;
+    else if(avgROIC>=10)roicScore=8;
+    else if(avgROIC>=5)roicScore=3;
+  }
+  if(avgROE!=null){
+    if(avgROE>=20&&roeConsistent)roeScore=20;
+    else if(avgROE>=15)roeScore=15;
+    else if(avgROE>=10)roeScore=8;
+    else if(avgROE>=5)roeScore=3;
+  }
+  const capitalScore=roicScore+roeScore;
+
+  // ── 2. 수익성 및 가격 결정력 (30점)
+  // Gross Margin: (rev-op차이로 근사 불가) → opm으로 대체 (매출총이익률 없으면 opm 사용)
+  const opmArr=rows.filter(r=>r.opm!=null).map(r=>r.opm);
+  const avgOPM=opmArr.length?avg(opmArr):null;
+  const opmStd=opmArr.length>=2?stddev(opmArr):null;
+
+  // rev, op로 gross margin 근사 (op/rev가 최선)
+  const gpArr=rows.filter(r=>r.op!=null&&r.rev!=null&&r.rev>0).map(r=>r.op/r.rev*100);
+  const avgGP=gpArr.length?avg(gpArr):null;
+
+  let gmScore=0,opmStabilityScore=0;
+  // Gross Margin (실제 GPM 없으면 OPM으로 대체, 기준 완화)
+  const gpRef=avgGP??avgOPM;
+  if(gpRef!=null){
+    if(gpRef>=40)gmScore=15;
+    else if(gpRef>=25)gmScore=10;
+    else if(gpRef>=15)gmScore=5;
+    else if(gpRef>=8)gmScore=2;
+  }
+  // OPM 안정성 (표준편차 < 10%)
+  if(opmStd!=null){
+    if(opmStd<3)opmStabilityScore=15;
+    else if(opmStd<5)opmStabilityScore=12;
+    else if(opmStd<10)opmStabilityScore=7;
+    else opmStabilityScore=2;
+  } else if(avgOPM!=null){
+    opmStabilityScore=5; // 1년치 데이터
+  }
+  const profitScore=gmScore+opmStabilityScore;
+
+  // ── 3. 현금 창출 (20점)
+  // FCF/Net Income > 80%
+  const fcfConvArr=rows.filter(r=>r.fcf!=null&&r.net!=null&&r.net>0).map(r=>r.fcf/r.net*100);
+  const avgFcfConv=fcfConvArr.length?avg(fcfConvArr):null;
+
+  // CAPEX/CFO < 25%
+  const capexRatioArr=rows.filter(r=>r.capex!=null&&r.cfo!=null&&r.cfo>0).map(r=>Math.abs(r.capex)/r.cfo*100);
+  const avgCapexRatio=capexRatioArr.length?avg(capexRatioArr):null;
+
+  let fcfConvScore=0,capexScore=0;
+  if(avgFcfConv!=null){
+    if(avgFcfConv>=100)fcfConvScore=10;
+    else if(avgFcfConv>=80)fcfConvScore=10;
+    else if(avgFcfConv>=50)fcfConvScore=6;
+    else if(avgFcfConv>=0)fcfConvScore=3;
+  } else if(rows.filter(r=>r.fcf!=null&&r.fcf>0).length===rows.length){
+    fcfConvScore=6; // FCF 전부 양수
+  }
+  if(avgCapexRatio!=null){
+    if(avgCapexRatio<15)capexScore=10;
+    else if(avgCapexRatio<25)capexScore=10;
+    else if(avgCapexRatio<40)capexScore=5;
+    else capexScore=1;
+  } else if(rows.filter(r=>r.cfo!=null&&r.cfo>0).length>0){
+    capexScore=5;
+  }
+  const cashScore=fcfConvScore+capexScore;
+
+  // ── 4. 재무 건전성 (10점)
+  const lastRow=rows[rows.length-1];
+  const debtRatio=lastRow?.debt??null;
+  // 유동비율: current ratio 없으므로 부채비율만 사용, 만점 기준 완화
+  let safetyScore=0;
+  if(debtRatio!=null){
+    if(debtRatio<50)safetyScore=10;
+    else if(debtRatio<80)safetyScore=10;
+    else if(debtRatio<150)safetyScore=5;
+    else if(debtRatio<250)safetyScore=2;
+  }
+
+  // ── 총점
+  const total=capitalScore+profitScore+cashScore+safetyScore;
+
+  // ── 해자 등급
+  let moatGrade,moatColor,moatIcon,moatDesc;
+  if(total>=80){moatGrade="광역 해자";moatColor=C.green;moatIcon="🏰";moatDesc="탁월한 경쟁 우위. 10년 이상 지속 가능한 해자.";}
+  else if(total>=60){moatGrade="넓은 해자";moatColor=C.teal;moatIcon="🛡️";moatDesc="견고한 경쟁 우위. 장기 투자 적합.";}
+  else if(total>=40){moatGrade="좁은 해자";moatColor=C.gold;moatIcon="⚔️";moatDesc="일부 경쟁 우위. 지속성 모니터링 필요.";}
+  else if(total>=20){moatGrade="해자 미약";moatColor=C.orange;moatIcon="🏚️";moatDesc="경쟁 우위 약함. 가격 우위 확인 필요.";}
+  else{moatGrade="해자 없음";moatColor=C.red;moatIcon="💔";moatDesc="경쟁 우위 확인 불가. 추가 분석 필요.";}
+
+  const sections=[
+    {
+      title:"자본 효율성",full:40,score:capitalScore,
+      desc:"해자의 가장 강력한 증거 — 적은 자본으로 많은 수익",
+      items:[
+        {label:"ROIC (투하자본수익률)",score:roicScore,max:20,
+         val:avgROIC!=null?`${avgROIC.toFixed(1)}%`:"—",
+         bench:"15% 이상",
+         detail:avgROIC!=null?(avgROIC>=20?"탁월":avgROIC>=15?"우수":avgROIC>=10?"양호":avgROIC>=5?"미흡":"미달"):"데이터 없음",
+        },
+        {label:"ROE (자기자본이익률)",score:roeScore,max:20,
+         val:avgROE!=null?`${avgROE.toFixed(1)}%`:"—",
+         bench:"15% 이상 + 일관성",
+         detail:avgROE!=null?(avgROE>=20?"탁월":avgROE>=15?"우수":avgROE>=10?"양호":avgROE>=5?"미흡":"미달"):"데이터 없음",
+        },
+      ]
+    },
+    {
+      title:"수익성 및 가격 결정력",full:30,score:profitScore,
+      desc:"브랜드와 독점력 — 경기에 상관없이 이익을 지키는 방어력",
+      items:[
+        {label:"영업이익률 수준",score:gmScore,max:15,
+         val:gpRef!=null?`${gpRef.toFixed(1)}%`:"—",
+         bench:"40% 이상 (GPM 기준)",
+         detail:gpRef!=null?(gpRef>=40?"탁월":gpRef>=25?"우수":gpRef>=15?"양호":gpRef>=8?"미흡":"미달"):"데이터 없음",
+        },
+        {label:"영업이익률 안정성",score:opmStabilityScore,max:15,
+         val:opmStd!=null?`σ ${opmStd.toFixed(1)}%`:"—",
+         bench:"표준편차 10% 이내",
+         detail:opmStd!=null?(opmStd<3?"매우 안정":opmStd<5?"안정":opmStd<10?"보통":"불안정"):"데이터 필요(2년+)",
+        },
+      ]
+    },
+    {
+      title:"현금 창출 및 잉여력",full:20,score:cashScore,
+      desc:"실질적 생존력 — 장부 이익이 아닌 실제 현금",
+      items:[
+        {label:"FCF 전환율",score:fcfConvScore,max:10,
+         val:avgFcfConv!=null?`${avgFcfConv.toFixed(0)}%`:"—",
+         bench:"80% 이상",
+         detail:avgFcfConv!=null?(avgFcfConv>=100?"탁월":avgFcfConv>=80?"우수":avgFcfConv>=50?"양호":avgFcfConv>=0?"미흡":"적자FCF"):"데이터 없음",
+        },
+        {label:"CAPEX 부담율",score:capexScore,max:10,
+         val:avgCapexRatio!=null?`${avgCapexRatio.toFixed(0)}%`:"—",
+         bench:"CFO의 25% 이내",
+         detail:avgCapexRatio!=null?(avgCapexRatio<15?"경량 모델":avgCapexRatio<25?"양호":avgCapexRatio<40?"보통":"중자산"):"데이터 없음",
+        },
+      ]
+    },
+    {
+      title:"재무 건전성",full:10,score:safetyScore,
+      desc:"외부 충격에도 해자가 무너지지 않을 최소 방벽",
+      items:[
+        {label:"부채비율",score:safetyScore,max:10,
+         val:debtRatio!=null?`${debtRatio}%`:"—",
+         bench:"80% 이하",
+         detail:debtRatio!=null?(debtRatio<50?"매우 안전":debtRatio<80?"안전":debtRatio<150?"보통":debtRatio<250?"주의":"위험"):"데이터 없음",
+        },
+      ]
+    },
+  ];
+
+  const pct=Math.round(total/100*100);
+  const arcLen=251.2; // 2πr, r=40
+  const dashOffset=arcLen*(1-total/100);
+
+  return(
+    <div style={{animation:"fadeIn 0.3s ease"}}>
+
+      {/* ── 총점 헤더 카드 */}
+      <div style={{
+        background:C.card,border:`2px solid ${moatColor}55`,
+        borderRadius:14,padding:"18px 16px",marginBottom:12,
+        boxShadow:`0 0 32px ${moatColor}12`,
+      }}>
+        <div style={{display:"flex",alignItems:"center",gap:14}}>
+          {/* 원형 게이지 */}
+          <div style={{position:"relative",width:90,height:90,flexShrink:0}}>
+            <svg width="90" height="90" viewBox="0 0 90 90">
+              <circle cx="45" cy="45" r="40" fill="none" stroke={C.dim} strokeWidth="8"/>
+              <circle cx="45" cy="45" r="40" fill="none"
+                stroke={moatColor} strokeWidth="8"
+                strokeDasharray={arcLen}
+                strokeDashoffset={dashOffset}
+                strokeLinecap="round"
+                transform="rotate(-90 45 45)"
+                style={{transition:"stroke-dashoffset 0.8s ease"}}
+              />
+            </svg>
+            <div style={{position:"absolute",top:"50%",left:"50%",transform:"translate(-50%,-50%)",textAlign:"center"}}>
+              <div style={{fontSize:20,fontWeight:900,fontFamily:"monospace",color:moatColor,lineHeight:1}}>{total}</div>
+              <div style={{fontSize:8,color:C.muted}}>/ 100</div>
+            </div>
+          </div>
+          {/* 등급 정보 */}
+          <div style={{flex:1}}>
+            <div style={{fontSize:9,color:C.muted,marginBottom:4,letterSpacing:"0.06em"}}>
+              🛡️ 경제적 해자 스코어 · {n}년 평균 기준
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+              <span style={{fontSize:20}}>{moatIcon}</span>
+              <span style={{fontSize:16,fontWeight:900,color:moatColor,fontFamily:"monospace"}}>{moatGrade}</span>
+            </div>
+            <div style={{fontSize:10,color:C.muted,lineHeight:1.6}}>{moatDesc}</div>
+            <div style={{
+              fontSize:8,color:C.muted,marginTop:6,
+              background:C.card2,borderRadius:6,padding:"4px 8px",
+              border:`1px solid ${C.border}`,display:"inline-block",
+            }}>
+              버핏 기준 · 자본효율40+수익성30+현금창출20+건전성10
+            </div>
+          </div>
+        </div>
+
+        {/* 섹션 점수 바 요약 */}
+        <div style={{marginTop:14,display:"flex",gap:6,flexWrap:"wrap"}}>
+          {sections.map(s=>{
+            const pct2=Math.round(s.score/s.full*100);
+            const col=pct2>=75?C.green:pct2>=50?C.gold:pct2>=25?C.orange:C.red;
+            return(
+              <div key={s.title} style={{flex:"1 1 calc(50% - 6px)",minWidth:120,
+                background:C.card2,borderRadius:8,padding:"7px 10px",
+                border:`1px solid ${col}33`}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                  <span style={{fontSize:9,color:C.muted}}>{s.title}</span>
+                  <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",color:col}}>
+                    {s.score}/{s.full}
+                  </span>
+                </div>
+                <div style={{height:4,borderRadius:2,background:C.dim,overflow:"hidden"}}>
+                  <div style={{width:`${pct2}%`,height:"100%",background:col,borderRadius:2,transition:"width 0.6s ease"}}/>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 섹션별 상세 */}
+      {sections.map(sec=>{
+        const secPct=Math.round(sec.score/sec.full*100);
+        const secCol=secPct>=75?C.green:secPct>=50?C.gold:secPct>=25?C.orange:C.red;
+        return(
+          <div key={sec.title} style={{
+            background:C.card,border:`1px solid ${secCol}33`,
+            borderRadius:12,padding:"13px 14px",marginBottom:10,
+          }}>
+            {/* 섹션 헤더 */}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+              <div>
+                <div style={{fontSize:11,fontWeight:700,color:secCol,marginBottom:3}}>{sec.title}</div>
+                <div style={{fontSize:9,color:C.muted}}>{sec.desc}</div>
+              </div>
+              <div style={{textAlign:"right",flexShrink:0,marginLeft:8}}>
+                <div style={{fontSize:14,fontWeight:900,fontFamily:"monospace",color:secCol}}>{sec.score}</div>
+                <div style={{fontSize:8,color:C.muted}}>/ {sec.full}점</div>
+              </div>
+            </div>
+            {/* 지표 행 */}
+            {sec.items.map(item=>{
+              const itemPct=Math.round(item.score/item.max*100);
+              const itemCol=itemPct>=75?C.green:itemPct>=50?C.gold:itemPct>=25?C.orange:C.red;
+              return(
+                <div key={item.label} style={{
+                  background:C.card2,borderRadius:8,padding:"9px 11px",marginBottom:6,
+                  border:`1px solid ${C.border}`,
+                }}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                    <div>
+                      <span style={{fontSize:10,color:C.text,fontWeight:600}}>{item.label}</span>
+                      <span style={{fontSize:8,color:C.muted,marginLeft:6}}>(기준: {item.bench})</span>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+                      <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",color:itemCol}}>{item.val}</span>
+                      <span style={{
+                        fontSize:9,fontWeight:700,fontFamily:"monospace",color:itemCol,
+                        background:`${itemCol}18`,borderRadius:4,padding:"1px 7px",
+                        border:`1px solid ${itemCol}44`,
+                      }}>{item.score}/{item.max}</span>
+                    </div>
+                  </div>
+                  <div style={{height:5,borderRadius:3,background:C.dim,overflow:"hidden",marginBottom:4}}>
+                    <div style={{width:`${itemPct}%`,height:"100%",background:itemCol,borderRadius:3}}/>
+                  </div>
+                  <div style={{fontSize:9,color:itemCol,fontWeight:600}}>{item.detail}</div>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
+
+      {/* ── 버핏의 해자 철학 */}
+      <div style={{
+        background:`${C.gold}0A`,border:`1px solid ${C.gold}30`,
+        borderRadius:10,padding:"12px 14px",
+      }}>
+        <div style={{fontSize:9,color:C.gold,fontWeight:700,marginBottom:6,letterSpacing:"0.06em"}}>🦁 버핏의 해자 철학</div>
+        <div style={{fontSize:10,color:C.muted,lineHeight:1.75,fontStyle:"italic"}}>
+          "해자의 본질은 자본을 재투자했을 때 평균 이상의 수익을 지속적으로 창출하는 능력에 있습니다.
+          ROE 15% 이상이 오랫동안 지속된다면 그것이 해자의 증거입니다."
+        </div>
+        <div style={{fontSize:8,color:C.muted,textAlign:"right",marginTop:4}}>— 워런 버핏, 버크셔 해서웨이 주주서한</div>
+      </div>
+    </div>
+  );
+}
+
 function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
   const [catFilter,setCatFilter]=useState("전체");
   const [idx,setIdx]=useState(0);
@@ -648,14 +989,14 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
 
       {/* ── 오늘의 어록 헤더 */}
       <div style={{
-        background:`linear-gradient(135deg,${C.card} 0%,#0A1530 100%)`,
+        background:C.card,
         border:`1px solid ${C.gold}44`,borderRadius:12,padding:"14px 16px",marginBottom:12,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
           <span style={{fontSize:18}}>🦁</span>
           <div>
-            <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>워런 버핏의 말</div>
-            <div style={{fontSize:9,color:C.muted}}>확인된 출처 기반 어록 {Q.length}선</div>
+            <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>📖 버핏과 찰리의 말</div>
+            <div style={{fontSize:9,color:C.muted}}>워런 버핏 · 찰리 멍거 어록 {Q.length}선</div>
           </div>
           <div style={{marginLeft:"auto",textAlign:"right"}}>
             <div style={{fontSize:8,color:C.muted}}>오늘의 어록</div>
@@ -888,6 +1229,8 @@ export default function App(){
   const displayMonthly=useMemo(()=>monthly.slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
 
   const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
+  // 이격도 차트용: 전체 monthly 기반 계산 후 슬라이스 (60MA 누락 방지)
+  const withMA60Slice=useMemo(()=>calcMA60(monthly).slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
     const full=calcMA60(monthly);
@@ -1197,16 +1540,17 @@ export default function App(){
       opm:re.opm||0,
       roe:re.roe||0,
       annData:co?.annData||[],
-      hasFinData:!!(co?.annData?.length||co?.qtrData?.length),
+      hasFinData:!!(co?.annData?.length>=1||co?.qtrData?.length>=1),
     });
   },[monthly,readingEngine,co?.annData,co?.qtrData]);
 
   const TABS=[
-    {id:"overview",label:"📊 종합"},{id:"price60",label:"📈 주가"},
+    {id:"overview",label:"📊 종합"},{id:"moat",label:"🛡 경제적 해자"},
+    {id:"price60",label:"📈 주가"},
     {id:"perbpr",label:"💹 PER/PBR"},{id:"financial",label:"💰 재무"},
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
-    {id:"buffett",label:"🦁 버핏의 말"},
+    {id:"buffett",label:"📖 버핏과 찰리의 말"},
   ];
 
   if(dbLoading)return(
@@ -1688,7 +2032,7 @@ export default function App(){
             </CW>
             <ST accent={C.teal}>60MA 이격도 (%)</ST>
             <CW h={180}>
-              <ComposedChart data={withMA60} margin={{top:4,right:20,left:0,bottom:8}}>
+              <ComposedChart data={withMA60Slice} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("%")}/>
                 <Tooltip content={<MTip/>} cursor={false}/>
@@ -1704,276 +2048,14 @@ export default function App(){
               </ComposedChart>
             </CW>
 
-            {/* ── 3선 정렬 신호 카드 ── */}
-            {threeLineSignal&&(()=>{
-              const tl=threeLineSignal;
-              const rows=[
-                {label:"60월선",zone:tl.zm,gap:tl.gapM,ma:tl.ma60m,avail:tl.ma60m!==null},
-                {label:"60주선",zone:tl.zw,gap:tl.gapW,ma:tl.ma60w,avail:tl.ma60w!==null},
-                {label:"60일선",zone:tl.zd,gap:tl.gapD,ma:tl.ma60d,avail:tl.ma60d!==null},
-              ];
-              const isZero=tl.alignScore===0;
-              return(
-                <div style={{
-                  background:C.card,
-                  border:`2px solid ${tl.borderColor}88`,
-                  borderRadius:12,padding:"12px 14px",marginBottom:12,
-                }}>
-                  {/* ── 헤더: 제목 + 배지들 */}
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                    <div style={{color:C.gold,fontSize:11,fontWeight:700,letterSpacing:"0.05em",borderLeft:`3px solid ${C.gold}`,paddingLeft:8}}>
-                      3선 정렬 신호
-                    </div>
-                    <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                      {/* 차원 배지 */}
-                      <div style={{
-                        background:tl.dimension==="3차원"?`${C.purple}22`:`${C.teal}22`,
-                        border:`1px solid ${tl.dimension==="3차원"?C.purple:C.teal}55`,
-                        borderRadius:5,padding:"2px 7px",
-                        color:tl.dimension==="3차원"?C.purple:C.teal,
-                        fontSize:9,fontWeight:700,fontFamily:"monospace",
-                      }}>
-                        {tl.dimension}
-                      </div>
-                      {/* 배열 배지 */}
-                      <div style={{
-                        background:`${tl.arrangementColor}22`,
-                        border:`1px solid ${tl.arrangementColor}66`,
-                        borderRadius:6,padding:"3px 10px",
-                        color:tl.arrangementColor,fontSize:11,fontWeight:700,fontFamily:"monospace",
-                      }}>
-                        {tl.arrangement}
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* ── 3선 각 행 */}
-                  {rows.map((row,i)=>{
-                    const absGap=Math.abs(row.gap);
-                    const maxRef=row.gap<0?30:300;
-                    const barW=Math.min(100,Math.round(absGap/maxRef*100));
-                    if(!row.avail)return(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                        <span style={{fontSize:10,color:C.muted,width:40,flexShrink:0}}>{row.label}</span>
-                        <span style={{
-                          fontSize:10,fontWeight:700,fontFamily:"monospace",
-                          padding:"2px 7px",borderRadius:4,minWidth:30,textAlign:"center",flexShrink:0,
-                          background:C.dim,color:C.muted,border:`1px solid ${C.border}`,
-                        }}>—</span>
-                        <div style={{flex:1,height:6,borderRadius:3,background:C.dim}}/>
-                        <span style={{fontSize:10,color:C.muted,fontFamily:"monospace",minWidth:46,textAlign:"right",flexShrink:0}}>
-                          데이터 부족
-                        </span>
-                      </div>
-                    );
-                    return(
-                      <div key={i} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                        <span style={{fontSize:10,color:C.muted,width:40,flexShrink:0}}>{row.label}</span>
-                        <span style={{
-                          fontSize:10,fontWeight:700,fontFamily:"monospace",
-                          padding:"2px 7px",borderRadius:4,
-                          minWidth:30,textAlign:"center",flexShrink:0,
-                          background:`${row.zone.color}22`,color:row.zone.color,
-                          border:`1px solid ${row.zone.color}44`,
-                        }}>{row.zone.label}</span>
-                        <div style={{flex:1,height:6,borderRadius:3,background:C.dim,overflow:"hidden"}}>
-                          <div style={{width:`${barW}%`,height:"100%",borderRadius:3,background:row.zone.color}}/>
-                        </div>
-                        <span style={{
-                          fontSize:10,color:row.zone.color,
-                          fontFamily:"monospace",minWidth:46,textAlign:"right",flexShrink:0,
-                        }}>
-                          {row.gap>0?"+":""}{row.gap}%
-                        </span>
-                      </div>
-                    );
-                  })}
-
-                  {/* ── 구분선 */}
-                  <div style={{borderTop:`1px solid ${C.border}`,margin:"8px 0"}}/>
-
-                  {/* ── 정렬 점수 */}
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:9}}>
-                    <div>
-                      <span style={{fontSize:10,color:isZero?"#A0C0D8":C.muted}}>정렬 점수</span>
-                      {!tl.hasAll&&(
-                        <span style={{fontSize:9,color:C.muted,marginLeft:5}}>
-                          ({tl.maxScore}선 기준)
-                        </span>
-                      )}
-                    </div>
-                    <div style={{display:"flex",alignItems:"center",gap:6}}>
-                      <div style={{display:"flex",gap:3}}>
-                        {Array.from({length:tl.maxScore},(_,idx)=>(
-                          <div key={idx} style={{
-                            width:18,height:8,borderRadius:2,
-                            background:idx<tl.alignScore?tl.scoreColor:(isZero?"#3A5068":C.dim),
-                            border:`1px solid ${idx<tl.alignScore?tl.scoreColor+"88":(isZero?"#5A7890":C.border)}`,
-                          }}/>
-                        ))}
-                      </div>
-                      <span style={{
-                        fontSize:12,fontWeight:700,fontFamily:"monospace",
-                        color:tl.alignScore>0?tl.scoreColor:"#A0C0D8",
-                      }}>
-                        {tl.alignScore} / {tl.maxScore}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* ── 점수 패널 */}
-                  <div style={{background:C.card2,borderRadius:8,padding:"9px 11px",marginBottom:8,border:`1px solid ${C.border}`}}>
-                    {/* 이격도 점수 */}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                      <span style={{fontSize:9,color:C.muted}}>이격도</span>
-                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                        {[
-                          {k:"60월",v:tl.pM,w:"×3"},
-                          {k:"60주",v:tl.pW,w:"×2"},
-                          {k:"60일",v:tl.pD,w:"×1"},
-                        ].map((item,i)=>(
-                          <div key={i} style={{display:"flex",alignItems:"center",gap:3}}>
-                            <span style={{fontSize:8,color:C.muted}}>{item.k}</span>
-                            <span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",
-                              color:item.v>0?C.green:item.v<0?C.red:C.muted}}>
-                              {item.v>0?"+":""}{item.v}
-                            </span>
-                          </div>
-                        ))}
-                        <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",
-                          color:tl.priceScore>0?C.green:tl.priceScore<0?C.red:C.muted,
-                          borderLeft:`1px solid ${C.border}`,paddingLeft:6}}>
-                          {tl.priceScore>0?"+":""}{tl.priceScore}
-                        </span>
-                      </div>
-                    </div>
-                    {/* 배열 점수 */}
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                      <span style={{fontSize:9,color:C.muted}}>배열</span>
-                      <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",
-                        color:tl.arrScore>0?C.green:tl.arrScore<0?C.red:C.muted}}>
-                        {tl.arrScore>0?"+":""}{tl.arrScore}
-                      </span>
-                    </div>
-                    {/* 실적 점수 (재무있을때) */}
-                    {tl.dimension==="3차원"&&tl.finScoreDetail&&(
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
-                        <span style={{fontSize:9,color:C.muted}}>실적</span>
-                        <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                          {[
-                            {k:"EPS",v:tl.finScoreDetail.epsScore},
-                            {k:"FCF",v:tl.finScoreDetail.fcfScore},
-                            {k:"모멘텀",v:tl.finScoreDetail.momScore},
-                            {k:"수익성",v:tl.finScoreDetail.profScore},
-                            {k:"해자ROE",v:tl.finScoreDetail.roeScore},
-                          ].map((item,i)=>(
-                            <div key={i} style={{display:"flex",alignItems:"center",gap:2}}>
-                              <span style={{fontSize:8,color:C.muted}}>{item.k}</span>
-                              <span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",
-                                color:item.v>0?C.green:item.v<0?C.red:C.muted}}>
-                                {item.v>0?"+":""}{item.v}
-                              </span>
-                            </div>
-                          ))}
-                          <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",
-                            color:tl.finScore>0?C.green:tl.finScore<0?C.red:C.muted,
-                            borderLeft:`1px solid ${C.border}`,paddingLeft:6}}>
-                            {tl.finScore>0?"+":""}{tl.finScore}
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                    {/* 구분선 + 총점 */}
-                    <div style={{borderTop:`1px solid ${C.border}`,paddingTop:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{fontSize:9,color:C.muted,fontWeight:700}}>총점</span>
-                      <div style={{display:"flex",alignItems:"center",gap:8}}>
-                        {/* 총점 게이지 바 */}
-                        <div style={{width:80,height:5,borderRadius:3,background:C.dim,overflow:"hidden",position:"relative"}}>
-                          {(()=>{
-                            const total=tl.totalScore;
-                            const maxP=tl.maxPossible||15;
-                            const minP=tl.minPossible||-21;
-                            const range=maxP-minP;
-                            const pct=Math.round(((total-minP)/range)*100);
-                            const clamp=Math.max(2,Math.min(98,pct));
-                            const midPct=Math.round((-minP/range)*100);
-                            return(
-                              <>
-                                <div style={{position:"absolute",left:`${midPct}%`,top:0,bottom:0,width:1,background:C.border}}/>
-                                <div style={{
-                                  position:"absolute",
-                                  left:total>=0?`${midPct}%`:`${clamp}%`,
-                                  width:total>=0?`${clamp-midPct}%`:`${midPct-clamp}%`,
-                                  top:0,bottom:0,
-                                  background:tl.gradeColor,borderRadius:3,
-                                }}/>
-                              </>
-                            );
-                          })()}
-                        </div>
-                        <span style={{fontSize:13,fontWeight:900,fontFamily:"monospace",color:tl.gradeColor}}>
-                          {tl.totalScore>0?"+":""}{tl.totalScore}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ── 등급 + verdict 박스 */}
-                  <div style={{
-                    background:`${tl.verdictColor}18`,
-                    border:`1px solid ${tl.borderColor}${isZero?"99":"55"}`,
-                    borderRadius:8,padding:"10px 12px",
-                  }}>
-                    {/* 등급 */}
-                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-                      <span style={{fontSize:14,color:tl.gradeColor}}>{tl.gradeIcon}</span>
-                      <span style={{fontSize:12,fontWeight:900,color:tl.gradeColor,fontFamily:"monospace"}}>{tl.grade}</span>
-                    </div>
-                    <div style={{
-                      fontSize:11,fontWeight:700,marginBottom:4,
-                      color:tl.verdictColor,
-                    }}>
-                      {tl.verdictTitle}
-                    </div>
-                    <div style={{fontSize:10,lineHeight:1.6,color:isZero?"#90B8D8":tl.verdictColor,opacity:isZero?1:0.85}}>
-                      {tl.verdictDesc.split("\n").map((line,i)=>(
-                        <span key={i}>{line}{i===0?<br/>:null}</span>
-                      ))}
-                    </div>
-                    {/* 평균 ROE 표시 (연수 동적) */}
-                    {tl.dimension==="3차원"&&tl.finScoreDetail?.avgRoeAll!=null&&(
-                      <div style={{marginTop:6,fontSize:9,color:C.muted}}>
-                        {tl.finScoreDetail.roeYears}년 평균 ROE:{" "}
-                        <span style={{
-                          color:tl.finScoreDetail.avgRoeAll>=15?C.green:tl.finScoreDetail.avgRoeAll>=10?C.gold:C.red,
-                          fontWeight:700,fontFamily:"monospace"
-                        }}>{tl.finScoreDetail.avgRoeAll}%</span>
-                        {tl.finScoreDetail.avgRoeAll>=15?" — 해자 확인됨":""}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── 하단 MA 수치 */}
-                  <div style={{display:"flex",gap:6,marginTop:8,flexWrap:"wrap"}}>
-                    {[
-                      {k:"60월MA",v:tl.ma60m!=null?tl.ma60m.toLocaleString()+"원":"—"},
-                      {k:"60주MA",v:tl.ma60w!=null?tl.ma60w.toLocaleString()+"원":"—"},
-                      {k:"60일MA",v:tl.ma60d!=null?tl.ma60d.toLocaleString()+"원":"—"},
-                    ].map((item,i)=>(
-                      <div key={i} style={{
-                        background:C.card2,borderRadius:6,padding:"3px 9px",
-                        border:`1px solid ${C.border}`,
-                        display:"flex",alignItems:"center",gap:5,
-                      }}>
-                        <span style={{fontSize:8,color:C.muted}}>{item.k}</span>
-                        <span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",color:C.text}}>{item.v}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
+        )}
+
+
+        {/* ════ 경제적 해자 ════ */}
+        {tab==="moat"&&(
+          <MoatTab annData={co?.annData||[]} hasFinData={hasFinData}/>
         )}
 
         {/* ════ PER/PBR ════ */}
@@ -2575,7 +2657,7 @@ export default function App(){
         )}
 
 
-        {/* ════ 버핏의 말 ════ */}
+        {/* ════ 버핏과 찰리의 말 ════ */}
         {tab==="buffett"&&(()=>{
           const CATS=["전체","시장심리","기업분석","장기투자","리스크","경영진","가치평가","인생"];
           const CAT_COLOR={"시장심리":C.orange,"기업분석":C.blue,"장기투자":C.green,"리스크":C.red,"경영진":C.purple,"가치평가":C.gold,"인생":C.cyan};
@@ -2689,6 +2771,59 @@ export default function App(){
             {id:98,cat:"리스크",en:"You don't have to make money back the same way you lost it.",ko:"잃은 방식과 같은 방식으로 되찾을 필요는 없다.",src:"버크셔 주주총회"},
             {id:99,cat:"가치평가",en:"I always invest in simple businesses. If there's lots of technology, I don't understand it.",ko:"나는 항상 단순한 사업에 투자한다. 기술이 복잡하면 이해할 수 없기 때문이다.",src:"버크셔 주주총회"},
             {id:100,cat:"인생",en:"It's better to hang out with people better than you.",ko:"당신보다 나은 사람들과 어울리는 것이 낫다.",src:"버크셔 주주총회"},
+            // ── 찰리 멍거 ─────────────────────────────────────────────
+            {id:101,cat:"시장심리",who:"찰리 멍거",en:"Invert, always invert.",ko:"역으로 생각하라. 항상 역으로.",src:"찰리 멍거, Poor Charlie's Almanack"},
+            {id:102,cat:"리스크",who:"찰리 멍거",en:"All I want to know is where I'm going to die, so I'll never go there.",ko:"내가 알고 싶은 것은 내가 어디서 죽을지뿐이다. 그곳에는 절대 가지 않을 것이다.",src:"찰리 멍거, Poor Charlie's Almanack"},
+            {id:103,cat:"기업분석",who:"찰리 멍거",en:"I have nothing to add.",ko:"추가할 것이 없습니다.",src:"찰리 멍거, 버크셔 주주총회"},
+            {id:104,cat:"장기투자",who:"찰리 멍거",en:"The big money is not in the buying and the selling, but in the waiting.",ko:"큰돈은 사고파는 것이 아니라 기다리는 것에서 나온다.",src:"찰리 멍거"},
+            {id:105,cat:"인생",who:"찰리 멍거",en:"It's not supposed to be easy. Anyone who finds it easy is stupid.",ko:"쉬울 리가 없다. 쉽다고 생각하는 사람은 어리석은 것이다.",src:"찰리 멍거, 버크셔 주주총회"},
+            {id:106,cat:"기업분석",who:"찰리 멍거",en:"Show me the incentive and I'll show you the outcome.",ko:"인센티브를 보여주면 결과를 보여주겠다.",src:"찰리 멍거"},
+            {id:107,cat:"인생",who:"찰리 멍거",en:"I never allow myself to have an opinion on anything that I don't know the other side's argument better than they do.",ko:"상대방보다 더 잘 알지 못하는 어떤 것에도 내 의견을 갖지 않는다.",src:"찰리 멍거"},
+            {id:108,cat:"리스크",who:"찰리 멍거",en:"The best thing a human being can do is to help another human being know more.",ko:"인간이 할 수 있는 최선은 다른 사람이 더 많이 알도록 돕는 것이다.",src:"찰리 멍거"},
+            {id:109,cat:"가치평가",who:"찰리 멍거",en:"A great business at a fair price is superior to a fair business at a great price.",ko:"공정한 가격의 훌륭한 사업이 훌륭한 가격의 공정한 사업보다 낫다.",src:"찰리 멍거"},
+            {id:110,cat:"인생",who:"찰리 멍거",en:"Spend each day trying to be a little wiser than you were when you woke up.",ko:"매일 눈을 떴을 때보다 조금 더 현명해지려는 노력을 하며 하루를 보내라.",src:"찰리 멍거, Poor Charlie's Almanack"},
+            {id:111,cat:"기업분석",who:"찰리 멍거",en:"I want to think about things where I have an advantage over other people. I don't want to play a game where people have an advantage over me.",ko:"나는 다른 사람보다 유리한 곳에서만 생각하고 싶다. 남들이 유리한 게임은 하고 싶지 않다.",src:"찰리 멍거"},
+            {id:112,cat:"리스크",who:"찰리 멍거",en:"It's not enough to have a good mind; the main thing is to use it well.",ko:"좋은 두뇌를 갖는 것으로는 충분하지 않다. 핵심은 그것을 잘 사용하는 것이다.",src:"찰리 멍거"},
+            {id:113,cat:"장기투자",who:"찰리 멍거",en:"Patience combined with opportunity is a great thing to have.",ko:"인내와 기회가 결합되면 위대한 것이 된다.",src:"찰리 멍거"},
+            {id:114,cat:"인생",who:"찰리 멍거",en:"Three rules for a career: 1) Don't sell anything you wouldn't buy yourself. 2) Don't work for anyone you don't respect. 3) Work only with people you enjoy.",ko:"경력에 대한 세 가지 규칙: 1) 자신이 사지 않을 것은 팔지 마라. 2) 존경하지 않는 사람 밑에서 일하지 마라. 3) 좋아하는 사람하고만 일하라.",src:"찰리 멍거"},
+            {id:115,cat:"기업분석",who:"찰리 멍거",en:"Knowing what you don't know is more useful than being brilliant.",ko:"모르는 것을 아는 것이 뛰어난 것보다 더 유용하다.",src:"찰리 멍거"},
+            {id:116,cat:"가치평가",who:"찰리 멍거",en:"If you take the best text in economics by Mankiw, he says people respond to incentives. And if you really internalize that simple idea, you look for logical, predictable patterns in human behavior.",ko:"인간은 인센티브에 반응한다는 단순한 생각을 진정으로 내면화하면, 인간 행동에서 논리적이고 예측 가능한 패턴을 찾게 된다.",src:"찰리 멍거"},
+            {id:117,cat:"시장심리",who:"찰리 멍거",en:"The market is not perfectly efficient and not completely inefficient — it's partially efficient and partially inefficient.",ko:"시장은 완전히 효율적이지도, 완전히 비효율적이지도 않다. 부분적으로 효율적이고 부분적으로 비효율적이다.",src:"찰리 멍거"},
+            {id:118,cat:"경영진",who:"찰리 멍거",en:"Never wrestle with pigs. You both get dirty and the pig likes it.",ko:"돼지와 씨름하지 마라. 둘 다 더러워지는데 돼지는 그것을 즐긴다.",src:"찰리 멍거"},
+            {id:119,cat:"인생",who:"찰리 멍거",en:"I observe what works and what doesn't and why.",ko:"나는 무엇이 효과가 있고 없는지, 그리고 왜 그런지를 관찰한다.",src:"찰리 멍거"},
+            {id:120,cat:"리스크",who:"찰리 멍거",en:"If something is too hard, we move on to something else. What could be simpler than that?",ko:"어떤 것이 너무 어려우면 다른 것으로 넘어간다. 이보다 더 간단한 것이 어디 있겠는가?",src:"찰리 멍거"},
+            {id:121,cat:"장기투자",who:"찰리 멍거",en:"We have three baskets for investing: yes, no, and too tough to understand.",ko:"우리의 투자 바구니는 세 개다: 예, 아니오, 그리고 이해하기 너무 어려운 것.",src:"찰리 멍거"},
+            {id:122,cat:"기업분석",who:"찰리 멍거",en:"I have a friend who says the first rule of fishing is to fish where the fish are.",ko:"내 친구는 낚시의 첫 번째 규칙은 물고기가 있는 곳에서 낚시하는 것이라고 말한다.",src:"찰리 멍거"},
+            {id:123,cat:"인생",who:"찰리 멍거",en:"In my whole life, I have known no wise people who didn't read all the time — none, zero.",ko:"내 삶 전체에서 항상 읽지 않는 현명한 사람을 단 한 명도 알지 못했다.",src:"찰리 멍거"},
+            {id:124,cat:"가치평가",who:"찰리 멍거",en:"I would rather throw a rock at a moose than argue about the efficient market hypothesis.",ko:"나는 효율적 시장 가설을 논쟁하느니 차라리 무스에게 돌을 던지겠다.",src:"찰리 멍거"},
+            {id:125,cat:"경영진",who:"찰리 멍거",en:"The best armor of old age is a well-spent life preceding it.",ko:"노년의 최고 갑옷은 앞서 잘 보낸 인생이다.",src:"찰리 멍거"},
+            // ── 버핏 추가 어록 ─────────────────────────────────────────
+            {id:126,cat:"시장심리",en:"I will tell you how to become rich. Close the doors. Be fearful when others are greedy. Be greedy when others are fearful.",ko:"부자가 되는 방법을 알려주겠다. 문을 닫고 들어와라. 남들이 탐욕스러울 때 두려워하고, 남들이 두려워할 때 탐욕스러워져라.",src:"워런 버핏"},
+            {id:127,cat:"기업분석",en:"I don't look to jump over seven-foot bars; I look around for one-foot bars that I can step over.",ko:"7피트 장대를 뛰어넘으려 하지 않는다. 넘을 수 있는 1피트 장대를 찾는다.",src:"워런 버핏, 버크셔 주주서한"},
+            {id:128,cat:"장기투자",en:"We don't have to be smarter than the rest, we have to be more disciplined than the rest.",ko:"다른 사람들보다 더 똑똑할 필요는 없다. 단지 더 규율 있으면 된다.",src:"워런 버핏"},
+            {id:129,cat:"리스크",en:"The most important thing to do if you find yourself in a hole is to stop digging.",ko:"구멍에 빠졌다면 가장 중요한 것은 파기를 멈추는 것이다.",src:"워런 버핏"},
+            {id:130,cat:"가치평가",en:"I put heavy weight on certainty. If you do that, the whole idea of a risk factor doesn't make much sense to me.",ko:"나는 확실성에 큰 비중을 둔다. 그렇게 한다면 리스크 요인이라는 개념은 별 의미가 없다.",src:"워런 버핏"},
+            {id:131,cat:"경영진",en:"A public opinion poll is no substitute for thought.",ko:"여론 조사는 생각의 대체물이 아니다.",src:"워런 버핏"},
+            {id:132,cat:"인생",en:"Without passion, you don't have energy. Without energy, you have nothing.",ko:"열정이 없으면 에너지가 없다. 에너지가 없으면 아무것도 없다.",src:"워런 버핏"},
+            {id:133,cat:"시장심리",en:"I don't try to jump over seven-foot hurdles; I look for one-foot hurdles I can step over.",ko:"7피트 허들을 뛰어넘으려 하지 않는다. 1피트 허들을 찾는다.",src:"워런 버핏"},
+            {id:134,cat:"기업분석",en:"An investor should act as though he had a lifetime decision card with just twenty punches on it.",ko:"투자자는 평생 단 20번의 결정만 내릴 수 있는 카드를 가진 것처럼 행동해야 한다.",src:"워런 버핏"},
+            {id:135,cat:"장기투자",en:"The most important quality for an investor is temperament, not intellect.",ko:"투자자에게 가장 중요한 자질은 지능이 아니라 기질이다.",src:"워런 버핏"},
+            {id:136,cat:"리스크",en:"You only find out who is swimming naked when the tide goes out.",ko:"썰물이 빠져야 누가 알몸으로 수영하고 있었는지 알 수 있다.",src:"워런 버핏"},
+            {id:137,cat:"가치평가",en:"You pay a very high price in the stock market for a cheery consensus.",ko:"주식시장에서 낙관적 합의에 대해서는 매우 높은 가격을 치러야 한다.",src:"워런 버핏"},
+            {id:138,cat:"경영진",en:"I try to buy stock in businesses that are so wonderful that an idiot can run them because sooner or later, one will.",ko:"바보도 운영할 수 있는 훌륭한 사업을 찾아 투자한다. 조만간 그런 일이 생기기 때문이다.",src:"워런 버핏"},
+            {id:139,cat:"인생",en:"Predicting rain doesn't count, building arks does.",ko:"비를 예측하는 것은 의미 없다. 방주를 만드는 것이 중요하다.",src:"워런 버핏"},
+            {id:140,cat:"시장심리",en:"In the business world, the rearview mirror is always clearer than the windshield.",ko:"비즈니스 세계에서 백미러는 항상 앞 유리보다 더 선명하다.",src:"워런 버핏"},
+            // ── 찰리 멍거 추가 ─────────────────────────────────────────
+            {id:141,cat:"기업분석",who:"찰리 멍거",en:"Understanding both the power of compound interest and the difficulty of getting it is the heart and soul of understanding a lot of things.",ko:"복리의 힘과 그것을 얻는 어려움 모두를 이해하는 것이 많은 것을 이해하는 핵심이다.",src:"찰리 멍거"},
+            {id:142,cat:"장기투자",who:"찰리 멍거",en:"The best thing a human being can do is to help another human being know more.",ko:"인간이 할 수 있는 최선은 다른 사람이 더 많이 알도록 돕는 것이다.",src:"찰리 멍거"},
+            {id:143,cat:"리스크",who:"찰리 멍거",en:"Mimicking the herd invites regression to the mean.",ko:"군중을 모방하면 평균으로의 회귀를 부른다.",src:"찰리 멍거"},
+            {id:144,cat:"가치평가",who:"찰리 멍거",en:"It takes character to sit there with all that cash and do nothing. I didn't get to where I am by going after mediocre opportunities.",ko:"현금을 들고 아무것도 하지 않는 데는 인내가 필요하다. 나는 평범한 기회를 쫓아서 지금의 자리에 오지 않았다.",src:"찰리 멍거"},
+            {id:145,cat:"경영진",who:"찰리 멍거",en:"I have nothing to add — but remember, it takes a village to raise an idiot too.",ko:"추가할 것이 없습니다. 하지만 바보를 키우는 데도 온 마을이 필요하다는 것을 기억하세요.",src:"찰리 멍거, 버크셔 주주총회"},
+            {id:146,cat:"인생",who:"찰리 멍거",en:"The best results I've ever gotten in life came from ignoring conventional wisdom.",ko:"내 인생에서 최고의 결과는 항상 통념을 무시했을 때 나왔다.",src:"찰리 멍거"},
+            {id:147,cat:"시장심리",who:"찰리 멍거",en:"Most people are too fretful, they worry too much. Success means being very patient, but aggressive when it's time.",ko:"대부분의 사람들은 너무 초조하고, 너무 걱정한다. 성공은 매우 인내하다가 때가 됐을 때 공격적이 되는 것이다.",src:"찰리 멍거"},
+            {id:148,cat:"기업분석",who:"찰리 멍거",en:"The difference between a good business and a bad one: A good business earns high returns on capital and can reinvest those returns at equally high rates.",ko:"좋은 사업과 나쁜 사업의 차이: 좋은 사업은 자본에서 높은 수익을 얻고 같은 높은 수익률로 재투자할 수 있다.",src:"찰리 멍거"},
+            {id:149,cat:"장기투자",who:"찰리 멍거",en:"Rapid change of any kind is poison to a long-term investor.",ko:"어떤 종류의 급격한 변화도 장기 투자자에게는 독이다.",src:"찰리 멍거"},
+            {id:150,cat:"리스크",who:"찰리 멍거",en:"Opportunity cost is a huge filter in life. If you've got two suitors who are each asking for your hand in marriage, and one is way better than the other, you do not have to spend much time with the other.",ko:"기회비용은 삶의 거대한 필터다. 두 구혼자가 있을 때 한 명이 훨씬 낫다면 다른 쪽에 시간을 많이 쓸 필요가 없다.",src:"찰리 멍거"},
           ];
 
           // 날짜 기반 오늘의 어록 인덱스 (자정 기준 자동 변경)
