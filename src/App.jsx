@@ -507,7 +507,7 @@ export default function App(){
     const full=calcMA60(monthly);
     return buildBandsFromQtr(full,co?.qtrData,co?.annData,bandApplied).slice(-RANGES[rangeIdx].months);
   },[monthly,co?.qtrData,co?.annData,rangeIdx,bandApplied]);
-  const withPositionBands=useMemo(()=>calcPositionBands(displayMonthly),[displayMonthly]);
+  const withPositionBands=useMemo(()=>calcPositionBands(monthly).slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
   const withRSI   =useMemo(()=>calcRSI(displayMonthly),[displayMonthly]);
   const withMACD  =useMemo(()=>calcMACD(displayMonthly),[displayMonthly]);
   const withOBV   =useMemo(()=>calcOBV(displayMonthly),[displayMonthly]);
@@ -1119,7 +1119,7 @@ export default function App(){
                         label:"FCF 상태",
                         value:`${re.fcfTrendIcon||""} ${re.fcfTrend||"—"}`,
                         color:re.fcfTrendColor||C.muted,
-                        sub: hasFin&&re.fcfVal!=null?`${re.fcfVal}억`:null,
+                        sub: hasFin&&re.fcfVal!=null?`${re.fcfVal.toLocaleString()}억`:null,
                       },
                       {
                         label:"실적 모멘텀",
@@ -1183,18 +1183,33 @@ export default function App(){
             {hasFinData?(
               <Box>
                 <ST accent={C.gold}>최근 연간 재무 요약 ({lastAnn.year}년)</ST>
-                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:6}}>
-                  {[{k:"매출액",v:`${lastAnn.rev}억`,c:C.text},{k:"영업이익",v:`${lastAnn.op}억`,c:C.green},
-                    {k:"순이익",v:`${lastAnn.net}억`,c:C.green},{k:"OPM",v:`${lastAnn.opm}%`,c:C.gold},
-                    {k:"ROE",v:`${lastAnn.roe}%`,c:C.blueL},{k:"부채비율",v:`${lastAnn.debt}%`,c:(lastAnn.debt||0)>100?C.red:C.teal},
-                    {k:"FCF",v:`${lastAnn.fcf}억`,c:C.cyan},{k:"EPS",v:`${(lastAnn.eps||0).toLocaleString()}원`,c:C.purple},
-                  ].map(item=>(
-                    <div key={item.k} style={{background:C.card2,borderRadius:8,padding:"8px 10px",border:`1px solid ${C.border}`}}>
-                      <div style={{color:C.muted,fontSize:9,marginBottom:2}}>{item.k}</div>
-                      <div style={{color:item.c,fontSize:13,fontWeight:700,fontFamily:"monospace"}}>{item.v}</div>
-                    </div>
-                  ))}
-                </div>
+                {(()=>{
+                  const {unit:ou,scale:os}=autoUnit([lastAnn],["rev","op","net","fcf"]);
+                  const fmtCard=(v)=>{
+                    if(v==null)return"—";
+                    const converted=os!==1?v/os:v;
+                    return`${converted.toLocaleString(undefined,{maximumFractionDigits:1})}${ou}`;
+                  };
+                  return(
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(90px,1fr))",gap:6}}>
+                    {[
+                      {k:"매출액",   v:fmtCard(lastAnn.rev),                                         c:C.text},
+                      {k:"영업이익", v:fmtCard(lastAnn.op),                                          c:C.green},
+                      {k:"순이익",   v:fmtCard(lastAnn.net),                                         c:C.green},
+                      {k:"OPM",      v:lastAnn.opm!=null?`${lastAnn.opm}%`:"—",                      c:C.gold},
+                      {k:"ROE",      v:lastAnn.roe!=null?`${lastAnn.roe}%`:"—",                      c:C.blueL},
+                      {k:"부채비율", v:lastAnn.debt!=null?`${(lastAnn.debt).toLocaleString()}%`:"—", c:(lastAnn.debt||0)>100?C.red:C.teal},
+                      {k:"FCF",      v:fmtCard(lastAnn.fcf),                                         c:C.cyan},
+                      {k:"EPS",      v:lastAnn.eps!=null?`${(lastAnn.eps).toLocaleString()}원`:"—",  c:C.purple},
+                    ].map(item=>(
+                      <div key={item.k} style={{background:C.card2,borderRadius:8,padding:"8px 10px",border:`1px solid ${C.border}`}}>
+                        <div style={{color:C.muted,fontSize:9,marginBottom:2}}>{item.k}</div>
+                        <div style={{color:item.c,fontSize:13,fontWeight:700,fontFamily:"monospace"}}>{item.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                  );
+                })()}
               </Box>
             ):(
               <Box>
@@ -1235,7 +1250,7 @@ export default function App(){
                 <XAxis {...xp()}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
-                <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="none"/>
+                <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="line"/>
                 <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2}   dot={false}/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
@@ -1245,11 +1260,12 @@ export default function App(){
                   const last=withPositionBands.filter(d=>d.bBase!=null).slice(-1)[0];
                   if(!last)return null;
                   return[
-                    {key:"bPeak",    color:C.purple, label:"EH"},
-                    {key:"bTop",     color:C.red,    label:"VH"},
-                    {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:"60MA"},
-                    {key:"bKnee",    color:C.blue,   label:"L"},
+                    {key:"bPeak",    color:C.purple,  label:"EH"},
+                    {key:"bTop",     color:C.red,     label:"VH"},
+                    {key:"bShoulder",color:C.orange,  label:"H"},
+                    {key:"bBase",    color:C.goldL,   label:"60MA"},
+                    {key:"bKnee",    color:C.blue,    label:"L"},
+                    {key:"bFloor",   color:"#3B7DD8", label:"VL"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
                       label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
@@ -1445,7 +1461,7 @@ export default function App(){
                         <ComposedChart data={epsPriceData} margin={{top:4,right:4,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left"  {...yp("",44)}/>
+                          <YAxis yAxisId="left"  {...yp("",52)} tickFormatter={v=>v.toLocaleString()}/>
                           <YAxis yAxisId="right" orientation="right" {...yp("원",52)} tickFormatter={v=>v.toLocaleString()}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
                           <Bar  yAxisId="left"  dataKey="eps" name="EPS(원)" fill={C.purple} opacity={0.7} maxBarSize={20}/>
@@ -1509,7 +1525,7 @@ export default function App(){
                 <Tooltip content={<MTip/>} cursor={false}/>
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
-                <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="none"/>
+                <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="line"/>
                 <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2.5} dot={false} legendType="line"/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={2}   strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={2}   strokeDasharray="5 3" dot={false}/>
