@@ -263,7 +263,6 @@ const calc3LineSignal=(monthly, fin={})=>{
   } else{
     verdictTitle="신호가 엇갈립니다 — 한 시간대만 다릅니다";verdictDesc="대체로 방향이 맞지만 완전하지 않습니다.\n조금 더 지켜본 후 진입하세요.";
   }
-  }
 
   const verdictColor=gradeColor;
   const borderColor=gradeColor;
