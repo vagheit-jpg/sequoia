@@ -1640,17 +1640,17 @@ export default function App(){
               <ST accent={C.gold}>📐 DCF 파라미터 설정</ST>
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
                 {[
-                  {key:"bondYield",label:"국고채 금리(%)",min:0,max:10,step:0.1},
-                  {key:"riskPrem", label:"리스크 프리미엄(%)",min:0,max:10,step:0.5},
-                  {key:"gr",       label:"기업 성장률(%)",min:0,max:30,step:0.5},
-                  {key:"reqReturn",label:"요구수익률(%)",min:1,max:20,step:0.5},
-                  {key:"capexRatio",label:"유지CAPEX 비율(%)",min:0,max:100,step:5},
+                  {key:"bondYield",label:"국고채 금리(%)",min:0,max:10,step:0.1,def:3.5},
+                  {key:"riskPrem", label:"리스크 프리미엄(%)",min:0,max:10,step:0.5,def:2},
+                  {key:"gr",       label:"기업 성장률(%)",min:0,max:30,step:0.5,def:8},
+                  {key:"reqReturn",label:"요구수익률(%)",min:1,max:20,step:0.5,def:10},
+                  {key:"capexRatio",label:"유지CAPEX 비율(%)",min:0,max:100,step:5,def:50},
                 ].map(f=>(
                   <div key={f.key}>
                     <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
                     <input type="number" min={f.min} max={f.max} step={f.step}
                       value={dcfDraft[f.key]===0?"":dcfDraft[f.key]}
-                      placeholder="0"
+                      placeholder={String(f.def)}
                       onChange={e=>setDcfDraft(p=>({...p,[f.key]:e.target.value===""?0:+e.target.value}))}
                       onFocus={e=>e.target.select()}
                       style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
