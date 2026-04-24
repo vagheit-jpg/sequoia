@@ -741,17 +741,27 @@ function MoatTab({annData,hasFinData}){
   }
   const cashScore=fcfConvScore+capexScore;
 
-  // ── 4. 재무 건전성 (10점)
+  // ── 4. 재무 건전성 (10점): 부채비율 6점 + ROA 4점
   const lastRow=rows[rows.length-1];
   const debtRatio=lastRow?.debt??null;
-  // 유동비율: current ratio 없으므로 부채비율만 사용, 만점 기준 완화
-  let safetyScore=0;
+  // ROA: 최근 데이터 우선, 없으면 평균
+  const roaArr=rows.filter(r=>r.roa!=null).map(r=>r.roa);
+  const avgROA=roaArr.length?roaArr.reduce((s,v)=>s+v,0)/roaArr.length:null;
+
+  let debtScore=0,roaScore=0;
   if(debtRatio!=null){
-    if(debtRatio<50)safetyScore=10;
-    else if(debtRatio<80)safetyScore=10;
-    else if(debtRatio<150)safetyScore=5;
-    else if(debtRatio<250)safetyScore=2;
+    if(debtRatio<50)debtScore=6;
+    else if(debtRatio<80)debtScore=6;
+    else if(debtRatio<150)debtScore=3;
+    else if(debtRatio<250)debtScore=1;
   }
+  if(avgROA!=null){
+    if(avgROA>=10)roaScore=4;
+    else if(avgROA>=6)roaScore=3;
+    else if(avgROA>=3)roaScore=2;
+    else if(avgROA>=0)roaScore=1;
+  }
+  const safetyScore=debtScore+roaScore;
 
   // ── 총점
   const total=capitalScore+profitScore+cashScore+safetyScore;
@@ -817,10 +827,15 @@ function MoatTab({annData,hasFinData}){
       title:"재무 건전성",full:10,score:safetyScore,
       desc:"외부 충격에도 해자가 무너지지 않을 최소 방벽",
       items:[
-        {label:"부채비율",score:safetyScore,max:10,
+        {label:"부채비율",score:debtScore,max:6,
          val:debtRatio!=null?`${debtRatio}%`:"—",
          bench:"80% 이하",
          detail:debtRatio!=null?(debtRatio<50?"매우 안전":debtRatio<80?"안전":debtRatio<150?"보통":debtRatio<250?"주의":"위험"):"데이터 없음",
+        },
+        {label:"ROA (총자산이익률)",score:roaScore,max:4,
+         val:avgROA!=null?`${avgROA.toFixed(1)}%`:"—",
+         bench:"6% 이상",
+         detail:avgROA!=null?(avgROA>=10?"탁월":avgROA>=6?"우수":avgROA>=3?"양호":avgROA>=0?"미흡":"손실"):"데이터 없음",
         },
       ]
     },
@@ -1002,7 +1017,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
           
           <div>
-            <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>📖 버핏과 찰리의 말</div>
+            <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>🗒️ 버핏과 찰리의 말</div>
             <div style={{fontSize:9,color:C.muted}}>워런 버핏 · 찰리 멍거 어록 {Q.length}선</div>
           </div>
           <div style={{marginLeft:"auto",textAlign:"right"}}>
@@ -1040,7 +1055,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
               fontSize:10,fontWeight:active?700:400,
               cursor:"pointer",transition:"all 0.15s",
             }}>
-              {who==="버핏"?"💵 버핏":who==="찰리 멍거"?"🎩 찰리":"📖 전체"}
+              {who==="버핏"?"🗒️ 버핏":who==="찰리 멍거"?"🧠 찰리":"전체"}
             </button>
           );
         })}
@@ -1607,7 +1622,7 @@ export default function App(){
     {id:"perbpr",label:"💹 PER/PBR"},{id:"financial",label:"💰 재무"},
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
-    {id:"buffett",label:"📖 버핏과 찰리의 말"},
+    {id:"buffett",label:"🗒️ 버핏과 찰리의 말"},
   ];
 
   if(dbLoading)return(
