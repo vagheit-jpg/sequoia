@@ -512,7 +512,13 @@ export default function App(){
   const withMACD  =useMemo(()=>calcMACD(displayMonthly),[displayMonthly]);
   const withOBV   =useMemo(()=>calcOBV(displayMonthly),[displayMonthly]);
   const withMFI   =useMemo(()=>calcMFI(displayMonthly),[displayMonthly]);
-  const signalPts =useMemo(()=>calcSignalPoints(withMA60),[withMA60]);
+  const withMA60Full=useMemo(()=>calcMA60(monthly),[monthly]);
+  const signalPts =useMemo(()=>{
+    const allPts=calcSignalPoints(withMA60Full);
+    if(!displayMonthly.length)return allPts;
+    const firstLabel=displayMonthly[0]?.label;
+    return allPts.filter(pt=>pt.label>=firstLabel);
+  },[withMA60Full,displayMonthly]);
   const lastGap   =withMA60.slice(-1)[0]?.gap60??null;
   const lastAnn   =co?.annData?.slice(-1)?.[0]||{};
 
@@ -1741,17 +1747,20 @@ export default function App(){
                       </div>
                     </div>
                   )}
-                  {dcfHistory.length>=2&&(
+                  {dcfHistory.length>=2&&(()=>{
+                    const {unit:du,scale:ds}=autoUnit(dcfHistory,["fcf"]);
+                    const dcfScaled=scaleData(dcfHistory,["fcf"],ds);
+                    return(
                     <>
                       <ST accent={C.gold}>연도별 적정주가 추이 (4가지 방식)</ST>
                       <CW h={260}>
-                        <ComposedChart data={dcfHistory} margin={{top:4,right:12,left:0,bottom:8}}>
+                        <ComposedChart data={dcfScaled} margin={{top:4,right:12,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp("억",40)}/>
+                          <YAxis yAxisId="right" orientation="right" {...yp(du,44)} tickFormatter={v=>v.toLocaleString()}/>
                           <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                          <Bar  yAxisId="right" dataKey="fcf"    name="FCF(억)"        fill={C.teal}   opacity={0.4} maxBarSize={28}/>
+                          <Bar  yAxisId="right" dataKey="fcf"    name={`FCF(${du})`}   fill={C.teal}   opacity={0.4} maxBarSize={28}/>
                           <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
                           <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
                           <Line yAxisId="left"  dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
@@ -1760,6 +1769,9 @@ export default function App(){
                             label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
                         </ComposedChart>
                       </CW>
+                    </>
+                    );
+                  })()}
 
                       {/* 유지CAPEX 비율 업종 참조표 */}
                       <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
@@ -1788,7 +1800,6 @@ export default function App(){
                           ※ 유지CAPEX = 사업 현상유지에 필요한 최소 설비투자. 높을수록 보수적 평가. DCF 파라미터에서 조정 가능.
                         </div>
                       </div>
-                    </>
                   )}
                 </>
               ):(
