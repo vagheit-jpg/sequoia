@@ -449,7 +449,7 @@ const FIELD_MAP={
   "영업활동현금흐름":"cfo","투자활동현금흐름":"cfi","재무활동현금흐름":"cff","FCF":"fcf",
   "ROE(%)":"roe","ROA(%)":"roa","EPS(원)":"eps","BPS(원)":"bps",
   "PER(배)":"per","PBR(배)":"pbr","발행주식수(보통주)":"shares",
-  "설비투자(CAPEX)":"capex","현금DPS(원)":"dps","현금배당수익률":"divYield","현금배당성향(%)":"divPayout",
+  "CAPEX":"capex","현금DPS(원)":"dps","현금배당수익률":"divYield","현금배당성향(%)":"divPayout",
 };
 const parseSheet=(sheet)=>{
   const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
