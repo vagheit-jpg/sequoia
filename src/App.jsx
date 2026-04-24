@@ -93,200 +93,183 @@ const calc3LineSignal=(monthly, fin={})=>{
   const ma60d=monthly.length>=3 ?calcMAN(monthly,3) :null;
   const available=[ma60m,ma60w,ma60d].filter(v=>v!==null);
   if(available.length<2)return null;
+
   const last=monthly[monthly.length-1];
   const gapM=ma60m!=null?+(((last.price/ma60m)-1)*100).toFixed(1):null;
   const gapW=ma60w!=null?+(((last.price/ma60w)-1)*100).toFixed(1):null;
   const gapD=ma60d!=null?+(((last.price/ma60d)-1)*100).toFixed(1):null;
+
+  // 구간 판단 — 차트 밴드 배수 기준
   const toZone=(gap)=>{
     if(gap===null)return null;
-    if(gap<=-40)return{label:"VL",score:-2,color:"#00C878"};
-    if(gap<-20) return{label:"L", score:-1,color:"#5BA0FF"};
-    if(gap<50)  return{label:"M", score: 0,color:"#8AA8C8"};
-    if(gap<100) return{label:"H", score: 1,color:"#FF7830"};
-    if(gap<150) return{label:"VH",score: 2,color:"#FF3D5A"};
-    return      {label:"EH",score: 3,color:"#8855FF"};
+    if(gap<=-40)return{label:"VL",zScore:+2,color:"#00C878"};
+    if(gap<-20) return{label:"L", zScore:+1,color:"#5BA0FF"};
+    if(gap<50)  return{label:"M", zScore: 0,color:"#8AA8C8"};
+    if(gap<100) return{label:"H", zScore:-1,color:"#FF7830"};
+    if(gap<150) return{label:"VH",zScore:-2,color:"#FF3D5A"};
+    return      {label:"EH",zScore:-3,color:"#8855FF"};
   };
   const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
-  const activeZones=[zm,zw,zd].filter(z=>z!==null);
-  const scores=activeZones.map(z=>z.score);
-  const maxScore=activeZones.length;
-  // 모두 같은 구간이면 완전 정렬
-  const allSame=scores.every(s=>s===scores[0]);
-  // 방향 판단: 음수(저점), 양수(고점), 0(중립)
-  const allNegStrict=scores.every(s=>s<0);
-  const allPosStrict=scores.every(s=>s>0);
-  const allNeutral=scores.every(s=>s===0);
-  const allNeg=scores.every(s=>s<=0);
-  const allPos=scores.every(s=>s>=0);
-  let alignScore=0;
-  if(allSame)alignScore=maxScore;
-  else if(allNegStrict||allPosStrict||allNeutral)alignScore=Math.max(1,maxScore-1);
-  else if(allNeg||allPos)alignScore=1;
-  else alignScore=0;
-  // 배열 판단
+
+  // ── 1. 이격도 점수 (가중치: 60월=×3, 60주=×2, 60일=×1)
+  // 구간점수 × 가중치
+  const pM=zm!=null?zm.zScore*3:0;  // 최대 ±9점  (6점 기준시 ×3=9, 조정)
+  const pW=zw!=null?zw.zScore*2:0;  // 최대 ±6점
+  const pD=zd!=null?zd.zScore*1:0;  // 최대 ±3점
+  const priceScore=pM+pW+pD;        // 범위: -18 ~ +12
+  // 가중 최대점수 계산 (데이터 있는 선만)
+  const priceMaxPos=(zm!=null?6:0)+(zw!=null?4:0)+(zd!=null?2:0);  // 만점기준
+  const priceMaxNeg=(zm!=null?9:0)+(zw!=null?6:0)+(zd!=null?3:0);  // 최저기준
+
+  // ── 2. 배열 점수
   let arrangement="혼재",arrangementColor="#8AA8C8",arrangementEn="mixed";
+  let arrScore=0;
   if(ma60m&&ma60w&&ma60d){
-    if(ma60d>ma60w&&ma60w>ma60m){arrangement="정배열";arrangementColor="#00C878";arrangementEn="bull";}
-    else if(ma60d<ma60w&&ma60w<ma60m){arrangement="역배열";arrangementColor="#FF3D5A";arrangementEn="bear";}
+    if(ma60d>ma60w&&ma60w>ma60m){arrangement="정배열";arrangementColor="#00C878";arrangementEn="bull";arrScore=+3;}
+    else if(ma60d<ma60w&&ma60w<ma60m){arrangement="역배열";arrangementColor="#FF3D5A";arrangementEn="bear";arrScore=-3;}
   } else if(ma60w&&ma60d){
-    if(ma60d>ma60w){arrangement="단기 정배열";arrangementColor="#10A898";arrangementEn="bull";}
-    else if(ma60d<ma60w){arrangement="단기 역배열";arrangementColor="#FF7830";arrangementEn="bear";}
+    if(ma60d>ma60w){arrangement="단기 정배열";arrangementColor="#10A898";arrangementEn="bull";arrScore=+2;}
+    else if(ma60d<ma60w){arrangement="단기 역배열";arrangementColor="#FF7830";arrangementEn="bear";arrScore=-2;}
   }
-  const bearDir=allNegStrict;
-  const bullDir=allPosStrict;
+
   const hasAll=ma60m!==null&&ma60w!==null&&ma60d!==null;
   const missingLines=[
     ma60m===null?"60월선(5년 데이터 부족)":null,
     ma60w===null?"60주선(15개월 데이터 부족)":null,
   ].filter(Boolean);
 
-  // ── 펀더멘털 파라미터
-  const {epsTrend="", fcfTrend="", momentum="", hasFinData=false} = fin;
-  const epsGood=epsTrend==="개선";
-  const epsBad=epsTrend==="악화";
+  // ── 3. 실적 점수 (재무제표 있을 때만)
+  const {
+    epsTrend="", fcfTrend="", momentum="",
+    profitability="", opm=0, roe=0,
+    annData=[], hasFinData=false
+  } = fin;
+
+  let epsScore=0,fcfScore=0,momScore=0,profScore=0,roeScore=0;
+  let finScoreDetail={};
+
+  if(hasFinData){
+    // ① EPS 추세 (±3점)
+    if(epsTrend==="개선") epsScore=+3;
+    else if(epsTrend==="악화") epsScore=-3;
+    else epsScore=0;
+
+    // ② FCF 상태 (±3점)
+    if(fcfTrend==="흑자안정") fcfScore=+3;
+    else if(fcfTrend==="흑자전환") fcfScore=+1;
+    else if(fcfTrend==="적자지속") fcfScore=-3;
+    else fcfScore=0;
+
+    // ③ 영업이익 모멘텀 (±2점)
+    if(momentum==="성장지속") momScore=+2;
+    else if(momentum==="훼손") momScore=-2;
+    else momScore=0;
+
+    // ④ 수익성 OPM+ROE (±2점)
+    const opmN=opm||0, roeN=roe||0;
+    if(opmN>=15&&roeN>=15) profScore=+2;
+    else if(opmN>=8||roeN>=10) profScore=+1;
+    else profScore=-1;
+
+    // ⑤ 해자 지표: 10년 평균 ROE (±3점) — 버핏 핵심
+    const ann10=(annData||[]).filter(r=>r.roe!=null).slice(-10);
+    const avgRoe10=ann10.length>=3
+      ? +(ann10.reduce((s,r)=>s+(r.roe||0),0)/ann10.length).toFixed(1)
+      : null;
+    if(avgRoe10!==null){
+      if(avgRoe10>=15) roeScore=+3;
+      else if(avgRoe10>=10) roeScore=+1;
+      else roeScore=-2;
+    }
+
+    finScoreDetail={epsScore,fcfScore,momScore,profScore,roeScore,avgRoe10};
+  }
+
+  const finScore=epsScore+fcfScore+momScore+profScore+roeScore;
+  // 실적 최대/최저 (있을 때)
+  const finMaxPos=hasFinData?13:0;   // 3+3+2+2+3
+  const finMaxNeg=hasFinData?-11:0;  // -3-3-2-1-2
+
+  // ── 4. 총점 계산
+  const totalScore=priceScore+arrScore+finScore;
+  const maxPossible=priceMaxPos+3+(hasFinData?finMaxPos:0);
+  const minPossible=-priceMaxNeg-3+(hasFinData?finMaxNeg:0);
+
+  // ── 5. 등급 판정
+  // 재무있음: -31~+25, 재무없음: -21~+15 범위
+  let grade="",gradeColor="#8AA8C8",gradeIcon="";
+  if(hasFinData){
+    if(totalScore>=18)     {grade="강력 매수";gradeColor="#00C878";gradeIcon="★★★";}
+    else if(totalScore>=10){grade="매수 고려";gradeColor="#5BA0FF";gradeIcon="★★☆";}
+    else if(totalScore>=3) {grade="중립 관망";gradeColor="#E8B840";gradeIcon="★☆☆";}
+    else if(totalScore>=-4){grade="주의";     gradeColor="#FF7830";gradeIcon="☆☆☆";}
+    else if(totalScore>=-12){grade="매도 고려";gradeColor="#FF3D5A";gradeIcon="▼▼☆";}
+    else                   {grade="강력 매도";gradeColor="#8855FF";gradeIcon="▼▼▼";}
+  } else {
+    if(totalScore>=10)     {grade="강력 매수";gradeColor="#00C878";gradeIcon="★★★";}
+    else if(totalScore>=4) {grade="매수 고려";gradeColor="#5BA0FF";gradeIcon="★★☆";}
+    else if(totalScore>=-3){grade="중립 관망";gradeColor="#E8B840";gradeIcon="★☆☆";}
+    else if(totalScore>=-8){grade="주의";     gradeColor="#FF7830";gradeIcon="☆☆☆";}
+    else                   {grade="매도 고려";gradeColor="#FF3D5A";gradeIcon="▼▼☆";}
+  }
+
+  // ── 6. Verdict 텍스트 (기존 로직 유지 + 등급 연계)
+  const bearDir=zm!=null&&zw!=null?(zm.zScore<0&&zw.zScore<0):false;
+  const bullDir=zm!=null&&zw!=null?(zm.zScore>0&&zw.zScore>0):false;
+  const allNeutral=zm!=null&&zw!=null&&zd!=null&&zm.zScore===0&&zw.zScore===0&&zd.zScore===0;
+  const epsGood=epsTrend==="개선", epsBad=epsTrend==="악화";
   const fcfGood=fcfTrend==="흑자안정"||fcfTrend==="흑자전환";
   const fcfBad=fcfTrend==="적자지속";
-  const momGood=momentum==="성장지속";
   const momBad=momentum==="훼손";
   const fundGood=hasFinData&&(epsGood||fcfGood);
   const fundBad=hasFinData&&(epsBad||fcfBad||momBad);
-  const fundNeutral=hasFinData&&!fundGood&&!fundBad;
 
-  // ── Verdict 생성: 3차원(이격도×배열×실적) or 2차원(이격도×배열)
-  let verdictTitle="",verdictDesc="",verdictColor="#A0C0D8",borderColor="#4A6080",scoreColor="#A0C0D8";
-  let dimension=hasFinData?"3차원":"2차원";
+  let verdictTitle="",verdictDesc="";
+  const gradeLabel=grade;
 
-  // ── 중립 구간 (M)
   if(allNeutral){
     if(hasFinData){
-      if(fundGood){
-        verdictTitle="횡보 중이지만 실적이 받쳐주고 있습니다";
-        verdictDesc="세 시간대 모두 중립 구간입니다.\n실적이 개선 중이라면 추세 전환의 초입일 수 있습니다.";
-        verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
-      } else if(fundBad){
-        verdictTitle="횡보처럼 보이지만 실적이 꺾이고 있습니다";
-        verdictDesc="가격은 중립이지만 펀더멘털이 약화되고 있습니다.\n하락 전 마지막 횡보일 수 있으니 주의하세요.";
-        verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-      } else {
-        verdictTitle="세 시간대 모두 중립 구간입니다";
-        verdictDesc="급등도 급락도 없는 횡보 구간입니다.\n실적 방향이 주가를 결정할 시기입니다.";
-        verdictColor="#8AA8C8";borderColor="#4A6080";scoreColor="#8AA8C8";
-      }
-    } else {
-      verdictTitle="세 시간대 모두 중립 구간입니다";
-      verdictDesc="급등도 급락도 없는 횡보 구간입니다.\n재무제표를 업로드하면 실적까지 연계한 판단이 가능합니다.";
-      verdictColor="#8AA8C8";borderColor="#4A6080";scoreColor="#8AA8C8";
-    }
-  }
-  // ── 저점 구간
-  else if(bearDir){
-    if(arrangementEn==="bull"){
-      // 정배열 + 저점
-      if(hasFinData){
-        if(fundGood){
-          verdictTitle="추세도 살아있고 가격도 바닥권입니다";
-          verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n실적까지 받쳐주니 가장 확실한 매수 타이밍입니다.";
-          verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
-        } else if(fundBad){
-          verdictTitle="가격은 바닥이지만 실적이 꺾이고 있습니다";
-          verdictDesc="눌림목처럼 보이지만 실적 악화가 원인일 수 있습니다.\n다음 분기 실적 확인 후 진입하세요.";
-          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-        } else {
-          verdictTitle="추세도 살아있고 가격도 바닥권입니다";
-          verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";
-          verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
-        }
-      } else {
-        verdictTitle="추세도 살아있고 가격도 바닥권입니다";
-        verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n분할 매수를 검토할 타이밍입니다.";
-        verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
-      }
-    } else if(arrangementEn==="bear"){
-      // 역배열 + 저점
-      if(hasFinData){
-        if(fundGood){
-          verdictTitle="하락 추세지만 실적이 돌아서고 있습니다";
-          verdictDesc="추세 전환의 초입일 수 있습니다.\n소량 선취매 후 배열 전환을 확인하세요. 역발상 매수 기회입니다.";
-          verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
-        } else if(fundBad){
-          verdictTitle="가격도 추세도 실적도 모두 하락 중입니다";
-          verdictDesc="매수 근거가 없습니다.\n완전 관망하세요.";
-          verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
-        } else {
-          verdictTitle="가격은 바닥이지만 하락 추세 중입니다";
-          verdictDesc="단기 반등일 수 있습니다.\n재무제표를 확인하고 실적이 좋다면 역발상 매수를 고려하세요.";
-          verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
-        }
-      } else {
-        verdictTitle="가격은 바닥이지만 하락 추세 중입니다";
-        verdictDesc="단기 반등일 수 있습니다.\n재무제표를 업로드하면 실적과 연계한 판단이 가능합니다.";
-        verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
-      }
-    } else {
-      // 혼재 + 저점
-      verdictTitle="가격은 바닥권이나 배열이 혼재합니다";
-      verdictDesc="확인된 시간대 모두 저점을 가리킵니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";
-      verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
-    }
-  }
-  // ── 고점 구간
-  else if(bullDir){
-    if(arrangementEn==="bull"){
-      // 정배열 + 고점
-      if(hasFinData){
-        if(fundBad){
-          verdictTitle="추세는 살아있지만 실적이 꺾이고 있습니다";
-          verdictDesc="주가가 아직 버티고 있을 뿐입니다.\n선제적 비중 축소를 고려할 타이밍입니다.";
-          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-        } else if(fundGood){
-          verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";
-          verdictDesc="추세와 실적 모두 좋지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";
-          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-        } else {
-          verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";
-          verdictDesc="추세는 살아있지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";
-          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-        }
-      } else {
-        verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";
-        verdictDesc="추세는 살아있지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";
-        verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-      }
-    } else if(arrangementEn==="bear"){
-      // 역배열 + 고점
-      verdictTitle="하락 추세 속 반등이 고점에 달했습니다";
-      verdictDesc="하락 추세 중 일시 반등이 꼭대기까지 왔습니다.\n매도 또는 관망이 적절합니다.";
-      verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
-    } else {
-      verdictTitle="하루·주·달 모두 꼭대기권입니다";
-      verdictDesc="확인된 시간대 모두 과열을 가리킵니다.\n신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";
-      verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
-    }
-  }
-  // ── 신호 혼재 (0점)
-  else if(alignScore===0){
-    verdictTitle="단기·중기·장기가 제각각입니다";
-    verdictDesc="지금 가격 위치를 어느 한 시간대로도 단정할 수 없습니다.\n관망이 최선입니다.";
-    verdictColor="#C0D8F0";borderColor="#4A6080";scoreColor="#A0C0D8";
-  }
-  // ── 부분 정렬 (2점)
-  else {
-    if(hasFinData&&fundBad){
-      verdictTitle="신호가 엇갈리고 실적도 좋지 않습니다";
-      verdictDesc="방향성이 불분명한 상태에서 실적까지 약화되고 있습니다.\n관망을 유지하세요.";
-      verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-    } else {
-      verdictTitle="신호가 엇갈립니다 — 한 시간대만 다릅니다";
-      verdictDesc="대체로 방향이 맞지만 완전하지 않습니다.\n조금 더 지켜본 후 진입하세요.";
-      verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
-    }
+      if(fundGood){verdictTitle="횡보 중이지만 실적이 받쳐주고 있습니다";verdictDesc="세 시간대 모두 중립 구간입니다.\n실적이 개선 중이라면 추세 전환의 초입일 수 있습니다.";}\nelse if(fundBad){verdictTitle="횡보처럼 보이지만 실적이 꺾이고 있습니다";verdictDesc="가격은 중립이지만 펀더멘털이 약화되고 있습니다.\n하락 전 마지막 횡보일 수 있으니 주의하세요.";}\nelse{verdictTitle="세 시간대 모두 중립 구간입니다";verdictDesc="급등도 급락도 없는 횡보 구간입니다.\n실적 방향이 주가를 결정할 시기입니다.";}\n} else{verdictTitle="세 시간대 모두 중립 구간입니다";verdictDesc="급등도 급락도 없는 횡보 구간입니다.\n재무제표를 업로드하면 실적까지 연계한 판단이 가능합니다.";}\n} else if(bearDir){\nif(arrangementEn==="bull"){\nif(hasFinData){\nif(fundGood){verdictTitle="추세도 살아있고 가격도 바닥권입니다";verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n실적까지 받쳐주니 가장 확실한 매수 타이밍입니다.";}\nelse if(fundBad){verdictTitle="가격은 바닥이지만 실적이 꺾이고 있습니다";verdictDesc="눌림목처럼 보이지만 실적 악화가 원인일 수 있습니다.\n다음 분기 실적 확인 후 진입하세요.";}\nelse{verdictTitle="추세도 살아있고 가격도 바닥권입니다";verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";}\n} else{verdictTitle="추세도 살아있고 가격도 바닥권입니다";verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n분할 매수를 검토할 타이밍입니다.";}\n} else if(arrangementEn==="bear"){\nif(hasFinData){\nif(fundGood){verdictTitle="하락 추세지만 실적이 돌아서고 있습니다";verdictDesc="추세 전환의 초입일 수 있습니다.\n소량 선취매 후 배열 전환을 확인하세요. 역발상 매수 기회입니다.";}\nelse if(fundBad){verdictTitle="가격도 추세도 실적도 모두 하락 중입니다";verdictDesc="매수 근거가 없습니다.\n완전 관망하세요.";}\nelse{verdictTitle="가격은 바닥이지만 하락 추세 중입니다";verdictDesc="단기 반등일 수 있습니다.\n재무제표를 확인하고 실적이 좋다면 역발상 매수를 고려하세요.";}\n} else{verdictTitle="가격은 바닥이지만 하락 추세 중입니다";verdictDesc="단기 반등일 수 있습니다.\n재무제표를 업로드하면 실적과 연계한 판단이 가능합니다.";}\n} else{verdictTitle="가격은 바닥권이나 배열이 혼재합니다";verdictDesc="확인된 시간대 모두 저점을 가리킵니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";}\n} else if(bullDir){\nif(arrangementEn==="bull"){\nif(hasFinData){\nif(fundBad){verdictTitle="추세는 살아있지만 실적이 꺾이고 있습니다";verdictDesc="주가가 아직 버티고 있을 뿐입니다.\n선제적 비중 축소를 고려할 타이밍입니다.";}\nelse if(fundGood){verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";verdictDesc="추세와 실적 모두 좋지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";}\nelse{verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";verdictDesc="추세는 살아있지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";}\n} else{verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";verdictDesc="추세는 살아있지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";}\n} else if(arrangementEn==="bear"){\nverdictTitle="하락 추세 속 반등이 고점에 달했습니다";verdictDesc="하락 추세 중 일시 반등이 꼭대기까지 왔습니다.\n매도 또는 관망이 적절합니다.";
+    } else{verdictTitle="하루·주·달 모두 꼭대기권입니다";verdictDesc="확인된 시간대 모두 과열을 가리킵니다.\n신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";}\n} else if(totalScore<=-1){\nif(hasFinData&&fundBad){verdictTitle="신호가 엇갈리고 실적도 좋지 않습니다";verdictDesc="방향성이 불분명한 상태에서 실적까지 약화되고 있습니다.\n관망을 유지하세요.";}\nelse{verdictTitle="단기·중기·장기가 제각각입니다";verdictDesc="지금 가격 위치를 어느 한 시간대로도 단정할 수 없습니다.\n관망이 최선입니다.";}\n} else{\nverdictTitle="신호가 엇갈립니다 — 한 시간대만 다릅니다";verdictDesc="대체로 방향이 맞지만 완전하지 않습니다.\n조금 더 지켜본 후 진입하세요.";
   }
 
-  return{ma60m,ma60w,ma60d,gapM,gapW,gapD,zm,zw,zd,
-    alignScore,maxScore,hasAll,missingLines,
+  const verdictColor=gradeColor;
+  const borderColor=gradeColor;
+  const scoreColor=gradeColor;
+  const dimension=hasFinData?"3차원":"2차원";
+
+  // alignScore는 UI 점수 블록용으로 유지 (이격도 방향 일치 수)
+  const activeZones=[zm,zw,zd].filter(z=>z!==null);
+  const zScores=activeZones.map(z=>z.zScore);
+  const allSame=zScores.every(s=>s===zScores[0]);
+  const allNegStrict=zScores.every(s=>s<0);
+  const allPosStrict=zScores.every(s=>s>0);
+  const allNeg2=zScores.every(s=>s<=0);
+  const allPos2=zScores.every(s=>s>=0);
+  const mxS=activeZones.length;
+  let alignScore=0;
+  if(allSame)alignScore=mxS;
+  else if(allNegStrict||allPosStrict)alignScore=Math.max(1,mxS-1);
+  else if(allNeg2||allPos2)alignScore=1;
+  else alignScore=0;
+
+  return{
+    ma60m,ma60w,ma60d,gapM,gapW,gapD,zm,zw,zd,
+    alignScore,maxScore:mxS,hasAll,missingLines,
     arrangement,arrangementColor,arrangementEn,
-    verdictTitle,verdictDesc,verdictColor,borderColor,scoreColor,
-    dimension};
+    // 점수 상세
+    priceScore,arrScore,finScore,totalScore,
+    pM,pW,pD,
+    finScoreDetail,
+    maxPossible,minPossible,
+    priceMaxPos,finMaxPos,
+    // 등급
+    grade,gradeColor,gradeIcon,
+    // verdict
+    verdictTitle,verdictDesc,
+    verdictColor,borderColor,scoreColor,
+    dimension,
+  };
 };
 const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
   if(i<n)return{...d,rsi:null};
@@ -1014,6 +997,10 @@ export default function App(){
       epsTrend:re.epsTrend||"",
       fcfTrend:re.fcfTrend||"",
       momentum:re.momentum||"",
+      profitability:re.profitability||"",
+      opm:re.opm||0,
+      roe:re.roe||0,
+      annData:co?.annData||[],
       hasFinData:!!(co?.annData?.length||co?.qtrData?.length),
     });
   },[monthly,readingEngine,co?.annData,co?.qtrData]);
@@ -1637,14 +1624,116 @@ export default function App(){
                     </div>
                   </div>
 
-                  {/* ── verdict 박스 */}
+                  {/* ── 점수 패널 */}
+                  <div style={{background:C.card2,borderRadius:8,padding:"9px 11px",marginBottom:8,border:`1px solid ${C.border}`}}>
+                    {/* 이격도 점수 */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                      <span style={{fontSize:9,color:C.muted}}>이격도</span>
+                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                        {[
+                          {k:"60월",v:tl.pM,w:"×3"},
+                          {k:"60주",v:tl.pW,w:"×2"},
+                          {k:"60일",v:tl.pD,w:"×1"},
+                        ].map((item,i)=>(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:3}}>
+                            <span style={{fontSize:8,color:C.muted}}>{item.k}</span>
+                            <span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",
+                              color:item.v>0?C.green:item.v<0?C.red:C.muted}}>
+                              {item.v>0?"+":""}{item.v}
+                            </span>
+                          </div>
+                        ))}
+                        <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",
+                          color:tl.priceScore>0?C.green:tl.priceScore<0?C.red:C.muted,
+                          borderLeft:`1px solid ${C.border}`,paddingLeft:6}}>
+                          {tl.priceScore>0?"+":""}{tl.priceScore}
+                        </span>
+                      </div>
+                    </div>
+                    {/* 배열 점수 */}
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                      <span style={{fontSize:9,color:C.muted}}>배열</span>
+                      <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",
+                        color:tl.arrScore>0?C.green:tl.arrScore<0?C.red:C.muted}}>
+                        {tl.arrScore>0?"+":""}{tl.arrScore}
+                      </span>
+                    </div>
+                    {/* 실적 점수 (재무있을때) */}
+                    {tl.dimension==="3차원"&&tl.finScoreDetail&&(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
+                        <span style={{fontSize:9,color:C.muted}}>실적</span>
+                        <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                          {[
+                            {k:"EPS",v:tl.finScoreDetail.epsScore},
+                            {k:"FCF",v:tl.finScoreDetail.fcfScore},
+                            {k:"모멘텀",v:tl.finScoreDetail.momScore},
+                            {k:"수익성",v:tl.finScoreDetail.profScore},
+                            {k:"해자ROE",v:tl.finScoreDetail.roeScore},
+                          ].map((item,i)=>(
+                            <div key={i} style={{display:"flex",alignItems:"center",gap:2}}>
+                              <span style={{fontSize:8,color:C.muted}}>{item.k}</span>
+                              <span style={{fontSize:9,fontWeight:700,fontFamily:"monospace",
+                                color:item.v>0?C.green:item.v<0?C.red:C.muted}}>
+                                {item.v>0?"+":""}{item.v}
+                              </span>
+                            </div>
+                          ))}
+                          <span style={{fontSize:10,fontWeight:700,fontFamily:"monospace",
+                            color:tl.finScore>0?C.green:tl.finScore<0?C.red:C.muted,
+                            borderLeft:`1px solid ${C.border}`,paddingLeft:6}}>
+                            {tl.finScore>0?"+":""}{tl.finScore}
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                    {/* 구분선 + 총점 */}
+                    <div style={{borderTop:`1px solid ${C.border}`,paddingTop:6,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:9,color:C.muted,fontWeight:700}}>총점</span>
+                      <div style={{display:"flex",alignItems:"center",gap:8}}>
+                        {/* 총점 게이지 바 */}
+                        <div style={{width:80,height:5,borderRadius:3,background:C.dim,overflow:"hidden",position:"relative"}}>
+                          {(()=>{
+                            const total=tl.totalScore;
+                            const maxP=tl.maxPossible||15;
+                            const minP=tl.minPossible||-21;
+                            const range=maxP-minP;
+                            const pct=Math.round(((total-minP)/range)*100);
+                            const clamp=Math.max(2,Math.min(98,pct));
+                            const midPct=Math.round((-minP/range)*100);
+                            return(
+                              <>
+                                <div style={{position:"absolute",left:`${midPct}%`,top:0,bottom:0,width:1,background:C.border}}/>
+                                <div style={{
+                                  position:"absolute",
+                                  left:total>=0?`${midPct}%`:`${clamp}%`,
+                                  width:total>=0?`${clamp-midPct}%`:`${midPct-clamp}%`,
+                                  top:0,bottom:0,
+                                  background:tl.gradeColor,borderRadius:3,
+                                }}/>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <span style={{fontSize:13,fontWeight:900,fontFamily:"monospace",color:tl.gradeColor}}>
+                          {tl.totalScore>0?"+":""}{tl.totalScore}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ── 등급 + verdict 박스 */}
                   <div style={{
                     background:`${tl.verdictColor}18`,
                     border:`1px solid ${tl.borderColor}${isZero?"99":"55"}`,
                     borderRadius:8,padding:"10px 12px",
                   }}>
+                    {/* 등급 */}
+                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                      <span style={{fontSize:14,color:tl.gradeColor}}>{tl.gradeIcon}</span>
+                      <span style={{fontSize:12,fontWeight:900,color:tl.gradeColor,fontFamily:"monospace"}}>{tl.grade}</span>
+                    </div>
                     <div style={{
-                      fontSize:12,fontWeight:700,marginBottom:4,
+                      fontSize:11,fontWeight:700,marginBottom:4,
                       color:tl.verdictColor,
                     }}>
                       {tl.verdictTitle}
@@ -1654,6 +1743,16 @@ export default function App(){
                         <span key={i}>{line}{i===0?<br/>:null}</span>
                       ))}
                     </div>
+                    {/* 10년 평균 ROE 표시 (있을 때) */}
+                    {tl.dimension==="3차원"&&tl.finScoreDetail?.avgRoe10!=null&&(
+                      <div style={{marginTop:6,fontSize:9,color:C.muted}}>
+                        10년 평균 ROE: <span style={{
+                          color:tl.finScoreDetail.avgRoe10>=15?C.green:tl.finScoreDetail.avgRoe10>=10?C.gold:C.red,
+                          fontWeight:700,fontFamily:"monospace"
+                        }}>{tl.finScoreDetail.avgRoe10}%</span>
+                        {tl.finScoreDetail.avgRoe10>=15?" — 해자 확인됨":""}
+                      </div>
+                    )}
                   </div>
 
                   {/* ── 하단 MA 수치 */}
