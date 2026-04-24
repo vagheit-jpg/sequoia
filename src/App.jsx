@@ -294,6 +294,11 @@ const parseExcel=(file)=>new Promise((resolve,reject)=>{
 // ══════════════════════════════════════════════════════════════
 // 6. 종목 목록
 // ══════════════════════════════════════════════════════════════
+// SEQUOIA 공식 로고
+const SeqLogo=({size=20})=>(
+  <img src="/logo.png" alt="SEQUOIA" style={{height:size*1.8,width:"auto",display:"inline-block",verticalAlign:"middle"}}/>
+);
+
 // 폴백용 기본 목록 (/api/corplist 실패 시)
 const FALLBACK_STOCKS = [
   {name:"삼성전자",ticker:"005930",market:"KS"},{name:"SK하이닉스",ticker:"000660",market:"KS"},
@@ -800,7 +805,7 @@ export default function App(){
 
   if(dbLoading)return(
     <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}>
-      <div style={{color:C.gold,fontSize:16,fontFamily:"monospace"}}>🌲 SEQUOIA 로딩 중...</div>
+      <div style={{display:"flex",alignItems:"center",gap:8}}><SeqLogo size={18}/><span style={{color:C.gold,fontSize:15,fontWeight:700,letterSpacing:"0.05em"}}>SEQUOIA 로딩 중...</span></div>
     </div>
   );
 
@@ -815,14 +820,14 @@ export default function App(){
   if(!showMainApp)return(
     <div style={{minHeight:"100vh",background:C.bg,color:C.text,fontFamily:"-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif"}}>
       <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"12px 16px",display:"flex",alignItems:"center",gap:8}}>
-        <div style={{color:C.gold,fontSize:16,fontWeight:900,fontFamily:"monospace"}}>🌲 SEQUOIA</div>
+        <div style={{display:"flex",alignItems:"center",gap:6}}><SeqLogo size={16}/><span style={{color:C.gold,fontSize:15,fontWeight:900,letterSpacing:"0.08em"}}>SEQUOIA</span></div>
         <button onClick={()=>setDarkMode(d=>!d)}
           style={{marginLeft:"auto",background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:7,padding:"6px 8px",fontSize:13,cursor:"pointer"}}>
           {darkMode?"☀️":"🌙"}
         </button>
       </div>
       <div style={{maxWidth:440,margin:"60px auto",padding:24,textAlign:"center"}}>
-        <div style={{color:C.gold,fontSize:24,fontWeight:900,letterSpacing:"0.06em",fontFamily:"monospace",marginBottom:8}}>🌲 SEQUOIA</div>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}><SeqLogo size={26}/><span style={{color:C.gold,fontSize:24,fontWeight:900,letterSpacing:"0.08em"}}>SEQUOIA</span></div>
         <div style={{color:C.muted,fontSize:13,lineHeight:1.8,marginBottom:28}}>
           종목코드 또는 종목명으로 바로 검색하거나<br/>엑셀 파일을 업로드하세요.
         </div>
@@ -870,7 +875,7 @@ export default function App(){
       <div style={{background:`linear-gradient(135deg,#040C1A,#071428)`,borderBottom:`1px solid ${C.border}`,
         padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <span style={{fontSize:16}}>🌲</span>
+          <SeqLogo size={14}/>
           <span style={{color:C.gold,fontSize:13,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.12em"}}>SEQUOIA QUANTUM</span>
           <span style={{color:C.muted,fontSize:9,fontFamily:"monospace",letterSpacing:"0.18em"}}>ANALYSIS SYSTEM</span>
         </div>
@@ -1875,7 +1880,7 @@ export default function App(){
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.3</div>
+          <div style={{display:"flex",alignItems:"center",gap:5}}><SeqLogo size={12}/><span style={{color:C.gold,fontSize:11,fontWeight:700}}>SEQUOIA v3.3</span></div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             <Tag color={C.blue}  size={8}>주가:한투API</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
