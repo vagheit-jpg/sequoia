@@ -86,14 +86,11 @@ const calcMAN=(monthly,N)=>{
   const slice=monthly.slice(-N);
   return Math.round(slice.reduce((s,x)=>s+x.price,0)/N);
 };
-const calc3LineSignal=(monthly)=>{
-  // 최소 3개월치도 없으면 의미없음
+const calc3LineSignal=(monthly, fin={})=>{
   if(!monthly||monthly.length<3)return null;
-  // 각 선: 가용 데이터 있을 때만 계산, 없으면 null
-  const ma60m=monthly.length>=60?calcMAN(monthly,60):null; // 60월선 — 5년 필요
-  const ma60w=monthly.length>=15?calcMAN(monthly,15):null; // 60주선 — 15개월 필요
-  const ma60d=monthly.length>=3 ?calcMAN(monthly,3) :null; // 60일선 — 3개월 필요
-  // 가용 선이 2개 미만이면 비교 불가
+  const ma60m=monthly.length>=60?calcMAN(monthly,60):null;
+  const ma60w=monthly.length>=15?calcMAN(monthly,15):null;
+  const ma60d=monthly.length>=3 ?calcMAN(monthly,3) :null;
   const available=[ma60m,ma60w,ma60d].filter(v=>v!==null);
   if(available.length<2)return null;
   const last=monthly[monthly.length-1];
@@ -102,83 +99,194 @@ const calc3LineSignal=(monthly)=>{
   const gapD=ma60d!=null?+(((last.price/ma60d)-1)*100).toFixed(1):null;
   const toZone=(gap)=>{
     if(gap===null)return null;
-    if(gap<=-40)return{label:"VL",score:-2,color:"#00C878"};  // ×0.6 이하
-    if(gap<-20) return{label:"L", score:-1,color:"#5BA0FF"};  // ×0.8 이하
-    if(gap<50)  return{label:"M", score: 0,color:"#8AA8C8"};  // ×1.5 미만
-    if(gap<100) return{label:"H", score: 1,color:"#FF7830"};  // ×2.0 미만
-    if(gap<150) return{label:"VH",score: 2,color:"#FF3D5A"};  // ×2.5 미만
-    return      {label:"EH",score: 3,color:"#8855FF"};        // ×2.5 이상
+    if(gap<=-40)return{label:"VL",score:-2,color:"#00C878"};
+    if(gap<-20) return{label:"L", score:-1,color:"#5BA0FF"};
+    if(gap<50)  return{label:"M", score: 0,color:"#8AA8C8"};
+    if(gap<100) return{label:"H", score: 1,color:"#FF7830"};
+    if(gap<150) return{label:"VH",score: 2,color:"#FF3D5A"};
+    return      {label:"EH",score: 3,color:"#8855FF"};
   };
   const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
-  // 가용한 zone만으로 점수 계산
   const activeZones=[zm,zw,zd].filter(z=>z!==null);
   const scores=activeZones.map(z=>z.score);
+  const maxScore=activeZones.length;
+  // 모두 같은 구간이면 완전 정렬
+  const allSame=scores.every(s=>s===scores[0]);
+  // 방향 판단: 음수(저점), 양수(고점), 0(중립)
   const allNegStrict=scores.every(s=>s<0);
   const allPosStrict=scores.every(s=>s>0);
+  const allNeutral=scores.every(s=>s===0);
   const allNeg=scores.every(s=>s<=0);
   const allPos=scores.every(s=>s>=0);
-  const maxScore=activeZones.length; // 가용 선 수가 최대 점수
   let alignScore=0;
-  if(scores.every(s=>s===scores[0]))alignScore=maxScore;
-  else if(allNegStrict||allPosStrict)alignScore=Math.max(1,maxScore-1);
+  if(allSame)alignScore=maxScore;
+  else if(allNegStrict||allPosStrict||allNeutral)alignScore=Math.max(1,maxScore-1);
   else if(allNeg||allPos)alignScore=1;
   else alignScore=0;
-  // 배열: 가용한 MA값만으로 판단
+  // 배열 판단
   let arrangement="혼재",arrangementColor="#8AA8C8",arrangementEn="mixed";
   if(ma60m&&ma60w&&ma60d){
     if(ma60d>ma60w&&ma60w>ma60m){arrangement="정배열";arrangementColor="#00C878";arrangementEn="bull";}
     else if(ma60d<ma60w&&ma60w<ma60m){arrangement="역배열";arrangementColor="#FF3D5A";arrangementEn="bear";}
   } else if(ma60w&&ma60d){
-    // 60월선 없을 때 — 60주/60일만으로 단기 배열 판단
     if(ma60d>ma60w){arrangement="단기 정배열";arrangementColor="#10A898";arrangementEn="bull";}
     else if(ma60d<ma60w){arrangement="단기 역배열";arrangementColor="#FF7830";arrangementEn="bear";}
   }
   const bearDir=allNegStrict;
   const bullDir=allPosStrict;
-  // 데이터 부족 여부 플래그
   const hasAll=ma60m!==null&&ma60w!==null&&ma60d!==null;
   const missingLines=[
     ma60m===null?"60월선(5년 데이터 부족)":null,
     ma60w===null?"60주선(15개월 데이터 부족)":null,
   ].filter(Boolean);
+
+  // ── 펀더멘털 파라미터
+  const {epsTrend="", fcfTrend="", momentum="", hasFinData=false} = fin;
+  const epsGood=epsTrend==="개선";
+  const epsBad=epsTrend==="악화";
+  const fcfGood=fcfTrend==="흑자안정"||fcfTrend==="흑자전환";
+  const fcfBad=fcfTrend==="적자지속";
+  const momGood=momentum==="성장지속";
+  const momBad=momentum==="훼손";
+  const fundGood=hasFinData&&(epsGood||fcfGood);
+  const fundBad=hasFinData&&(epsBad||fcfBad||momBad);
+  const fundNeutral=hasFinData&&!fundGood&&!fundBad;
+
+  // ── Verdict 생성: 3차원(이격도×배열×실적) or 2차원(이격도×배열)
   let verdictTitle="",verdictDesc="",verdictColor="#A0C0D8",borderColor="#4A6080",scoreColor="#A0C0D8";
-  if(alignScore===maxScore&&bearDir&&arrangementEn==="bull"){
-    verdictTitle=hasAll?"하루·주·달 모두 바닥권 — 추세는 살아있습니다":"가용 시간대 모두 바닥권 — 추세는 살아있습니다";
-    verdictDesc="확인된 시간대 모두 저점이고 정배열 중입니다.\n눌림목 매수 타이밍으로 신뢰도가 높습니다.";
-    verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
-  } else if(alignScore===maxScore&&bearDir&&arrangementEn==="bear"){
-    verdictTitle=hasAll?"하루·주·달 모두 바닥권 — 하락 추세 중 반등입니다":"가용 시간대 모두 바닥권 — 하락 추세 중 반등입니다";
-    verdictDesc="확인된 시간대 모두 저점이나 역배열 상태입니다.\n본격 추세 전환 확인 전까지 소량만 접근하세요.";
-    verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
-  } else if(alignScore===maxScore&&bearDir){
-    verdictTitle=hasAll?"하루·주·달 모두 바닥권입니다":"가용 시간대 모두 바닥권입니다";
-    verdictDesc="확인된 시간대 모두 저점을 가리킵니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";
-    verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
-  } else if(alignScore===maxScore&&bullDir&&arrangementEn==="bear"){
-    verdictTitle=hasAll?"하루·주·달 모두 꼭대기 — 하락 추세 속 반등 고점입니다":"가용 시간대 모두 꼭대기 — 하락 추세 속 반등 고점입니다";
-    verdictDesc="확인된 시간대 모두 고점이고 역배열 중입니다.\n매도 타이밍으로 유효하며 신규 진입은 위험합니다.";
-    verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
-  } else if(alignScore===maxScore&&bullDir&&arrangementEn==="bull"){
-    verdictTitle=hasAll?"하루·주·달 모두 꼭대기 — 강한 상승 추세 중 과열입니다":"가용 시간대 모두 꼭대기 — 강한 상승 추세 중 과열입니다";
-    verdictDesc="확인된 시간대 모두 고점이나 정배열로 추세는 강합니다.\n추세 추종 vs 차익 실현, 개인 원칙에 따라 판단하세요.";
-    verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
-  } else if(alignScore===maxScore&&bullDir){
-    verdictTitle=hasAll?"하루·주·달 모두 꼭대기권입니다":"가용 시간대 모두 꼭대기권입니다";
-    verdictDesc="확인된 시간대 모두 과열을 가리킵니다.\n신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";
-    verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
-  } else if(alignScore>=2){
-    verdictTitle="두 시간대가 같은 방향을 가리킵니다";
-    verdictDesc="완전한 정렬은 아니나 방향성이 보입니다.\n나머지 시간대 확인 후 판단하세요.";
-    verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
-  } else {
-    verdictTitle="시간대마다 가리키는 방향이 다릅니다";
-    verdictDesc="확인된 시간대 신호가 서로 엇갈립니다.\n지금은 관망이 가장 안전합니다.";
+  let dimension=hasFinData?"3차원":"2차원";
+
+  // ── 중립 구간 (M)
+  if(allNeutral){
+    if(hasFinData){
+      if(fundGood){
+        verdictTitle="횡보 중이지만 실적이 받쳐주고 있습니다";
+        verdictDesc="세 시간대 모두 중립 구간입니다.\n실적이 개선 중이라면 추세 전환의 초입일 수 있습니다.";
+        verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
+      } else if(fundBad){
+        verdictTitle="횡보처럼 보이지만 실적이 꺾이고 있습니다";
+        verdictDesc="가격은 중립이지만 펀더멘털이 약화되고 있습니다.\n하락 전 마지막 횡보일 수 있으니 주의하세요.";
+        verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+      } else {
+        verdictTitle="세 시간대 모두 중립 구간입니다";
+        verdictDesc="급등도 급락도 없는 횡보 구간입니다.\n실적 방향이 주가를 결정할 시기입니다.";
+        verdictColor="#8AA8C8";borderColor="#4A6080";scoreColor="#8AA8C8";
+      }
+    } else {
+      verdictTitle="세 시간대 모두 중립 구간입니다";
+      verdictDesc="급등도 급락도 없는 횡보 구간입니다.\n재무제표를 업로드하면 실적까지 연계한 판단이 가능합니다.";
+      verdictColor="#8AA8C8";borderColor="#4A6080";scoreColor="#8AA8C8";
+    }
+  }
+  // ── 저점 구간
+  else if(bearDir){
+    if(arrangementEn==="bull"){
+      // 정배열 + 저점
+      if(hasFinData){
+        if(fundGood){
+          verdictTitle="추세도 살아있고 가격도 바닥권입니다";
+          verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n실적까지 받쳐주니 가장 확실한 매수 타이밍입니다.";
+          verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
+        } else if(fundBad){
+          verdictTitle="가격은 바닥이지만 실적이 꺾이고 있습니다";
+          verdictDesc="눌림목처럼 보이지만 실적 악화가 원인일 수 있습니다.\n다음 분기 실적 확인 후 진입하세요.";
+          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+        } else {
+          verdictTitle="추세도 살아있고 가격도 바닥권입니다";
+          verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";
+          verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
+        }
+      } else {
+        verdictTitle="추세도 살아있고 가격도 바닥권입니다";
+        verdictDesc="상승 흐름 속에서 눌린 구간입니다.\n분할 매수를 검토할 타이밍입니다.";
+        verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
+      }
+    } else if(arrangementEn==="bear"){
+      // 역배열 + 저점
+      if(hasFinData){
+        if(fundGood){
+          verdictTitle="하락 추세지만 실적이 돌아서고 있습니다";
+          verdictDesc="추세 전환의 초입일 수 있습니다.\n소량 선취매 후 배열 전환을 확인하세요. 역발상 매수 기회입니다.";
+          verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
+        } else if(fundBad){
+          verdictTitle="가격도 추세도 실적도 모두 하락 중입니다";
+          verdictDesc="매수 근거가 없습니다.\n완전 관망하세요.";
+          verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
+        } else {
+          verdictTitle="가격은 바닥이지만 하락 추세 중입니다";
+          verdictDesc="단기 반등일 수 있습니다.\n재무제표를 확인하고 실적이 좋다면 역발상 매수를 고려하세요.";
+          verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
+        }
+      } else {
+        verdictTitle="가격은 바닥이지만 하락 추세 중입니다";
+        verdictDesc="단기 반등일 수 있습니다.\n재무제표를 업로드하면 실적과 연계한 판단이 가능합니다.";
+        verdictColor="#5BA0FF";borderColor="#1E72F0";scoreColor="#1E72F0";
+      }
+    } else {
+      // 혼재 + 저점
+      verdictTitle="가격은 바닥권이나 배열이 혼재합니다";
+      verdictDesc="확인된 시간대 모두 저점을 가리킵니다.\n분할 매수를 진지하게 검토할 타이밍입니다.";
+      verdictColor="#E8B840";borderColor="#C8962A";scoreColor="#C8962A";
+    }
+  }
+  // ── 고점 구간
+  else if(bullDir){
+    if(arrangementEn==="bull"){
+      // 정배열 + 고점
+      if(hasFinData){
+        if(fundBad){
+          verdictTitle="추세는 살아있지만 실적이 꺾이고 있습니다";
+          verdictDesc="주가가 아직 버티고 있을 뿐입니다.\n선제적 비중 축소를 고려할 타이밍입니다.";
+          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+        } else if(fundGood){
+          verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";
+          verdictDesc="추세와 실적 모두 좋지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";
+          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+        } else {
+          verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";
+          verdictDesc="추세는 살아있지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";
+          verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+        }
+      } else {
+        verdictTitle="강한 상승 추세, 지금은 과열 구간입니다";
+        verdictDesc="추세는 살아있지만 고점권입니다.\n신규 진입보다 보유 물량 관리에 집중하세요.";
+        verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+      }
+    } else if(arrangementEn==="bear"){
+      // 역배열 + 고점
+      verdictTitle="하락 추세 속 반등이 고점에 달했습니다";
+      verdictDesc="하락 추세 중 일시 반등이 꼭대기까지 왔습니다.\n매도 또는 관망이 적절합니다.";
+      verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
+    } else {
+      verdictTitle="하루·주·달 모두 꼭대기권입니다";
+      verdictDesc="확인된 시간대 모두 과열을 가리킵니다.\n신규 진입은 위험하고, 보유 중이라면 비중 축소를 고려하세요.";
+      verdictColor="#FF3D5A";borderColor="#FF3D5A";scoreColor="#FF3D5A";
+    }
+  }
+  // ── 신호 혼재 (0점)
+  else if(alignScore===0){
+    verdictTitle="단기·중기·장기가 제각각입니다";
+    verdictDesc="지금 가격 위치를 어느 한 시간대로도 단정할 수 없습니다.\n관망이 최선입니다.";
     verdictColor="#C0D8F0";borderColor="#4A6080";scoreColor="#A0C0D8";
   }
+  // ── 부분 정렬 (2점)
+  else {
+    if(hasFinData&&fundBad){
+      verdictTitle="신호가 엇갈리고 실적도 좋지 않습니다";
+      verdictDesc="방향성이 불분명한 상태에서 실적까지 약화되고 있습니다.\n관망을 유지하세요.";
+      verdictColor="#FF7830";borderColor="#FF7830";scoreColor="#FF7830";
+    } else {
+      verdictTitle="신호가 엇갈립니다 — 한 시간대만 다릅니다";
+      verdictDesc="대체로 방향이 맞지만 완전하지 않습니다.\n조금 더 지켜본 후 진입하세요.";
+      verdictColor="#10A898";borderColor="#10A898";scoreColor="#10A898";
+    }
+  }
+
   return{ma60m,ma60w,ma60d,gapM,gapW,gapD,zm,zw,zd,
     alignScore,maxScore,hasAll,missingLines,
     arrangement,arrangementColor,arrangementEn,
-    verdictTitle,verdictDesc,verdictColor,borderColor,scoreColor};
+    verdictTitle,verdictDesc,verdictColor,borderColor,scoreColor,
+    dimension};
 };
 const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
   if(i<n)return{...d,rsi:null};
@@ -618,7 +726,7 @@ export default function App(){
     const firstLabel=displayMonthly[0]?.label;
     return allPts.filter(pt=>pt.label>=firstLabel);
   },[withMA60Full,displayMonthly]);
-  const threeLineSignal=useMemo(()=>calc3LineSignal(monthly),[monthly]);
+  // threeLineSignal은 readingEngine 이후에 계산 (fin 파라미터 필요)
   const lastGap   =withMA60.slice(-1)[0]?.gap60??null;
   const lastAnn   =co?.annData?.slice(-1)?.[0]||{};
 
@@ -898,6 +1006,17 @@ export default function App(){
       verdict,verdictColor,verdictIcon,reason,interpretation,
     };
   },[co,lastGap,lastAnn,dcfResults,price,per,pbr,annTimeline]);
+
+  // 3선 정렬 신호 — readingEngine 이후에 계산 (실적 연계)
+  const threeLineSignal=useMemo(()=>{
+    const re=readingEngine;
+    return calc3LineSignal(monthly,{
+      epsTrend:re.epsTrend||"",
+      fcfTrend:re.fcfTrend||"",
+      momentum:re.momentum||"",
+      hasFinData:!!(co?.annData?.length||co?.qtrData?.length),
+    });
+  },[monthly,readingEngine,co?.annData,co?.qtrData]);
 
   const TABS=[
     {id:"overview",label:"📊 종합"},{id:"price60",label:"📈 주가"},
@@ -1416,18 +1535,31 @@ export default function App(){
                   border:`2px solid ${tl.borderColor}88`,
                   borderRadius:12,padding:"12px 14px",marginBottom:12,
                 }}>
-                  {/* ── 헤더: 제목 + 배열 배지 */}
+                  {/* ── 헤더: 제목 + 배지들 */}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
                     <div style={{color:C.gold,fontSize:11,fontWeight:700,letterSpacing:"0.05em",borderLeft:`3px solid ${C.gold}`,paddingLeft:8}}>
                       3선 정렬 신호
                     </div>
-                    <div style={{
-                      background:`${tl.arrangementColor}22`,
-                      border:`1px solid ${tl.arrangementColor}66`,
-                      borderRadius:6,padding:"3px 10px",
-                      color:tl.arrangementColor,fontSize:11,fontWeight:700,fontFamily:"monospace",
-                    }}>
-                      {tl.arrangement}
+                    <div style={{display:"flex",gap:5,alignItems:"center"}}>
+                      {/* 차원 배지 */}
+                      <div style={{
+                        background:tl.dimension==="3차원"?`${C.purple}22`:`${C.teal}22`,
+                        border:`1px solid ${tl.dimension==="3차원"?C.purple:C.teal}55`,
+                        borderRadius:5,padding:"2px 7px",
+                        color:tl.dimension==="3차원"?C.purple:C.teal,
+                        fontSize:9,fontWeight:700,fontFamily:"monospace",
+                      }}>
+                        {tl.dimension}
+                      </div>
+                      {/* 배열 배지 */}
+                      <div style={{
+                        background:`${tl.arrangementColor}22`,
+                        border:`1px solid ${tl.arrangementColor}66`,
+                        borderRadius:6,padding:"3px 10px",
+                        color:tl.arrangementColor,fontSize:11,fontWeight:700,fontFamily:"monospace",
+                      }}>
+                        {tl.arrangement}
+                      </div>
                     </div>
                   </div>
 
