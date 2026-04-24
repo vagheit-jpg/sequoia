@@ -697,10 +697,10 @@ function MoatTab({annData,hasFinData}){
   // Gross Margin (실제 GPM 없으면 OPM으로 대체, 기준 완화)
   const gpRef=avgGP??avgOPM;
   if(gpRef!=null){
-    if(gpRef>=40)gmScore=15;
-    else if(gpRef>=25)gmScore=10;
-    else if(gpRef>=15)gmScore=5;
-    else if(gpRef>=8)gmScore=2;
+    if(gpRef>=30)gmScore=15;
+    else if(gpRef>=20)gmScore=10;
+    else if(gpRef>=12)gmScore=5;
+    else if(gpRef>=5)gmScore=2;
   }
   // OPM 안정성 (표준편차 < 10%)
   if(opmStd!=null){
@@ -787,8 +787,8 @@ function MoatTab({annData,hasFinData}){
       items:[
         {label:"영업이익률 수준",score:gmScore,max:15,
          val:gpRef!=null?`${gpRef.toFixed(1)}%`:"—",
-         bench:"40% 이상 (GPM 기준)",
-         detail:gpRef!=null?(gpRef>=40?"탁월":gpRef>=25?"우수":gpRef>=15?"양호":gpRef>=8?"미흡":"미달"):"데이터 없음",
+         bench:"30% 이상 (OPM 기준)",
+         detail:gpRef!=null?(gpRef>=30?"탁월":gpRef>=20?"우수":gpRef>=12?"양호":gpRef>=5?"미흡":"미달"):"데이터 없음",
         },
         {label:"영업이익률 안정성",score:opmStabilityScore,max:15,
          val:opmStd!=null?`σ ${opmStd.toFixed(1)}%`:"—",
@@ -961,7 +961,7 @@ function MoatTab({annData,hasFinData}){
         background:`${C.gold}0A`,border:`1px solid ${C.gold}30`,
         borderRadius:10,padding:"12px 14px",
       }}>
-        <div style={{fontSize:9,color:C.gold,fontWeight:700,marginBottom:6,letterSpacing:"0.06em"}}>🦁 버핏의 해자 철학</div>
+        <div style={{fontSize:9,color:C.gold,fontWeight:700,marginBottom:6,letterSpacing:"0.06em"}}>버핏의 해자 철학</div>
         <div style={{fontSize:10,color:C.muted,lineHeight:1.75,fontStyle:"italic"}}>
           "해자의 본질은 자본을 재투자했을 때 평균 이상의 수익을 지속적으로 창출하는 능력에 있습니다.
           ROE 15% 이상이 오랫동안 지속된다면 그것이 해자의 증거입니다."
@@ -974,15 +974,22 @@ function MoatTab({annData,hasFinData}){
 
 function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
   const [catFilter,setCatFilter]=useState("전체");
+  const [whoFilter,setWhoFilter]=useState("전체");
   const [idx,setIdx]=useState(0);
 
-  const filtered=catFilter==="전체"?Q:Q.filter(q=>q.cat===catFilter);
+  const filtered=(()=>{
+    let q=catFilter==="전체"?Q:Q.filter(r=>r.cat===catFilter);
+    if(whoFilter==="버핏")q=q.filter(r=>!r.who);
+    else if(whoFilter==="찰리 멍거")q=q.filter(r=>r.who==="찰리 멍거");
+    return q;
+  })();
   const current=filtered[idx]||filtered[0];
   const accent=CAT_COLOR[current?.cat]||C.gold;
 
   const prev=()=>setIdx(i=>(i-1+filtered.length)%filtered.length);
   const next=()=>setIdx(i=>(i+1)%filtered.length);
   const changeCat=(cat)=>{setCatFilter(cat);setIdx(0);};
+  const changeWho=(who)=>{setWhoFilter(who);setIdx(0);};
 
   return(
     <div style={{animation:"fadeIn 0.3s ease"}}>
@@ -993,7 +1000,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
         border:`1px solid ${C.gold}44`,borderRadius:12,padding:"14px 16px",marginBottom:12,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-          <span style={{fontSize:18}}>🦁</span>
+          
           <div>
             <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>📖 버핏과 찰리의 말</div>
             <div style={{fontSize:9,color:C.muted}}>워런 버핏 · 찰리 멍거 어록 {Q.length}선</div>
@@ -1015,6 +1022,30 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
             "{todayQ?.ko}"
           </div>
           <div style={{fontSize:9,color:C.muted,textAlign:"right"}}>— {todayQ?.src}</div>
+        </div>
+      </div>
+
+
+      {/* ── 버핏 / 찰리 필터 */}
+      <div style={{display:"flex",gap:6,marginBottom:8}}>
+        {["전체","버핏","찰리 멍거"].map(who=>{
+          const active=whoFilter===who;
+          const col=who==="버핏"?C.gold:who==="찰리 멍거"?C.purple:C.teal;
+          return(
+            <button key={who} onClick={()=>changeWho(who)} style={{
+              background:active?`${col}22`:C.card,
+              border:`1px solid ${active?col:C.border}`,
+              borderRadius:20,padding:"5px 14px",
+              color:active?col:C.muted,
+              fontSize:10,fontWeight:active?700:400,
+              cursor:"pointer",transition:"all 0.15s",
+            }}>
+              {who==="버핏"?"💵 버핏":who==="찰리 멍거"?"🎩 찰리":"📖 전체"}
+            </button>
+          );
+        })}
+        <div style={{marginLeft:"auto",fontSize:9,color:C.muted,alignSelf:"center"}}>
+          {filtered.length}개
         </div>
       </div>
 
@@ -1249,7 +1280,26 @@ export default function App(){
     return allPts.filter(pt=>pt.label>=firstLabel);
   },[withMA60Full,displayMonthly]);
   // threeLineSignal은 readingEngine 이후에 계산 (fin 파라미터 필요)
-  const lastGap   =withMA60.slice(-1)[0]?.gap60??null;
+  // lastGap: 전체 monthly 기반 MA60 사용 (displayMonthly 슬라이스 문제 방지)
+  // 60개 미만이면 가능한 최장 MA로 fallback
+  const lastGap=useMemo(()=>{
+    const full=withMA60Full;
+    const last=full.slice(-1)[0];
+    if(last?.gap60!=null)return last.gap60;
+    // fallback: 20MA
+    if(monthly.length>=20){
+      const m20=monthly.slice(-20).reduce((s,x)=>s+x.price,0)/20;
+      const p=monthly.slice(-1)[0]?.price;
+      return p?+(((p/m20)-1)*100).toFixed(2):null;
+    }
+    // fallback: 전체 평균
+    if(monthly.length>=3){
+      const mAll=monthly.reduce((s,x)=>s+x.price,0)/monthly.length;
+      const p=monthly.slice(-1)[0]?.price;
+      return p?+(((p/mAll)-1)*100).toFixed(2):null;
+    }
+    return null;
+  },[withMA60Full,monthly]);
   const lastAnn   =co?.annData?.slice(-1)?.[0]||{};
 
   const dcfResults=useMemo(()=>{
@@ -1499,9 +1549,16 @@ export default function App(){
       reason="60MA 대비 +300% 초과 — 역사적 극단 과열";
       interpretation="어떤 실적에도 리스크 극단적으로 높음";
     } else {
-      verdict="데이터 대기";verdictColor=C.muted;verdictIcon="⚪";
-      reason="주가 데이터 로딩 중";
-      interpretation="주가 연동 후 판독 가능";
+      // gap이 있지만 priceZone 미산출 (매우 드문 케이스)
+      if(gap!==null){
+        verdict="분석 대기";verdictColor=C.gold;verdictIcon="🟡";
+        reason=`60MA 산출 중 (현재 이격: ${gap>0?"+":""}${gap}%)`;
+        interpretation="데이터 축적 중 — 이격도 참고만 하세요";
+      } else {
+        verdict="주가 로딩 중";verdictColor=C.muted;verdictIcon="⚪";
+        reason="주가 데이터 연결 중";
+        interpretation="잠시 후 자동 갱신됩니다";
+      }
     }
 
     // ── TTM EPS
@@ -2002,8 +2059,8 @@ export default function App(){
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp()}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
-                <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="line"/>
+                <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
                 <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2}   dot={false}/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
@@ -2017,8 +2074,8 @@ export default function App(){
                     {key:"bTop",     color:C.red,     label:"VH"},
                     {key:"bShoulder",color:C.orange,  label:"H"},
                     {key:"bBase",    color:C.goldL,   label:"60MA"},
-                    {key:"bKnee",    color:C.blue,    label:"L"},
                     {key:"bFloor",   color:"#3B7DD8", label:"VL"},
+                    {key:"bKnee",    color:C.blue,    label:"L"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
                       label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
@@ -2286,8 +2343,8 @@ export default function App(){
                 <YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                 <Tooltip content={<MTip/>} cursor={false}/>
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
-                <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="line"/>
+                <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
                 <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2.5} dot={false} legendType="line"/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={2}   strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={2}   strokeDasharray="5 3" dot={false}/>
@@ -2301,8 +2358,8 @@ export default function App(){
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
                     {key:"bBase",    color:C.goldL,  label:"60MA"},
-                    {key:"bKnee",    color:C.blue,   label:"L"},
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
+                    {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
                     <ReferenceDot key={b.key} x={last.label} y={last[b.key]} r={0}
                       label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
