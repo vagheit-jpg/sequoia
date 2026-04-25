@@ -2076,7 +2076,7 @@ export default function App(){
                 const fmtN=(v)=>v==null?"—":Math.round(v/ts).toLocaleString();
                 return(
                 <Box>
-                  <ST accent={C.gold}>연간 실적 요약 ({tu}원)</ST>
+                  <ST accent={C.gold}>연간 실적 요약 ({tu}원, EPS·원)</ST>
                   <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:10,minWidth:380}}>
                     <thead>
