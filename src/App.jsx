@@ -1263,7 +1263,7 @@ export default function App(){
   // 종목 목록: localStorage 캐시 → /api/corplist → FALLBACK
   useEffect(()=>{
     try{const raw=localStorage.getItem("sq_corplist");if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<86400000&&data?.length>100){setStockList(data);return;}}}catch{}
-    fetch("/api/corplist").then(r=>r.json()).then(data=>{
+    fetch("/corplist.json").then(r=>r.json()).then(data=>{
       if(data?.length>100){setStockList(data);try{localStorage.setItem("sq_corplist",JSON.stringify({data,ts:Date.now()}));}catch{}}
     }).catch(()=>{});
   },[]);
@@ -1725,7 +1725,9 @@ export default function App(){
       {/* ── 상단 타이틀 바 */}
       <div style={{background:`linear-gradient(135deg,#040C1A,#071428)`,borderBottom:`1px solid ${C.border}`,
         padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}
+          onClick={()=>setTab("overview")}
+          title="종합 화면으로">
           <span style={{fontSize:16}}>🌲</span>
           <span style={{color:C.gold,fontSize:13,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.12em"}}>SEQUOIA QUANTUM</span>
           <span style={{color:C.muted,fontSize:9,fontFamily:"monospace",letterSpacing:"0.18em"}}>ANALYSIS SYSTEM</span>
