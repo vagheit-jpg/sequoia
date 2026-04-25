@@ -981,7 +981,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
   const WHO_LIST=[
     {id:"전체",    col:C.teal},
     {id:"버핏",    col:C.gold},
-    {id:"멍거",    col:C.purple},
+    {id:"찰리 멍거",col:C.purple},
     {id:"그레이엄", col:"#60A8DC"},
     {id:"피터 린치",col:C.green},
     {id:"하워드 막스",col:C.orange},
@@ -1036,7 +1036,9 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
           <div style={{fontSize:12,color:C.gold,lineHeight:1.7,fontWeight:600,marginBottom:5}}>
             "{todayQ?.ko}"
           </div>
-          <div style={{fontSize:9,color:C.muted,textAlign:"right"}}>— {todayQ?.src}</div>
+          <div style={{fontSize:9,color:C.muted,textAlign:"right"}}>
+            {(()=>{const s=todayQ?.src||"";if(s.includes(" — ")){const[who,book]=s.split(" — ");return<span><span style={{color:C.gold}}>〈{who}〉</span> {book}</span>;}return<span><span style={{color:C.gold}}>〈{s}〉</span></span>;})()}
+          </div>
         </div>
       </div>
 
@@ -1054,13 +1056,13 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
                 border:`1px solid ${active?w.col:C.border}`,
                 borderRadius:16,padding:"4px 11px",
                 color:active?w.col:C.muted,
-                fontSize:9,fontWeight:active?700:400,
+                fontSize:10,fontWeight:active?700:400,
                 cursor:"pointer",transition:"all 0.15s",
                 whiteSpace:"nowrap",
               }}>
                 {w.id}
                 <span style={{
-                  marginLeft:4,fontSize:8,
+                  marginLeft:4,fontSize:9,
                   color:active?w.col:C.border,
                   fontFamily:"monospace",
                 }}>{cnt}</span>
@@ -1106,9 +1108,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
             }}>
               {CAT_ICON[current.cat]} {current.cat}
             </div>
-            <div style={{fontSize:9,color:C.muted,fontFamily:"monospace"}}>
-              #{current.id} / {filtered.length}
-            </div>
+
           </div>
 
           {/* 영문 원문 */}
@@ -1129,7 +1129,15 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
 
           {/* 출처 */}
           <div style={{fontSize:9,color:C.muted,textAlign:"right"}}>
-            — {current.src}
+            {(()=>{
+              const s=current.src||"";
+              // "이름 — 출처" 또는 "이름" 형식을 "〈이름〉 출처" 로 변환
+              if(s.includes(" — ")){
+                const [who,book]=s.split(" — ");
+                return <span><span style={{color:C.gold}}>〈{who}〉</span> {book}</span>;
+              }
+              return <span><span style={{color:C.gold}}>〈{s}〉</span></span>;
+            })()}
           </div>
         </div>
       )}
