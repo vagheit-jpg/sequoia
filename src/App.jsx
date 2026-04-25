@@ -2037,6 +2037,7 @@ export default function App(){
               );
             })()}
             {hasFinData?(
+              <>
               <Box>
                 <ST accent={C.gold}>최근 연간 재무 요약 ({lastAnn.year}년)</ST>
                 {(()=>{
@@ -2068,12 +2069,11 @@ export default function App(){
                 })()}
               </Box>
               {/* ── 연간 실적 요약 테이블 ── */}
-              {co?.annData?.length>=1&&(()=>{
-                const rows=(co.annData||[]).filter(r=>r.year&&(r.rev||r.op||r.eps||r.fcf));
+              {(()=>{
+                const rows=(co?.annData||[]).filter(r=>r.year&&(r.rev||r.op||r.eps||r.fcf));
                 if(!rows.length)return null;
                 const {unit:tu,scale:ts}=autoUnit(rows,["rev","op"]);
-                const fmt=(v,sc)=>v!=null?+(v/sc).toFixed(sc===1?0:1):null;
-                const fmtN=(v,sc)=>v==null?"—":(fmt(v,sc)).toLocaleString();
+                const fmtN=(v)=>v==null?"—":Math.round(v/ts).toLocaleString();
                 return(
                 <Box>
                   <ST accent={C.gold}>연간 실적 요약 ({tu}원)</ST>
@@ -2094,12 +2094,12 @@ export default function App(){
                         return(
                         <tr key={r.year} style={{borderBottom:`1px solid ${C.border}22`,background:isLatest?`${C.gold}0D`:"transparent"}}>
                           <td style={{color:isLatest?C.gold:C.muted,fontWeight:isLatest?700:400,padding:"5px 4px",textAlign:"right"}}>{r.year}</td>
-                          <td style={{color:C.text,  padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{fmtN(r.rev,ts)}</td>
+                          <td style={{color:C.text,  padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{fmtN(r.rev)}</td>
                           <td style={{color:yoy==null?"transparent":yoy>=0?C.green:C.red,padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{yoy==null?"—":(yoy>0?"+":"")+yoy+"%"}</td>
-                          <td style={{color:C.green, padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{fmtN(r.op,ts)}</td>
+                          <td style={{color:C.green, padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{fmtN(r.op)}</td>
                           <td style={{color:C.gold,  padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{r.opm!=null?r.opm+"%":"—"}</td>
                           <td style={{color:C.purple,padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{r.eps!=null?r.eps.toLocaleString():"—"}</td>
-                          <td style={{color:C.cyan,  padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{fmtN(r.fcf,ts)}</td>
+                          <td style={{color:C.cyan,  padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{fmtN(r.fcf)}</td>
                           <td style={{color:C.blueL, padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{r.roe!=null?r.roe+"%":"—"}</td>
                           <td style={{color:(r.debt||0)>100?C.red:C.teal,padding:"5px 4px",textAlign:"right",fontFamily:"monospace"}}>{r.debt!=null?r.debt+"%":"—"}</td>
                         </tr>
@@ -2111,6 +2111,7 @@ export default function App(){
                 </Box>
                 );
               })()}
+              </>
             ):(
               <Box>
                 <div style={{color:C.muted,textAlign:"center",padding:"20px 0",fontSize:12,lineHeight:1.8}}>
@@ -2371,23 +2372,25 @@ export default function App(){
                         <ComposedChart data={epsPriceData} margin={{top:8,right:8,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="eps"   orientation="left"
-                            {...yp("원",48)} tickFormatter={v=>v.toLocaleString()}
-                            stroke={C.orange}
-                            domain={[0,dataMax=>Math.ceil(dataMax*2.2)]}/>
+                          <YAxis yAxisId="eps" orientation="left"
+                            tick={{fill:"#F97316",fontSize:10}} width={48}
+                            tickFormatter={v=>v.toLocaleString()}
+                            stroke="#F97316" tickCount={5}
+                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||100;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
                           <YAxis yAxisId="price" orientation="right"
-                            {...yp("원",48)} tickFormatter={v=>v.toLocaleString()}
-                            stroke={C.blue}
-                            domain={[0,dataMax=>Math.ceil(dataMax*2.2)]}/>
+                            tick={{fill:"#38BDF8",fontSize:10}} width={48}
+                            tickFormatter={v=>v.toLocaleString()}
+                            stroke="#38BDF8" tickCount={5}
+                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
                           <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
                           <Line yAxisId="eps" dataKey="eps" name="EPS(원)"
-                            stroke={C.orange} strokeWidth={2} strokeDasharray="6 3"
-                            dot={{r:4,fill:C.orange,strokeWidth:0}}
+                            stroke="#F97316" strokeWidth={2} strokeDasharray="6 3"
+                            dot={{r:4,fill:"#F97316",strokeWidth:0}}
                             activeDot={{r:6}}/>
                           <Line yAxisId="price" dataKey="price" name="주가(원)"
-                            stroke={C.blue} strokeWidth={2.5}
-                            dot={{r:4,fill:C.blue,strokeWidth:0}}
+                            stroke="#38BDF8" strokeWidth={2.5}
+                            dot={{r:4,fill:"#38BDF8",strokeWidth:0}}
                             activeDot={{r:6}}/>
                         </ComposedChart>
                       </CW>
