@@ -1017,8 +1017,8 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
         <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
           
           <div>
-            <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>🗒️ 버핏과 찰리의 말</div>
-            <div style={{fontSize:9,color:C.muted}}>워런 버핏 · 찰리 멍거 어록 {Q.length}선</div>
+            <div style={{fontSize:13,fontWeight:900,color:C.gold,fontFamily:"monospace",letterSpacing:"0.05em"}}>📚 투자거장의 말</div>
+            <div style={{fontSize:9,color:C.muted}}>투자거장 어록 {Q.length}선</div>
           </div>
           <div style={{marginLeft:"auto",textAlign:"right"}}>
             <div style={{fontSize:8,color:C.muted}}>오늘의 어록</div>
@@ -1628,7 +1628,7 @@ export default function App(){
     {id:"perbpr",label:"💹 PER/PBR"},{id:"financial",label:"💰 재무"},
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
-    {id:"buffett",label:"🗒️ 버핏과 찰리의 말"},
+    {id:"buffett",label:"📚 투자거장의 말"},
   ];
 
   if(dbLoading)return(
@@ -2082,7 +2082,7 @@ export default function App(){
                 <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
-                <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2}   dot={false}/>
+                <Line dataKey="bBase"     name={rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"} stroke={C.goldL} strokeWidth={2} dot={false}/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                 <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeP)" dot={false} legendType="line"/>
@@ -2094,7 +2094,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple,  label:"EH"},
                     {key:"bTop",     color:C.red,     label:"VH"},
                     {key:"bShoulder",color:C.orange,  label:"H"},
-                    {key:"bBase",    color:C.goldL,   label:"60MA"},
+                    {key:"bBase",    color:C.goldL,   label:rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"},
                     {key:"bFloor",   color:"#3B7DD8", label:"VL"},
                     {key:"bKnee",    color:C.blue,    label:"L"},
                   ].map(b=>(
@@ -2330,7 +2330,7 @@ export default function App(){
                 {[
                   {label:"VL",  sub:"×0.6↓",color:"#3B7DD8"},
                   {label:"L",   sub:"×0.8",  color:C.blue},
-                  {label:"60MA",sub:"×1.0",  color:C.goldL},
+                  {label:rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선",sub:"×1.0",  color:C.goldL},
                   {label:"H",   sub:"×1.5",  color:C.orange},
                   {label:"VH",  sub:"×2.0",  color:C.red},
                   {label:"EH", sub:"×2.0↑", color:C.purple},
@@ -2366,7 +2366,7 @@ export default function App(){
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
-                <Line dataKey="bBase"     name="60MA"      stroke={C.goldL}   strokeWidth={2.5} dot={false} legendType="line"/>
+                <Line dataKey="bBase"     name={rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"} stroke={C.goldL} strokeWidth={2.5} dot={false} legendType="line"/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={2}   strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={2}   strokeDasharray="5 3" dot={false}/>
                 <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1.5} strokeDasharray="3 4" fill="url(#peakShade)"  dot={false} legendType="line"/>
@@ -2378,7 +2378,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:"60MA"},
+                    {key:"bBase",    color:C.goldL,  label:rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"},
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
@@ -2419,6 +2419,14 @@ export default function App(){
                   <div style={{flex:1,minWidth:120}}>
                     <div style={{color:C.muted,fontSize:8,marginBottom:4}}>구간 기준</div>
                     <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                      {/* 60MA 종류 뱃지 */}
+                      <span style={{
+                        fontSize:9,color:C.goldL,fontWeight:700,
+                        background:`${C.goldL}18`,border:`1px solid ${C.goldL}44`,
+                        borderRadius:4,padding:"2px 8px",display:"inline-block",marginBottom:4,
+                      }}>
+                        기준선: {rangeIdx<=1?"60월선 (월봉)":rangeIdx===2?"60주선 (주봉)":"60일선 (일봉)"}
+                      </span>
                       {[
                         {z:"VL",  r:"-40%↓", c:"#3B7DD8"},
                         {z:"L",   r:"-20%",  c:C.blue},
@@ -2735,7 +2743,7 @@ export default function App(){
         )}
 
 
-        {/* ════ 버핏과 찰리의 말 ════ */}
+        {/* ════ 투자거장의 말 ════ */}
         {tab==="buffett"&&(()=>{
           const CATS=["전체","시장심리","기업분석","장기투자","리스크","경영진","가치평가","인생"];
           const CAT_COLOR={"시장심리":C.orange,"기업분석":C.blue,"장기투자":C.green,"리스크":C.red,"경영진":C.purple,"가치평가":C.gold,"인생":C.cyan};
@@ -2970,6 +2978,58 @@ export default function App(){
             {id:148,cat:"기업분석",who:"찰리 멍거",en:"The difference between a good business and a bad one: A good business earns high returns on capital and can reinvest those returns at equally high rates.",ko:"좋은 사업과 나쁜 사업의 차이: 좋은 사업은 자본에서 높은 수익을 얻고 같은 높은 수익률로 재투자할 수 있다.",src:"찰리 멍거"},
             {id:149,cat:"장기투자",who:"찰리 멍거",en:"Rapid change of any kind is poison to a long-term investor.",ko:"어떤 종류의 급격한 변화도 장기 투자자에게는 독이다.",src:"찰리 멍거"},
             {id:150,cat:"리스크",who:"찰리 멍거",en:"Opportunity cost is a huge filter in life. If you've got two suitors who are each asking for your hand in marriage, and one is way better than the other, you do not have to spend much time with the other.",ko:"기회비용은 삶의 거대한 필터다. 두 구혼자가 있을 때 한 명이 훨씬 낫다면 다른 쪽에 시간을 많이 쓸 필요가 없다.",src:"찰리 멍거"},
+            // ── 버핏 추가 ─────────────────────────────────────────
+            {id:210,cat:"시장심리",en:"The stock market is designed to transfer money from the active to the patient.",ko:"주식시장은 활동적인 사람에게서 인내하는 사람에게로 돈을 이전하도록 설계되어 있다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:211,cat:"가치평가",en:"It is far better to buy a wonderful company at a fair price than a fair company at a wonderful price.",ko:"공정한 가격의 훌륭한 회사가 훌륭한 가격의 공정한 회사보다 훨씬 낫다.",src:"워런 버핏 — 1989 버크셔 주주서한"},
+            {id:212,cat:"장기투자",en:"An investor needs to do very few things right as long as he or she avoids big mistakes.",ko:"큰 실수만 피한다면 투자자는 소수의 것만 잘해도 충분하다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:213,cat:"기업분석",en:"A great business throws off cash. A mediocre one consumes it.",ko:"훌륭한 사업은 현금을 창출하고, 평범한 사업은 그것을 소비한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:214,cat:"리스크",en:"The less prudence with which others conduct their affairs, the greater the prudence with which we should conduct our own affairs.",ko:"다른 사람들이 덜 신중할수록, 우리는 더 신중해야 한다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:215,cat:"시장심리",en:"The market is there to serve you, not to instruct you.",ko:"시장은 당신을 가르치는 것이 아니라 섬기기 위해 존재한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:216,cat:"장기투자",en:"Only buy something that you'd be perfectly happy to hold if the market shut down for 10 years.",ko:"시장이 10년 동안 문을 닫아도 완전히 행복하게 보유할 수 있는 것만 사라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:217,cat:"경영진",en:"Lose money for the firm and I will be understanding. Lose a shred of reputation for the firm and I will be ruthless.",ko:"회사의 돈을 잃으면 이해하겠다. 회사의 평판을 조금이라도 잃으면 가차 없이 대응할 것이다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:218,cat:"가치평가",en:"The best investment you can make is in yourself.",ko:"당신이 할 수 있는 최고의 투자는 자기 자신에 대한 투자다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:219,cat:"기업분석",en:"A business that needs a genius to run it is not a good business.",ko:"천재가 있어야 운영되는 사업은 좋은 사업이 아니다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:220,cat:"시장심리",en:"Forecasts may tell you a great deal about the forecaster; they tell you nothing about the future.",ko:"예측은 예측자에 대해 많은 것을 알려준다. 미래에 대해서는 아무것도 알려주지 않는다.",src:"워런 버핏 — 버크셔 주주서한"},
+            // ── 찰리 멍거 추가 ────────────────────────────────────────
+            {id:221,cat:"기업분석",who:"찰리 멍거",en:"You must know the big ideas in the big disciplines, and use them routinely.",ko:"큰 분야의 큰 아이디어를 알아야 하고, 그것을 일상적으로 사용해야 한다.",src:"찰리 멍거 — Poor Charlie's Almanack"},
+            {id:222,cat:"리스크",who:"찰리 멍거",en:"Avoiding stupidity is easier than seeking brilliance.",ko:"멍청함을 피하는 것이 탁월함을 추구하는 것보다 쉽다.",src:"찰리 멍거"},
+            {id:223,cat:"인생",who:"찰리 멍거",en:"The best thing a human being can do is to help another human being know more.",ko:"인간이 할 수 있는 최선은 다른 사람이 더 많이 알도록 돕는 것이다.",src:"찰리 멍거 — Poor Charlie's Almanack"},
+            {id:224,cat:"장기투자",who:"찰리 멍거",en:"The desire to get rich fast is pretty dangerous.",ko:"빨리 부자가 되고 싶은 욕망은 꽤 위험하다.",src:"찰리 멍거 — 버크셔 주주총회"},
+            {id:225,cat:"가치평가",who:"찰리 멍거",en:"All intelligent investing is value investing. Acquiring more than you are paying for.",ko:"모든 현명한 투자는 가치투자다. 지불하는 것보다 더 많은 것을 얻는 것이다.",src:"찰리 멍거"},
+            // ── 그레이엄 추가 ─────────────────────────────────────────
+            {id:226,cat:"리스크",who:"그레이엄",en:"Even the intelligent investor is likely to need considerable willpower to keep from following the crowd.",ko:"현명한 투자자조차 군중을 따르지 않으려면 상당한 의지력이 필요하다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:227,cat:"시장심리",who:"그레이엄",en:"The genuine investor in common stocks does not need a great equipment of brains and knowledge, but rather an unusual firmness of character.",ko:"주식의 진정한 투자자에게 필요한 것은 뛰어난 지능과 지식이 아니라 비범한 성격의 견고함이다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:228,cat:"가치평가",who:"그레이엄",en:"Investing is most intelligent when it is most businesslike. This is the most important sentence in this book.",ko:"투자는 가장 사업적일 때 가장 현명하다. 이것이 이 책에서 가장 중요한 문장이다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            // ── 피터 린치 추가 ────────────────────────────────────────
+            {id:229,cat:"기업분석",who:"피터 린치",en:"Behind every stock is a company. Find out what it's doing.",ko:"모든 주식 뒤에는 기업이 있다. 그것이 무엇을 하는지 알아내라.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            {id:230,cat:"시장심리",who:"피터 린치",en:"Absent a lot of surprises, stocks are relatively predictable over 20 years. As to whether they'll be higher or lower in 2 to 3 years, you might as well flip a coin.",ko:"큰 이변이 없으면 주식은 20년에 걸쳐 상대적으로 예측 가능하다. 2~3년 후에 오를지 내릴지는 동전 던지기나 다름없다.",src:"피터 린치"},
+            {id:231,cat:"장기투자",who:"피터 린치",en:"The real key to making money in stocks is not to get scared out of them.",ko:"주식에서 돈을 버는 진짜 핵심은 겁먹고 팔지 않는 것이다.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            // ── 하워드 막스 추가 ──────────────────────────────────────
+            {id:232,cat:"리스크",who:"하워드 막스",en:"There's only one way to describe most investors: trend followers.",ko:"대부분의 투자자를 묘사하는 방법은 하나뿐이다: 추세 추종자.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:233,cat:"시장심리",who:"하워드 막스",en:"The biggest investing errors come not from factors that are informational or analytical, but from those that are psychological.",ko:"가장 큰 투자 오류는 정보나 분석이 아니라 심리에서 비롯된다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:234,cat:"가치평가",who:"하워드 막스",en:"The most dangerous thing is to buy something at the peak of its popularity.",ko:"가장 위험한 것은 인기의 절정에 있는 것을 사는 것이다.",src:"하워드 막스 — 오크트리 메모"},
+            {id:235,cat:"장기투자",who:"하워드 막스",en:"Successful investing requires second-level thinking.",ko:"성공적인 투자는 2단계 사고를 요구한다.",src:"하워드 막스 — 투자에 대한 생각"},
+            // ── 필립 피셔 추가 ────────────────────────────────────────
+            {id:236,cat:"장기투자",who:"필립 피셔",en:"The time to sell a stock is almost never.",ko:"주식을 팔 시점은 거의 없다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            {id:237,cat:"기업분석",who:"필립 피셔",en:"I sought out people who could give me the most information on a company.",ko:"나는 기업에 대해 가장 많은 정보를 줄 수 있는 사람을 찾았다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            {id:238,cat:"리스크",who:"필립 피셔",en:"More money has been lost by investors holding a stock they really did not want until they could at least come out even.",ko:"적어도 본전이라도 뽑으려고 원치 않는 주식을 보유하다가 잃은 돈이 더 많다.",src:"필립 피셔"},
+            // ── 세스 클라만 추가 ──────────────────────────────────────
+            {id:239,cat:"가치평가",who:"세스 클라만",en:"When you find a real bargain, you must have the courage to buy.",ko:"진짜 헐값을 찾았을 때 살 용기가 있어야 한다.",src:"세스 클라만 — 안전마진"},
+            {id:240,cat:"리스크",who:"세스 클라만",en:"The stock market is not always right. But it is always loud.",ko:"주식시장이 항상 옳은 것은 아니다. 하지만 항상 시끄럽다.",src:"세스 클라만"},
+            {id:241,cat:"시장심리",who:"세스 클라만",en:"In an uncertain and sometimes frightening world, price becomes less important than not losing money.",ko:"불확실하고 때로 무서운 세상에서 가격보다 돈을 잃지 않는 것이 더 중요해진다.",src:"세스 클라만 — 안전마진"},
+            // ── 존 템플턴 추가 ────────────────────────────────────────
+            {id:242,cat:"장기투자",who:"존 템플턴",en:"The only investors who shouldn't diversify are those who are right 100% of the time.",ko:"분산투자를 하지 않아도 되는 유일한 투자자는 100% 맞는 사람이다.",src:"존 템플턴"},
+            {id:243,cat:"기업분석",who:"존 템플턴",en:"The best time to invest is when you have money. History suggests it is not timing that matters, but time.",ko:"투자하기 가장 좋은 시점은 돈이 있을 때다. 역사는 타이밍이 아니라 시간이 중요하다고 말한다.",src:"존 템플턴"},
+            // ── 파브라이 추가 ─────────────────────────────────────────
+            {id:244,cat:"가치평가",who:"파브라이",en:"Focus on the downside. The upside will take care of itself.",ko:"하락 리스크에 집중하라. 상승은 스스로 알아서 된다.",src:"모니시 파브라이 — Dhandho Investor"},
+            {id:245,cat:"장기투자",who:"파브라이",en:"Patience is the rarest commodity on Wall Street.",ko:"인내는 월스트리트에서 가장 희귀한 상품이다.",src:"모니시 파브라이"},
+            // ── 리루 추가 ─────────────────────────────────────────────
+            {id:246,cat:"기업분석",who:"리루",en:"The longer you hold a great business, the more you benefit from its compounding power.",ko:"훌륭한 사업을 오래 보유할수록 복리의 힘에서 더 많은 이익을 얻는다.",src:"리루"},
+            {id:247,cat:"시장심리",who:"리루",en:"In a market downturn, your job is not to panic but to think clearly about value.",ko:"시장 침체에서 당신이 할 일은 공황이 아니라 가치에 대해 명확하게 생각하는 것이다.",src:"리루"},
+            // ── 테리 스미스 추가 ──────────────────────────────────────
+            {id:248,cat:"기업분석",who:"테리 스미스",en:"A high return on capital is the hallmark of a great business. Everything else is secondary.",ko:"높은 자본 수익률은 훌륭한 사업의 특징이다. 그 외 모든 것은 부차적이다.",src:"테리 스미스 — Fundsmith"},
+            {id:249,cat:"시장심리",who:"테리 스미스",en:"The best returns come from owning great businesses and doing as little as possible.",ko:"최고의 수익은 훌륭한 사업을 보유하고 가능한 한 아무것도 하지 않는 데서 나온다.",src:"테리 스미스 — Fundsmith 주주서한"},
+            {id:250,cat:"장기투자",who:"테리 스미스",en:"Time in the market beats timing the market.",ko:"시장 타이밍보다 시장 안에 있는 시간이 중요하다.",src:"테리 스미스 — Fundsmith"},
           ];
 
           // 날짜 기반 오늘의 어록 인덱스 (자정 기준 자동 변경)
