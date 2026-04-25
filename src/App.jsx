@@ -980,7 +980,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
   // 인물별 색상 (이모티콘 없이 텍스트만)
   const WHO_LIST=[
     {id:"전체",    col:C.teal},
-    {id:"버핏",    col:C.gold},
+    {id:"워런 버핏",col:C.gold},
     {id:"찰리 멍거",col:C.purple},
     {id:"그레이엄", col:"#60A8DC"},
     {id:"피터 린치",col:C.green},
@@ -995,7 +995,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
 
   const filtered=(()=>{
     let q=catFilter==="전체"?Q:Q.filter(r=>r.cat===catFilter);
-    if(whoFilter!=="전체")q=q.filter(r=>(r.who||"버핏")===whoFilter);
+    if(whoFilter!=="전체")q=q.filter(r=>(r.who||"워런 버핏")===whoFilter);
     return q;
   })();
   const current=filtered[idx]||filtered[0];
@@ -1036,8 +1036,18 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
           <div style={{fontSize:12,color:C.gold,lineHeight:1.7,fontWeight:600,marginBottom:5}}>
             "{todayQ?.ko}"
           </div>
-          <div style={{fontSize:9,color:C.muted,textAlign:"right"}}>
-            {(()=>{const s=todayQ?.src||"";if(s.includes(" — ")){const[who,book]=s.split(" — ");return<span><span style={{color:C.gold}}>〈{who}〉</span> {book}</span>;}return<span><span style={{color:C.gold}}>〈{s}〉</span></span>;})()}
+          <div style={{fontSize:9,textAlign:"right"}}>
+            {(()=>{
+              const s=todayQ?.src||"";
+              if(s.includes(" — ")){
+                const[who,...rest]=s.split(" — ");
+                return <span>
+                  <span style={{color:C.gold}}>〈{who}〉</span>
+                  <span style={{color:C.muted}}> {rest.join(" — ")}</span>
+                </span>;
+              }
+              return <span style={{color:C.gold}}>〈{s}〉</span>;
+            })()}
           </div>
         </div>
       </div>
@@ -1049,20 +1059,20 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
         <div style={{display:"flex",gap:5,width:"max-content"}}>
           {WHO_LIST.map(w=>{
             const active=whoFilter===w.id;
-            const cnt=w.id==="전체"?Q.length:Q.filter(r=>(r.who||"버핏")===w.id).length;
+            const cnt=w.id==="전체"?Q.length:Q.filter(r=>(r.who||"워런 버핏")===w.id).length;
             return(
               <button key={w.id} onClick={()=>changeWho(w.id)} style={{
                 background:active?`${w.col}22`:C.card,
                 border:`1px solid ${active?w.col:C.border}`,
                 borderRadius:16,padding:"4px 11px",
                 color:active?w.col:C.muted,
-                fontSize:10,fontWeight:active?700:400,
+                fontSize:9,fontWeight:active?700:400,
                 cursor:"pointer",transition:"all 0.15s",
                 whiteSpace:"nowrap",
               }}>
                 {w.id}
                 <span style={{
-                  marginLeft:4,fontSize:9,
+                  marginLeft:4,fontSize:8,
                   color:active?w.col:C.border,
                   fontFamily:"monospace",
                 }}>{cnt}</span>
@@ -1108,7 +1118,9 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
             }}>
               {CAT_ICON[current.cat]} {current.cat}
             </div>
-
+            <div style={{fontSize:9,color:C.muted,fontFamily:"monospace"}}>
+              #{current.id} / {filtered.length}
+            </div>
           </div>
 
           {/* 영문 원문 */}
@@ -1128,15 +1140,18 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
           </div>
 
           {/* 출처 */}
-          <div style={{fontSize:9,color:C.muted,textAlign:"right"}}>
+          <div style={{fontSize:9,textAlign:"right"}}>
             {(()=>{
               const s=current.src||"";
-              // "이름 — 출처" 또는 "이름" 형식을 "〈이름〉 출처" 로 변환
               if(s.includes(" — ")){
-                const [who,book]=s.split(" — ");
-                return <span><span style={{color:C.gold}}>〈{who}〉</span> {book}</span>;
+                const[who,...rest]=s.split(" — ");
+                return <span>
+                  <span style={{color:C.gold}}>〈{who}〉</span>
+                  <span style={{color:C.muted}}> {rest.join(" — ")}</span>
+                </span>;
               }
-              return <span><span style={{color:C.gold}}>〈{s}〉</span></span>;
+              // 이름만 있는 경우 (출처 없음)
+              return <span style={{color:C.gold}}>〈{s}〉</span>;
             })()}
           </div>
         </div>
@@ -2758,113 +2773,113 @@ export default function App(){
           const CAT_ICON={"시장심리":"🌊","기업분석":"🔍","장기투자":"🌳","리스크":"⚠️","경영진":"👔","가치평가":"💎","인생":"🌟"};
           const Q=[
             // ── 시장심리
-            {id:1,cat:"시장심리",en:"Be fearful when others are greedy, and greedy when others are fearful.",ko:"다른 사람들이 탐욕스러울 때 두려워하고, 두려워할 때 탐욕스러워져라.",src:"2004 버크셔 주주서한"},
-            {id:2,cat:"시장심리",en:"The stock market is a device for transferring money from the impatient to the patient.",ko:"주식시장은 참을성 없는 사람에게서 참을성 있는 사람에게로 돈을 이전하는 장치다.",src:"버크셔 주주총회"},
-            {id:3,cat:"시장심리",en:"Only when the tide goes out do you discover who's been swimming naked.",ko:"썰물이 빠져야 비로소 누가 알몸으로 수영했는지 알 수 있다.",src:"2001 버크셔 주주서한"},
-            {id:4,cat:"시장심리",en:"Widespread fear is your friend as an investor because it serves up bargain purchases.",ko:"광범위한 두려움은 투자자의 친구다. 헐값에 살 기회를 주기 때문이다.",src:"2008 버크셔 주주서한"},
-            {id:5,cat:"시장심리",en:"Price is what you pay. Value is what you get.",ko:"가격은 당신이 지불하는 것이고, 가치는 당신이 얻는 것이다.",src:"2008 버크셔 주주서한"},
-            {id:6,cat:"시장심리",en:"In the short run, the market is a voting machine but in the long run it is a weighing machine.",ko:"단기적으로 시장은 투표 기계지만, 장기적으로는 저울이다.",src:"벤저민 그레이엄 인용, 버핏 강연"},
-            {id:7,cat:"시장심리",en:"Mr. Market is there to serve you, not to guide you.",ko:"Mr. Market은 당신을 안내하기 위해서가 아니라 섬기기 위해 존재한다.",src:"버크셔 주주서한"},
-            {id:8,cat:"시장심리",en:"When it rains gold, put out the bucket, not the thimble.",ko:"금이 쏟아질 때는 골무가 아닌 양동이를 내밀어라.",src:"버크셔 주주총회"},
-            {id:9,cat:"시장심리",en:"Bad news is an investor's best friend. It lets you buy a slice of America's future at a marked-down price.",ko:"나쁜 소식은 투자자의 가장 좋은 친구다. 미래를 할인된 가격에 살 수 있게 해주기 때문이다.",src:"2008 뉴욕타임스 기고"},
-            {id:10,cat:"시장심리",en:"The investor of today does not profit from yesterday's growth.",ko:"오늘의 투자자는 어제의 성장으로 수익을 올리지 않는다.",src:"버크셔 주주서한"},
-            {id:11,cat:"시장심리",en:"What the wise man does in the beginning, the fool does in the end.",ko:"현명한 사람이 처음에 하는 것을, 어리석은 사람은 마지막에 한다.",src:"버크셔 주주총회"},
-            {id:12,cat:"시장심리",en:"For some reason, people take their cues from price action rather than from values.",ko:"어떤 이유에서인지 사람들은 가치가 아닌 가격 움직임에서 단서를 얻는다.",src:"버크셔 주주총회"},
-            {id:13,cat:"시장심리",en:"The most common cause of low prices is pessimism. We want to do business in such an environment not because we like pessimism but because we like the prices it produces.",ko:"낮은 가격의 가장 흔한 원인은 비관론이다. 비관론이 좋아서가 아니라 그것이 만들어내는 가격이 좋아서다.",src:"버크셔 주주서한"},
-            {id:14,cat:"시장심리",en:"Opportunities come infrequently. When it rains gold, put out the bucket, not the thimble.",ko:"기회는 드물게 온다. 금비가 내릴 때는 골무 대신 양동이를 내밀어라.",src:"버크셔 주주총회"},
+            {id:1,cat:"시장심리",en:"Be fearful when others are greedy, and greedy when others are fearful.",ko:"다른 사람들이 탐욕스러울 때 두려워하고, 두려워할 때 탐욕스러워져라.",src:"워런 버핏 — 2004 버크셔 주주서한"},
+            {id:2,cat:"시장심리",en:"The stock market is a device for transferring money from the impatient to the patient.",ko:"주식시장은 참을성 없는 사람에게서 참을성 있는 사람에게로 돈을 이전하는 장치다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:3,cat:"시장심리",en:"Only when the tide goes out do you discover who's been swimming naked.",ko:"썰물이 빠져야 비로소 누가 알몸으로 수영했는지 알 수 있다.",src:"워런 버핏 — 2001 버크셔 주주서한"},
+            {id:4,cat:"시장심리",en:"Widespread fear is your friend as an investor because it serves up bargain purchases.",ko:"광범위한 두려움은 투자자의 친구다. 헐값에 살 기회를 주기 때문이다.",src:"워런 버핏 — 2008 버크셔 주주서한"},
+            {id:5,cat:"시장심리",en:"Price is what you pay. Value is what you get.",ko:"가격은 당신이 지불하는 것이고, 가치는 당신이 얻는 것이다.",src:"워런 버핏 — 2008 버크셔 주주서한"},
+            {id:6,cat:"시장심리",en:"In the short run, the market is a voting machine but in the long run it is a weighing machine.",ko:"단기적으로 시장은 투표 기계지만, 장기적으로는 저울이다.",src:"워런 버핏 — 그레이엄 인용"},
+            {id:7,cat:"시장심리",en:"Mr. Market is there to serve you, not to guide you.",ko:"Mr. Market은 당신을 안내하기 위해서가 아니라 섬기기 위해 존재한다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:8,cat:"시장심리",en:"When it rains gold, put out the bucket, not the thimble.",ko:"금이 쏟아질 때는 골무가 아닌 양동이를 내밀어라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:9,cat:"시장심리",en:"Bad news is an investor's best friend. It lets you buy a slice of America's future at a marked-down price.",ko:"나쁜 소식은 투자자의 가장 좋은 친구다. 미래를 할인된 가격에 살 수 있게 해주기 때문이다.",src:"워런 버핏 — 2008 뉴욕타임스 기고"},
+            {id:10,cat:"시장심리",en:"The investor of today does not profit from yesterday's growth.",ko:"오늘의 투자자는 어제의 성장으로 수익을 올리지 않는다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:11,cat:"시장심리",en:"What the wise man does in the beginning, the fool does in the end.",ko:"현명한 사람이 처음에 하는 것을, 어리석은 사람은 마지막에 한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:12,cat:"시장심리",en:"For some reason, people take their cues from price action rather than from values.",ko:"어떤 이유에서인지 사람들은 가치가 아닌 가격 움직임에서 단서를 얻는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:13,cat:"시장심리",en:"The most common cause of low prices is pessimism. We want to do business in such an environment not because we like pessimism but because we like the prices it produces.",ko:"낮은 가격의 가장 흔한 원인은 비관론이다. 비관론이 좋아서가 아니라 그것이 만들어내는 가격이 좋아서다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:14,cat:"시장심리",en:"Opportunities come infrequently. When it rains gold, put out the bucket, not the thimble.",ko:"기회는 드물게 온다. 금비가 내릴 때는 골무 대신 양동이를 내밀어라.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 기업분석
-            {id:15,cat:"기업분석",en:"I try to invest in businesses that are so wonderful that an idiot can run them. Because sooner or later, one will.",ko:"나는 바보라도 운영할 수 있을 만큼 훌륭한 사업에 투자하려 한다. 조만간 반드시 그런 일이 생기기 때문이다.",src:"버크셔 주주총회"},
-            {id:16,cat:"기업분석",en:"The single most important decision in evaluating a business is pricing power.",ko:"기업을 평가할 때 가장 중요한 한 가지는 가격 결정력이다.",src:"CNBC 인터뷰"},
-            {id:17,cat:"기업분석",en:"Our favorite holding period is forever.",ko:"우리가 선호하는 보유 기간은 영원이다.",src:"1988 버크셔 주주서한"},
-            {id:18,cat:"기업분석",en:"It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price.",ko:"공정한 가격의 훌륭한 회사를 사는 것이 훌륭한 가격의 공정한 회사를 사는 것보다 훨씬 낫다.",src:"1989 버크셔 주주서한"},
-            {id:19,cat:"기업분석",en:"I never invest in anything that I don't understand.",ko:"이해하지 못하는 것에는 절대 투자하지 않는다.",src:"버크셔 주주총회"},
-            {id:20,cat:"기업분석",en:"I am a better investor because I am a businessman, and a better businessman because I am an investor.",ko:"나는 사업가이기 때문에 더 좋은 투자자이고, 투자자이기 때문에 더 좋은 사업가다.",src:"버크셔 주주서한"},
-            {id:21,cat:"기업분석",en:"When a management with a reputation for brilliance tackles a business with a reputation for bad economics, it is the reputation of the business that remains intact.",ko:"뛰어난 경영진이 나쁜 경제성으로 유명한 사업을 맡으면, 온전히 유지되는 것은 사업의 명성이다.",src:"1989 버크셔 주주서한"},
-            {id:22,cat:"기업분석",en:"A good business is like a strong fortress. The wider the moat, the better the castle.",ko:"좋은 사업은 견고한 요새와 같다. 해자가 넓을수록 더 좋은 성이다.",src:"버크셔 주주총회"},
-            {id:23,cat:"기업분석",en:"The key to investing is not assessing how much an industry is going to affect society, but determining the competitive advantage of any given company.",ko:"투자의 핵심은 산업이 사회에 미치는 영향이 아니라 특정 기업의 경쟁 우위를 파악하는 것이다.",src:"Fortune 인터뷰 1999"},
-            {id:24,cat:"기업분석",en:"A horse that can count to ten is a remarkable horse, not a remarkable mathematician.",ko:"열까지 셀 수 있는 말은 놀라운 말이지, 놀라운 수학자가 아니다.",src:"버크셔 주주총회"},
-            {id:25,cat:"기업분석",en:"When we own portions of outstanding businesses with outstanding managements, our favorite holding period is forever.",ko:"뛰어난 경영진의 훌륭한 사업 일부를 소유할 때, 우리의 보유 기간은 영원이다.",src:"1988 버크셔 주주서한"},
-            {id:26,cat:"기업분석",en:"The ideal business is one that earns very high returns on capital and can keep investing that capital back at equally high returns.",ko:"이상적인 사업은 자본에 대한 수익률이 높고 같은 수익률로 재투자할 수 있는 사업이다.",src:"버크셔 주주총회"},
-            {id:27,cat:"기업분석",en:"Your premium brand had better be delivering something special, or it's not going to get the business.",ko:"프리미엄 브랜드는 반드시 특별한 무언가를 제공해야 한다. 그렇지 않으면 사업을 유지할 수 없다.",src:"버크셔 주주총회"},
-            {id:28,cat:"기업분석",en:"Accounting is the language of business.",ko:"회계는 비즈니스의 언어다.",src:"버크셔 주주총회"},
+            {id:15,cat:"기업분석",en:"I try to invest in businesses that are so wonderful that an idiot can run them. Because sooner or later, one will.",ko:"나는 바보라도 운영할 수 있을 만큼 훌륭한 사업에 투자하려 한다. 조만간 반드시 그런 일이 생기기 때문이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:16,cat:"기업분석",en:"The single most important decision in evaluating a business is pricing power.",ko:"기업을 평가할 때 가장 중요한 한 가지는 가격 결정력이다.",src:"워런 버핏 — CNBC 인터뷰"},
+            {id:17,cat:"기업분석",en:"Our favorite holding period is forever.",ko:"우리가 선호하는 보유 기간은 영원이다.",src:"워런 버핏 — 1988 버크셔 주주서한"},
+            {id:18,cat:"기업분석",en:"It's far better to buy a wonderful company at a fair price than a fair company at a wonderful price.",ko:"공정한 가격의 훌륭한 회사를 사는 것이 훌륭한 가격의 공정한 회사를 사는 것보다 훨씬 낫다.",src:"워런 버핏 — 1989 버크셔 주주서한"},
+            {id:19,cat:"기업분석",en:"I never invest in anything that I don't understand.",ko:"이해하지 못하는 것에는 절대 투자하지 않는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:20,cat:"기업분석",en:"I am a better investor because I am a businessman, and a better businessman because I am an investor.",ko:"나는 사업가이기 때문에 더 좋은 투자자이고, 투자자이기 때문에 더 좋은 사업가다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:21,cat:"기업분석",en:"When a management with a reputation for brilliance tackles a business with a reputation for bad economics, it is the reputation of the business that remains intact.",ko:"뛰어난 경영진이 나쁜 경제성으로 유명한 사업을 맡으면, 온전히 유지되는 것은 사업의 명성이다.",src:"워런 버핏 — 1989 버크셔 주주서한"},
+            {id:22,cat:"기업분석",en:"A good business is like a strong fortress. The wider the moat, the better the castle.",ko:"좋은 사업은 견고한 요새와 같다. 해자가 넓을수록 더 좋은 성이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:23,cat:"기업분석",en:"The key to investing is not assessing how much an industry is going to affect society, but determining the competitive advantage of any given company.",ko:"투자의 핵심은 산업이 사회에 미치는 영향이 아니라 특정 기업의 경쟁 우위를 파악하는 것이다.",src:"워런 버핏 — Fortune 인터뷰 1999"},
+            {id:24,cat:"기업분석",en:"A horse that can count to ten is a remarkable horse, not a remarkable mathematician.",ko:"열까지 셀 수 있는 말은 놀라운 말이지, 놀라운 수학자가 아니다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:25,cat:"기업분석",en:"When we own portions of outstanding businesses with outstanding managements, our favorite holding period is forever.",ko:"뛰어난 경영진의 훌륭한 사업 일부를 소유할 때, 우리의 보유 기간은 영원이다.",src:"워런 버핏 — 1988 버크셔 주주서한"},
+            {id:26,cat:"기업분석",en:"The ideal business is one that earns very high returns on capital and can keep investing that capital back at equally high returns.",ko:"이상적인 사업은 자본에 대한 수익률이 높고 같은 수익률로 재투자할 수 있는 사업이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:27,cat:"기업분석",en:"Your premium brand had better be delivering something special, or it's not going to get the business.",ko:"프리미엄 브랜드는 반드시 특별한 무언가를 제공해야 한다. 그렇지 않으면 사업을 유지할 수 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:28,cat:"기업분석",en:"Accounting is the language of business.",ko:"회계는 비즈니스의 언어다.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 장기투자
-            {id:29,cat:"장기투자",en:"If you aren't willing to own a stock for ten years, don't even think about owning it for ten minutes.",ko:"10년간 보유할 의사가 없다면 10분도 생각하지 마라.",src:"1996 버크셔 주주서한"},
-            {id:30,cat:"장기투자",en:"Time is the friend of the wonderful company, the enemy of the mediocre.",ko:"시간은 훌륭한 기업의 친구이고, 평범한 기업의 적이다.",src:"1989 버크셔 주주서한"},
-            {id:31,cat:"장기투자",en:"Someone's sitting in the shade today because someone planted a tree a long time ago.",ko:"오늘 누군가가 그늘 아래 앉아 있는 것은 오래전 누군가가 나무를 심었기 때문이다.",src:"버크셔 주주총회"},
-            {id:32,cat:"장기투자",en:"Inactivity strikes us as intelligent behavior.",ko:"비활동성이야말로 우리에게는 지적인 행동으로 보인다.",src:"버크셔 주주서한"},
-            {id:33,cat:"장기투자",en:"Buy a stock the way you would buy a house. Understand and like it such that you'd be content to own it in the absence of any market.",ko:"집을 살 때처럼 주식을 사라. 시장이 없어도 편안하게 보유할 수 있을 만큼 이해하고 좋아하라.",src:"버크셔 주주총회"},
-            {id:34,cat:"장기투자",en:"Lethargy bordering on sloth remains the cornerstone of our investment style.",ko:"나태함에 가까운 게으름이 우리 투자 스타일의 초석으로 남아있다.",src:"버크셔 주주서한"},
-            {id:35,cat:"장기투자",en:"The stock market is a no-called-strike game. You don't have to swing at everything.",ko:"주식시장은 스트라이크를 선언하지 않는 야구다. 모든 공에 방망이를 휘두를 필요가 없다.",src:"버크셔 주주총회"},
-            {id:36,cat:"장기투자",en:"We don't have to be smarter than the rest. We have to be more disciplined than the rest.",ko:"우리는 다른 사람들보다 더 똑똑할 필요는 없다. 단지 더 규율 있으면 된다.",src:"버크셔 주주총회"},
-            {id:37,cat:"장기투자",en:"The business schools reward difficult complex behavior more than simple behavior, but simple behavior is more effective.",ko:"경영대학원은 복잡한 행동에 더 많은 보상을 한다. 하지만 단순한 행동이 더 효과적이다.",src:"버크셔 주주총회"},
-            {id:38,cat:"장기투자",en:"Do not save what is left after spending, but spend what is left after saving.",ko:"지출하고 남은 것을 저축하지 말고, 저축하고 남은 것을 지출하라.",src:"버크셔 주주총회"},
-            {id:39,cat:"장기투자",en:"I don't look to jump over seven-foot bars. I look around for one-foot bars that I can step over.",ko:"7피트 장대를 뛰어넘으려 하지 않는다. 내가 넘을 수 있는 1피트 장대를 찾는다.",src:"버크셔 주주서한"},
-            {id:40,cat:"장기투자",en:"We simply attempt to be fearful when others are greedy and to be greedy only when others are fearful.",ko:"우리는 단순히 남들이 탐욕스러울 때 두려워하고, 남들이 두려워할 때만 탐욕스러워지려 할 뿐이다.",src:"1986 버크셔 주주서한"},
-            {id:41,cat:"장기투자",en:"The stock market is designed to transfer money from the Active to the Patient.",ko:"주식시장은 활동적인 사람에게서 참을성 있는 사람에게로 돈을 이전하도록 설계되어 있다.",src:"버크셔 주주총회"},
+            {id:29,cat:"장기투자",en:"If you aren't willing to own a stock for ten years, don't even think about owning it for ten minutes.",ko:"10년간 보유할 의사가 없다면 10분도 생각하지 마라.",src:"워런 버핏 — 1996 버크셔 주주서한"},
+            {id:30,cat:"장기투자",en:"Time is the friend of the wonderful company, the enemy of the mediocre.",ko:"시간은 훌륭한 기업의 친구이고, 평범한 기업의 적이다.",src:"워런 버핏 — 1989 버크셔 주주서한"},
+            {id:31,cat:"장기투자",en:"Someone's sitting in the shade today because someone planted a tree a long time ago.",ko:"오늘 누군가가 그늘 아래 앉아 있는 것은 오래전 누군가가 나무를 심었기 때문이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:32,cat:"장기투자",en:"Inactivity strikes us as intelligent behavior.",ko:"비활동성이야말로 우리에게는 지적인 행동으로 보인다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:33,cat:"장기투자",en:"Buy a stock the way you would buy a house. Understand and like it such that you'd be content to own it in the absence of any market.",ko:"집을 살 때처럼 주식을 사라. 시장이 없어도 편안하게 보유할 수 있을 만큼 이해하고 좋아하라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:34,cat:"장기투자",en:"Lethargy bordering on sloth remains the cornerstone of our investment style.",ko:"나태함에 가까운 게으름이 우리 투자 스타일의 초석으로 남아있다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:35,cat:"장기투자",en:"The stock market is a no-called-strike game. You don't have to swing at everything.",ko:"주식시장은 스트라이크를 선언하지 않는 야구다. 모든 공에 방망이를 휘두를 필요가 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:36,cat:"장기투자",en:"We don't have to be smarter than the rest. We have to be more disciplined than the rest.",ko:"우리는 다른 사람들보다 더 똑똑할 필요는 없다. 단지 더 규율 있으면 된다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:37,cat:"장기투자",en:"The business schools reward difficult complex behavior more than simple behavior, but simple behavior is more effective.",ko:"경영대학원은 복잡한 행동에 더 많은 보상을 한다. 하지만 단순한 행동이 더 효과적이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:38,cat:"장기투자",en:"Do not save what is left after spending, but spend what is left after saving.",ko:"지출하고 남은 것을 저축하지 말고, 저축하고 남은 것을 지출하라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:39,cat:"장기투자",en:"I don't look to jump over seven-foot bars. I look around for one-foot bars that I can step over.",ko:"7피트 장대를 뛰어넘으려 하지 않는다. 내가 넘을 수 있는 1피트 장대를 찾는다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:40,cat:"장기투자",en:"We simply attempt to be fearful when others are greedy and to be greedy only when others are fearful.",ko:"우리는 단순히 남들이 탐욕스러울 때 두려워하고, 남들이 두려워할 때만 탐욕스러워지려 할 뿐이다.",src:"워런 버핏 — 1986 버크셔 주주서한"},
+            {id:41,cat:"장기투자",en:"The stock market is designed to transfer money from the Active to the Patient.",ko:"주식시장은 활동적인 사람에게서 참을성 있는 사람에게로 돈을 이전하도록 설계되어 있다.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 리스크
-            {id:42,cat:"리스크",en:"Rule No.1: Never lose money. Rule No.2: Never forget rule No.1.",ko:"규칙 1번: 절대 돈을 잃지 마라. 규칙 2번: 절대 규칙 1번을 잊지 마라.",src:"버크셔 주주총회"},
-            {id:43,cat:"리스크",en:"Risk comes from not knowing what you're doing.",ko:"리스크는 자신이 무엇을 하고 있는지 모르는 데서 온다.",src:"버크셔 주주총회"},
-            {id:44,cat:"리스크",en:"Diversification is protection against ignorance. It makes little sense if you know what you are doing.",ko:"분산투자는 무지에 대한 보호막이다. 자신이 무엇을 하는지 안다면 별 의미가 없다.",src:"버크셔 주주총회"},
-            {id:45,cat:"리스크",en:"It takes 20 years to build a reputation and five minutes to ruin it.",ko:"명성을 쌓는 데는 20년이 걸리지만 망치는 데는 5분이면 된다.",src:"버크셔 주주총회"},
-            {id:46,cat:"리스크",en:"You don't need to be a rocket scientist. Investing is not a game where the guy with the 160 IQ beats the guy with 130 IQ.",ko:"로켓 과학자일 필요는 없다. 투자는 IQ 160이 IQ 130을 이기는 게임이 아니다.",src:"버크셔 주주총회"},
-            {id:47,cat:"리스크",en:"We have long felt that the only value of stock forecasters is to make fortune tellers look good.",ko:"주식 예측가의 유일한 가치는 점쟁이를 그럴듯해 보이게 만드는 것이라고 오래전부터 느꼈다.",src:"버크셔 주주서한"},
-            {id:48,cat:"리스크",en:"What we learn from history is that people don't learn from history.",ko:"역사에서 우리가 배우는 것은, 사람들이 역사에서 배우지 않는다는 것이다.",src:"버크셔 주주총회"},
-            {id:49,cat:"리스크",en:"Never invest in a business you can't understand.",ko:"이해할 수 없는 사업에는 절대 투자하지 마라.",src:"버크셔 주주총회"},
-            {id:50,cat:"리스크",en:"Beware of geeks bearing formulas.",ko:"공식을 들고 오는 괴짜들을 조심하라.",src:"2009 버크셔 주주서한"},
-            {id:51,cat:"리스크",en:"Should you find yourself in a chronically leaking boat, energy devoted to changing vessels is likely to be more productive than energy devoted to patching leaks.",ko:"만성적으로 새는 배에 타고 있다면 구멍을 막는 것보다 배를 바꾸는 데 에너지를 쏟는 게 낫다.",src:"버크셔 주주서한"},
-            {id:52,cat:"리스크",en:"The most important quality for an investor is temperament, not intellect.",ko:"투자자에게 가장 중요한 자질은 지능이 아니라 기질이다.",src:"버크셔 주주총회"},
-            {id:53,cat:"리스크",en:"You never know who's swimming naked until the tide goes out.",ko:"썰물이 빠져나가야 누가 알몸으로 수영하고 있었는지 알 수 있다.",src:"버크셔 주주서한"},
-            {id:54,cat:"리스크",en:"After 25 years of buying and supervising a great variety of businesses, Charlie and I have not learned how to solve difficult business problems. What we have learned is to avoid them.",ko:"사업을 25년간 사고 감독한 후, 찰리와 나는 어려운 문제를 해결하는 법이 아니라 피하는 법을 배웠다.",src:"버크셔 주주서한"},
+            {id:42,cat:"리스크",en:"Rule No.1: Never lose money. Rule No.2: Never forget rule No.1.",ko:"규칙 1번: 절대 돈을 잃지 마라. 규칙 2번: 절대 규칙 1번을 잊지 마라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:43,cat:"리스크",en:"Risk comes from not knowing what you're doing.",ko:"리스크는 자신이 무엇을 하고 있는지 모르는 데서 온다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:44,cat:"리스크",en:"Diversification is protection against ignorance. It makes little sense if you know what you are doing.",ko:"분산투자는 무지에 대한 보호막이다. 자신이 무엇을 하는지 안다면 별 의미가 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:45,cat:"리스크",en:"It takes 20 years to build a reputation and five minutes to ruin it.",ko:"명성을 쌓는 데는 20년이 걸리지만 망치는 데는 5분이면 된다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:46,cat:"리스크",en:"You don't need to be a rocket scientist. Investing is not a game where the guy with the 160 IQ beats the guy with 130 IQ.",ko:"로켓 과학자일 필요는 없다. 투자는 IQ 160이 IQ 130을 이기는 게임이 아니다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:47,cat:"리스크",en:"We have long felt that the only value of stock forecasters is to make fortune tellers look good.",ko:"주식 예측가의 유일한 가치는 점쟁이를 그럴듯해 보이게 만드는 것이라고 오래전부터 느꼈다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:48,cat:"리스크",en:"What we learn from history is that people don't learn from history.",ko:"역사에서 우리가 배우는 것은, 사람들이 역사에서 배우지 않는다는 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:49,cat:"리스크",en:"Never invest in a business you can't understand.",ko:"이해할 수 없는 사업에는 절대 투자하지 마라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:50,cat:"리스크",en:"Beware of geeks bearing formulas.",ko:"공식을 들고 오는 괴짜들을 조심하라.",src:"워런 버핏 — 2009 버크셔 주주서한"},
+            {id:51,cat:"리스크",en:"Should you find yourself in a chronically leaking boat, energy devoted to changing vessels is likely to be more productive than energy devoted to patching leaks.",ko:"만성적으로 새는 배에 타고 있다면 구멍을 막는 것보다 배를 바꾸는 데 에너지를 쏟는 게 낫다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:52,cat:"리스크",en:"The most important quality for an investor is temperament, not intellect.",ko:"투자자에게 가장 중요한 자질은 지능이 아니라 기질이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:53,cat:"리스크",en:"You never know who's swimming naked until the tide goes out.",ko:"썰물이 빠져나가야 누가 알몸으로 수영하고 있었는지 알 수 있다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:54,cat:"리스크",en:"After 25 years of buying and supervising a great variety of businesses, Charlie and I have not learned how to solve difficult business problems. What we have learned is to avoid them.",ko:"사업을 25년간 사고 감독한 후, 찰리와 나는 어려운 문제를 해결하는 법이 아니라 피하는 법을 배웠다.",src:"워런 버핏 — 버크셔 주주서한"},
             // ── 경영진
-            {id:55,cat:"경영진",en:"Somebody once said that in looking for people to hire, you look for three qualities: integrity, intelligence, and energy. And if you don't have the first, the other two will kill you.",ko:"인재를 고를 때 세 가지를 본다: 정직성, 지능, 에너지. 첫 번째가 없으면 나머지 둘이 오히려 당신을 죽일 것이다.",src:"버크셔 주주총회"},
-            {id:56,cat:"경영진",en:"Of the billionaires I have known, money just brings out the basic traits in them. If they were jerks before they had money, they are simply jerks with a billion dollars.",ko:"돈은 기본 특성을 드러낼 뿐이다. 돈이 없을 때도 나쁜 사람이었다면, 10억 달러를 가진 나쁜 사람일 뿐이다.",src:"버크셔 주주총회"},
-            {id:57,cat:"경영진",en:"I want employees to ask themselves whether they would be comfortable if their CEO could see exactly what they are doing and why.",ko:"직원들이 CEO가 자신의 행동과 이유를 정확히 볼 수 있다면 편안하겠는지 스스로에게 물어보길 바란다.",src:"버크셔 주주서한"},
-            {id:58,cat:"경영진",en:"You can't make a good deal with a bad person.",ko:"나쁜 사람과는 좋은 거래를 할 수 없다.",src:"버크셔 주주총회"},
-            {id:59,cat:"경영진",en:"The best thing I did was to choose the right heroes.",ko:"내가 한 일 중 가장 잘한 것은 올바른 영웅을 선택한 것이다.",src:"버크셔 주주총회"},
-            {id:60,cat:"경영진",en:"Tell me who your heroes are and I'll tell you who you'll turn out to be.",ko:"당신의 영웅이 누구인지 말해주면, 당신이 어떤 사람이 될지 말해주겠다.",src:"버크셔 주주총회"},
-            {id:61,cat:"경영진",en:"It's better to hang out with people better than you. Pick out associates whose behavior is better than yours and you'll drift in that direction.",ko:"당신보다 나은 사람들과 어울리는 것이 낫다. 더 나은 동료를 선택하면 그 방향으로 나아가게 된다.",src:"버크셔 주주총회"},
-            {id:62,cat:"경영진",en:"We look for three things when we hire people: intelligence, initiative or energy, and integrity.",ko:"채용할 때 세 가지를 본다: 지능, 주도성 또는 에너지, 그리고 정직성.",src:"버크셔 주주총회"},
+            {id:55,cat:"경영진",en:"Somebody once said that in looking for people to hire, you look for three qualities: integrity, intelligence, and energy. And if you don't have the first, the other two will kill you.",ko:"인재를 고를 때 세 가지를 본다: 정직성, 지능, 에너지. 첫 번째가 없으면 나머지 둘이 오히려 당신을 죽일 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:56,cat:"경영진",en:"Of the billionaires I have known, money just brings out the basic traits in them. If they were jerks before they had money, they are simply jerks with a billion dollars.",ko:"돈은 기본 특성을 드러낼 뿐이다. 돈이 없을 때도 나쁜 사람이었다면, 10억 달러를 가진 나쁜 사람일 뿐이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:57,cat:"경영진",en:"I want employees to ask themselves whether they would be comfortable if their CEO could see exactly what they are doing and why.",ko:"직원들이 CEO가 자신의 행동과 이유를 정확히 볼 수 있다면 편안하겠는지 스스로에게 물어보길 바란다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:58,cat:"경영진",en:"You can't make a good deal with a bad person.",ko:"나쁜 사람과는 좋은 거래를 할 수 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:59,cat:"경영진",en:"The best thing I did was to choose the right heroes.",ko:"내가 한 일 중 가장 잘한 것은 올바른 영웅을 선택한 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:60,cat:"경영진",en:"Tell me who your heroes are and I'll tell you who you'll turn out to be.",ko:"당신의 영웅이 누구인지 말해주면, 당신이 어떤 사람이 될지 말해주겠다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:61,cat:"경영진",en:"It's better to hang out with people better than you. Pick out associates whose behavior is better than yours and you'll drift in that direction.",ko:"당신보다 나은 사람들과 어울리는 것이 낫다. 더 나은 동료를 선택하면 그 방향으로 나아가게 된다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:62,cat:"경영진",en:"We look for three things when we hire people: intelligence, initiative or energy, and integrity.",ko:"채용할 때 세 가지를 본다: 지능, 주도성 또는 에너지, 그리고 정직성.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 가치평가
-            {id:63,cat:"가치평가",en:"Intrinsic value is an all-important concept that offers the only logical approach to evaluating the relative attractiveness of investments and businesses.",ko:"내재가치는 투자와 사업의 매력도를 평가하는 유일한 논리적 접근법을 제공하는 가장 중요한 개념이다.",src:"버크셔 주주서한 오너 매뉴얼"},
-            {id:64,cat:"가치평가",en:"Whether we're talking about socks or stocks, I like buying quality merchandise when it is marked down.",ko:"양말이든 주식이든, 나는 품질 좋은 상품이 할인됐을 때 사는 것을 좋아한다.",src:"2008 뉴욕타임스 기고"},
-            {id:65,cat:"가치평가",en:"The best business to own is one that over an extended period can employ large amounts of incremental capital at very high rates of return.",ko:"가장 좋은 사업은 오랜 기간 매우 높은 수익률로 대규모 추가 자본을 투입할 수 있는 사업이다.",src:"버크셔 주주서한"},
-            {id:66,cat:"가치평가",en:"Growth and value investing are joined at the hip.",ko:"성장투자와 가치투자는 사실 같이 붙어있다.",src:"1992 버크셔 주주서한"},
-            {id:67,cat:"가치평가",en:"I would rather be approximately right than precisely wrong.",ko:"나는 정확히 틀리는 것보다 대략 맞는 것을 선호한다.",src:"버크셔 주주총회"},
-            {id:68,cat:"가치평가",en:"A too-high purchase price for the stock of an excellent company can undo the effects of a subsequent decade of favorable business developments.",ko:"훌륭한 회사 주식을 너무 비싸게 사면 그 후 10년의 좋은 사업 발전도 소용이 없어진다.",src:"버크셔 주주서한"},
-            {id:69,cat:"가치평가",en:"We don't get paid for activity, just for being right.",ko:"우리는 활동량이 아니라 옳고 그름에 대한 보상을 받는다.",src:"버크셔 주주총회"},
-            {id:70,cat:"가치평가",en:"Never count on making a good sale. Have the purchase price be so attractive that even a mediocre sale gives good results.",ko:"좋은 매도를 기대하지 마라. 매수 가격이 워낙 매력적이어서 평범한 매도도 좋은 결과를 낼 수 있도록 하라.",src:"버크셔 주주서한"},
-            {id:71,cat:"가치평가",en:"ROE is the most critical metric. A company consistently generating 15%+ ROE without excessive leverage has a durable moat.",ko:"ROE는 가장 중요한 지표다. 과도한 레버리지 없이 지속적으로 15% 이상 ROE를 달성하는 회사는 해자를 가진 것이다.",src:"버크셔 주주총회"},
-            {id:72,cat:"가치평가",en:"All there is to investing is picking good stocks at good times and staying with them as long as they remain good companies.",ko:"투자의 전부는 좋은 시기에 좋은 주식을 고르고, 좋은 회사로 남아있는 한 보유하는 것이다.",src:"버크셔 주주총회"},
-            {id:73,cat:"가치평가",en:"A great business at a fair price is superior to a fair business at a great price.",ko:"공정한 가격의 훌륭한 사업이 훌륭한 가격의 공정한 사업보다 낫다.",src:"버크셔 주주총회"},
+            {id:63,cat:"가치평가",en:"Intrinsic value is an all-important concept that offers the only logical approach to evaluating the relative attractiveness of investments and businesses.",ko:"내재가치는 투자와 사업의 매력도를 평가하는 유일한 논리적 접근법을 제공하는 가장 중요한 개념이다.",src:"워런 버핏 — 버크셔 주주서한 오너 매뉴얼"},
+            {id:64,cat:"가치평가",en:"Whether we're talking about socks or stocks, I like buying quality merchandise when it is marked down.",ko:"양말이든 주식이든, 나는 품질 좋은 상품이 할인됐을 때 사는 것을 좋아한다.",src:"워런 버핏 — 2008 뉴욕타임스 기고"},
+            {id:65,cat:"가치평가",en:"The best business to own is one that over an extended period can employ large amounts of incremental capital at very high rates of return.",ko:"가장 좋은 사업은 오랜 기간 매우 높은 수익률로 대규모 추가 자본을 투입할 수 있는 사업이다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:66,cat:"가치평가",en:"Growth and value investing are joined at the hip.",ko:"성장투자와 가치투자는 사실 같이 붙어있다.",src:"워런 버핏 — 1992 버크셔 주주서한"},
+            {id:67,cat:"가치평가",en:"I would rather be approximately right than precisely wrong.",ko:"나는 정확히 틀리는 것보다 대략 맞는 것을 선호한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:68,cat:"가치평가",en:"A too-high purchase price for the stock of an excellent company can undo the effects of a subsequent decade of favorable business developments.",ko:"훌륭한 회사 주식을 너무 비싸게 사면 그 후 10년의 좋은 사업 발전도 소용이 없어진다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:69,cat:"가치평가",en:"We don't get paid for activity, just for being right.",ko:"우리는 활동량이 아니라 옳고 그름에 대한 보상을 받는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:70,cat:"가치평가",en:"Never count on making a good sale. Have the purchase price be so attractive that even a mediocre sale gives good results.",ko:"좋은 매도를 기대하지 마라. 매수 가격이 워낙 매력적이어서 평범한 매도도 좋은 결과를 낼 수 있도록 하라.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:71,cat:"가치평가",en:"ROE is the most critical metric. A company consistently generating 15%+ ROE without excessive leverage has a durable moat.",ko:"ROE는 가장 중요한 지표다. 과도한 레버리지 없이 지속적으로 15% 이상 ROE를 달성하는 회사는 해자를 가진 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:72,cat:"가치평가",en:"All there is to investing is picking good stocks at good times and staying with them as long as they remain good companies.",ko:"투자의 전부는 좋은 시기에 좋은 주식을 고르고, 좋은 회사로 남아있는 한 보유하는 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:73,cat:"가치평가",en:"A great business at a fair price is superior to a fair business at a great price.",ko:"공정한 가격의 훌륭한 사업이 훌륭한 가격의 공정한 사업보다 낫다.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 인생
-            {id:74,cat:"인생",en:"The most important investment you can make is in yourself.",ko:"당신이 할 수 있는 가장 중요한 투자는 자기 자신에 대한 투자다.",src:"버크셔 주주총회"},
-            {id:75,cat:"인생",en:"If you get to my age in life and nobody thinks well of you, I don't care how big your bank account is, your life is a disaster.",ko:"내 나이가 됐을 때 아무도 당신을 좋게 생각하지 않는다면, 은행 잔고가 얼마든 당신의 인생은 실패다.",src:"버크셔 주주총회"},
-            {id:76,cat:"인생",en:"I always knew I was going to be rich. I don't think I ever doubted it for a minute.",ko:"나는 항상 부자가 될 것이라고 알았다. 단 한 순간도 의심한 적이 없다.",src:"다큐멘터리 Becoming Warren Buffett"},
-            {id:77,cat:"인생",en:"Chains of habit are too light to be felt until they are too heavy to be broken.",ko:"습관의 사슬은 느끼기엔 너무 가볍고, 끊기엔 너무 무거워질 때까지 느껴지지 않는다.",src:"버크셔 주주총회"},
-            {id:78,cat:"인생",en:"It's only when the tide goes out that you learn who has been swimming naked.",ko:"썰물이 빠지고 나서야 누가 알몸으로 수영했는지 알게 된다.",src:"버크셔 주주서한"},
-            {id:79,cat:"인생",en:"The difference between successful people and really successful people is that really successful people say no to almost everything.",ko:"성공한 사람과 정말 성공한 사람의 차이는, 정말 성공한 사람은 거의 모든 것에 '아니오'라고 말한다.",src:"버크셔 주주총회"},
-            {id:80,cat:"인생",en:"Honesty is a very expensive gift. Don't expect it from cheap people.",ko:"정직은 매우 값비싼 선물이다. 싸구려 사람에게 기대하지 마라.",src:"버크셔 주주총회"},
-            {id:81,cat:"인생",en:"I just sit in my office and read all day.",ko:"나는 그냥 사무실에 앉아 하루 종일 읽는다.",src:"버크셔 주주총회"},
-            {id:82,cat:"인생",en:"I measure success by how many people love me.",ko:"나는 얼마나 많은 사람들이 나를 사랑하는지로 성공을 측정한다.",src:"버크셔 주주총회"},
-            {id:83,cat:"인생",en:"You only have to do a very few things right in your life so long as you don't do too many things wrong.",ko:"너무 많은 것을 잘못하지 않는 한, 인생에서 소수의 것만 잘해도 충분하다.",src:"버크셔 주주총회"},
-            {id:84,cat:"인생",en:"Someone is sitting in the shade today because someone planted a tree a long time ago.",ko:"오늘 누군가가 그늘에 앉아 있는 것은 오래전 누군가가 나무를 심었기 때문이다.",src:"버크셔 주주총회"},
-            {id:85,cat:"인생",en:"Spend each day trying to be a little wiser than you were when you woke up.",ko:"매일 아침보다 조금 더 현명해지려는 노력을 하며 하루를 보내라.",src:"버크셔 주주총회"},
-            {id:86,cat:"인생",en:"The best thing I can do is read.",ko:"내가 할 수 있는 최선은 읽는 것이다.",src:"버크셔 주주총회"},
-            {id:87,cat:"인생",en:"I don't try to jump over seven-foot hurdles. I look for one-foot hurdles to step over.",ko:"7피트 허들을 넘으려 하지 않는다. 1피트 허들을 찾아 넘는다.",src:"버크셔 주주총회"},
-            {id:88,cat:"인생",en:"We can afford to lose money — even a lot of money. But we can't afford to lose reputation — even a shred of reputation.",ko:"돈은 잃어도, 심지어 많이 잃어도 괜찮다. 하지만 평판은 조금도 잃을 수 없다.",src:"버크셔 주주서한"},
+            {id:74,cat:"인생",en:"The most important investment you can make is in yourself.",ko:"당신이 할 수 있는 가장 중요한 투자는 자기 자신에 대한 투자다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:75,cat:"인생",en:"If you get to my age in life and nobody thinks well of you, I don't care how big your bank account is, your life is a disaster.",ko:"내 나이가 됐을 때 아무도 당신을 좋게 생각하지 않는다면, 은행 잔고가 얼마든 당신의 인생은 실패다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:76,cat:"인생",en:"I always knew I was going to be rich. I don't think I ever doubted it for a minute.",ko:"나는 항상 부자가 될 것이라고 알았다. 단 한 순간도 의심한 적이 없다.",src:"워런 버핏 — Becoming Warren Buffett"},
+            {id:77,cat:"인생",en:"Chains of habit are too light to be felt until they are too heavy to be broken.",ko:"습관의 사슬은 느끼기엔 너무 가볍고, 끊기엔 너무 무거워질 때까지 느껴지지 않는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:78,cat:"인생",en:"It's only when the tide goes out that you learn who has been swimming naked.",ko:"썰물이 빠지고 나서야 누가 알몸으로 수영했는지 알게 된다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:79,cat:"인생",en:"The difference between successful people and really successful people is that really successful people say no to almost everything.",ko:"성공한 사람과 정말 성공한 사람의 차이는, 정말 성공한 사람은 거의 모든 것에 '아니오'라고 말한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:80,cat:"인생",en:"Honesty is a very expensive gift. Don't expect it from cheap people.",ko:"정직은 매우 값비싼 선물이다. 싸구려 사람에게 기대하지 마라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:81,cat:"인생",en:"I just sit in my office and read all day.",ko:"나는 그냥 사무실에 앉아 하루 종일 읽는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:82,cat:"인생",en:"I measure success by how many people love me.",ko:"나는 얼마나 많은 사람들이 나를 사랑하는지로 성공을 측정한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:83,cat:"인생",en:"You only have to do a very few things right in your life so long as you don't do too many things wrong.",ko:"너무 많은 것을 잘못하지 않는 한, 인생에서 소수의 것만 잘해도 충분하다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:84,cat:"인생",en:"Someone is sitting in the shade today because someone planted a tree a long time ago.",ko:"오늘 누군가가 그늘에 앉아 있는 것은 오래전 누군가가 나무를 심었기 때문이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:85,cat:"인생",en:"Spend each day trying to be a little wiser than you were when you woke up.",ko:"매일 아침보다 조금 더 현명해지려는 노력을 하며 하루를 보내라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:86,cat:"인생",en:"The best thing I can do is read.",ko:"내가 할 수 있는 최선은 읽는 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:87,cat:"인생",en:"I don't try to jump over seven-foot hurdles. I look for one-foot hurdles to step over.",ko:"7피트 허들을 넘으려 하지 않는다. 1피트 허들을 찾아 넘는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:88,cat:"인생",en:"We can afford to lose money — even a lot of money. But we can't afford to lose reputation — even a shred of reputation.",ko:"돈은 잃어도, 심지어 많이 잃어도 괜찮다. 하지만 평판은 조금도 잃을 수 없다.",src:"워런 버핏 — 버크셔 주주서한"},
             // ── 추가 혼합
-            {id:89,cat:"시장심리",en:"The stock market is the only market where things go on sale and all the customers run out of the store.",ko:"주식시장은 세일이 시작되면 고객들이 도망치는 유일한 시장이다.",src:"버크셔 주주총회"},
-            {id:90,cat:"기업분석",en:"I look for businesses in which I think I can predict what they're going to look like in ten to fifteen years.",ko:"나는 10~15년 후의 모습을 예측할 수 있다고 생각하는 사업을 찾는다.",src:"버크셔 주주총회"},
-            {id:91,cat:"장기투자",en:"An investor needs to do very few things right as long as he or she avoids big mistakes.",ko:"투자자는 큰 실수를 피하는 한 소수의 것만 잘해도 된다.",src:"버크셔 주주서한"},
-            {id:92,cat:"리스크",en:"It's not whether you're right or wrong that's important, but how much money you make when you're right and how much you lose when you're wrong.",ko:"중요한 것은 맞고 틀리느냐가 아니라, 맞을 때 얼마나 버느냐와 틀릴 때 얼마나 잃느냐다.",src:"버크셔 주주총회"},
-            {id:93,cat:"경영진",en:"Lose money for the firm and I will be understanding. Lose a shred of reputation for the firm, and I will be ruthless.",ko:"회사의 돈을 잃으면 이해하겠다. 하지만 회사의 평판을 조금이라도 잃으면 가차 없이 대응할 것이다.",src:"버크셔 주주서한"},
-            {id:94,cat:"가치평가",en:"Price is what you pay; value is what you get.",ko:"가격은 지불하는 것이고, 가치는 얻는 것이다.",src:"버크셔 주주서한"},
-            {id:95,cat:"인생",en:"The best investment you can make is an investment in yourself. The more you learn, the more you'll earn.",ko:"최고의 투자는 자기 자신에 대한 투자다. 더 많이 배울수록 더 많이 벌 수 있다.",src:"버크셔 주주총회"},
-            {id:96,cat:"시장심리",en:"Look at market fluctuations as your friend rather than your enemy; profit from folly rather than participate in it.",ko:"시장의 변동성을 적이 아닌 친구로 보라. 어리석음에 참여하지 말고 거기서 이익을 얻어라.",src:"버크셔 주주서한"},
-            {id:97,cat:"장기투자",en:"The stock market is a giant distraction to the business of investing.",ko:"주식시장은 투자라는 사업에 있어 거대한 방해물이다.",src:"버크셔 주주총회"},
-            {id:98,cat:"리스크",en:"You don't have to make money back the same way you lost it.",ko:"잃은 방식과 같은 방식으로 되찾을 필요는 없다.",src:"버크셔 주주총회"},
-            {id:99,cat:"가치평가",en:"I always invest in simple businesses. If there's lots of technology, I don't understand it.",ko:"나는 항상 단순한 사업에 투자한다. 기술이 복잡하면 이해할 수 없기 때문이다.",src:"버크셔 주주총회"},
-            {id:100,cat:"인생",en:"It's better to hang out with people better than you.",ko:"당신보다 나은 사람들과 어울리는 것이 낫다.",src:"버크셔 주주총회"},
+            {id:89,cat:"시장심리",en:"The stock market is the only market where things go on sale and all the customers run out of the store.",ko:"주식시장은 세일이 시작되면 고객들이 도망치는 유일한 시장이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:90,cat:"기업분석",en:"I look for businesses in which I think I can predict what they're going to look like in ten to fifteen years.",ko:"나는 10~15년 후의 모습을 예측할 수 있다고 생각하는 사업을 찾는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:91,cat:"장기투자",en:"An investor needs to do very few things right as long as he or she avoids big mistakes.",ko:"투자자는 큰 실수를 피하는 한 소수의 것만 잘해도 된다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:92,cat:"리스크",en:"It's not whether you're right or wrong that's important, but how much money you make when you're right and how much you lose when you're wrong.",ko:"중요한 것은 맞고 틀리느냐가 아니라, 맞을 때 얼마나 버느냐와 틀릴 때 얼마나 잃느냐다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:93,cat:"경영진",en:"Lose money for the firm and I will be understanding. Lose a shred of reputation for the firm, and I will be ruthless.",ko:"회사의 돈을 잃으면 이해하겠다. 하지만 회사의 평판을 조금이라도 잃으면 가차 없이 대응할 것이다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:94,cat:"가치평가",en:"Price is what you pay; value is what you get.",ko:"가격은 지불하는 것이고, 가치는 얻는 것이다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:95,cat:"인생",en:"The best investment you can make is an investment in yourself. The more you learn, the more you'll earn.",ko:"최고의 투자는 자기 자신에 대한 투자다. 더 많이 배울수록 더 많이 벌 수 있다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:96,cat:"시장심리",en:"Look at market fluctuations as your friend rather than your enemy; profit from folly rather than participate in it.",ko:"시장의 변동성을 적이 아닌 친구로 보라. 어리석음에 참여하지 말고 거기서 이익을 얻어라.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:97,cat:"장기투자",en:"The stock market is a giant distraction to the business of investing.",ko:"주식시장은 투자라는 사업에 있어 거대한 방해물이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:98,cat:"리스크",en:"You don't have to make money back the same way you lost it.",ko:"잃은 방식과 같은 방식으로 되찾을 필요는 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:99,cat:"가치평가",en:"I always invest in simple businesses. If there's lots of technology, I don't understand it.",ko:"나는 항상 단순한 사업에 투자한다. 기술이 복잡하면 이해할 수 없기 때문이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:100,cat:"인생",en:"It's better to hang out with people better than you.",ko:"당신보다 나은 사람들과 어울리는 것이 낫다.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 벤저민 그레이엄 ─────────────────────────────────────
             {id:151,cat:"가치평가",who:"그레이엄",en:"The intelligent investor is a realist who sells to optimists and buys from pessimists.",ko:"현명한 투자자는 낙관론자에게 팔고 비관론자에게서 사는 현실주의자다.",src:"벤저민 그레이엄 — 현명한 투자자"},
             {id:152,cat:"리스크",who:"그레이엄",en:"The margin of safety is always dependent on the price paid.",ko:"안전마진은 항상 지불한 가격에 달려 있다.",src:"벤저민 그레이엄 — 증권분석"},
@@ -2960,21 +2975,21 @@ export default function App(){
             {id:124,cat:"가치평가",who:"찰리 멍거",en:"I would rather throw a rock at a moose than argue about the efficient market hypothesis.",ko:"나는 효율적 시장 가설을 논쟁하느니 차라리 무스에게 돌을 던지겠다.",src:"찰리 멍거"},
             {id:125,cat:"경영진",who:"찰리 멍거",en:"The best armor of old age is a well-spent life preceding it.",ko:"노년의 최고 갑옷은 앞서 잘 보낸 인생이다.",src:"찰리 멍거"},
             // ── 버핏 추가 어록 ─────────────────────────────────────────
-            {id:126,cat:"시장심리",en:"I will tell you how to become rich. Close the doors. Be fearful when others are greedy. Be greedy when others are fearful.",ko:"부자가 되는 방법을 알려주겠다. 문을 닫고 들어와라. 남들이 탐욕스러울 때 두려워하고, 남들이 두려워할 때 탐욕스러워져라.",src:"워런 버핏"},
-            {id:127,cat:"기업분석",en:"I don't look to jump over seven-foot bars; I look around for one-foot bars that I can step over.",ko:"7피트 장대를 뛰어넘으려 하지 않는다. 넘을 수 있는 1피트 장대를 찾는다.",src:"워런 버핏, 버크셔 주주서한"},
-            {id:128,cat:"장기투자",en:"We don't have to be smarter than the rest, we have to be more disciplined than the rest.",ko:"다른 사람들보다 더 똑똑할 필요는 없다. 단지 더 규율 있으면 된다.",src:"워런 버핏"},
-            {id:129,cat:"리스크",en:"The most important thing to do if you find yourself in a hole is to stop digging.",ko:"구멍에 빠졌다면 가장 중요한 것은 파기를 멈추는 것이다.",src:"워런 버핏"},
-            {id:130,cat:"가치평가",en:"I put heavy weight on certainty. If you do that, the whole idea of a risk factor doesn't make much sense to me.",ko:"나는 확실성에 큰 비중을 둔다. 그렇게 한다면 리스크 요인이라는 개념은 별 의미가 없다.",src:"워런 버핏"},
-            {id:131,cat:"경영진",en:"A public opinion poll is no substitute for thought.",ko:"여론 조사는 생각의 대체물이 아니다.",src:"워런 버핏"},
-            {id:132,cat:"인생",en:"Without passion, you don't have energy. Without energy, you have nothing.",ko:"열정이 없으면 에너지가 없다. 에너지가 없으면 아무것도 없다.",src:"워런 버핏"},
-            {id:133,cat:"시장심리",en:"I don't try to jump over seven-foot hurdles; I look for one-foot hurdles I can step over.",ko:"7피트 허들을 뛰어넘으려 하지 않는다. 1피트 허들을 찾는다.",src:"워런 버핏"},
-            {id:134,cat:"기업분석",en:"An investor should act as though he had a lifetime decision card with just twenty punches on it.",ko:"투자자는 평생 단 20번의 결정만 내릴 수 있는 카드를 가진 것처럼 행동해야 한다.",src:"워런 버핏"},
-            {id:135,cat:"장기투자",en:"The most important quality for an investor is temperament, not intellect.",ko:"투자자에게 가장 중요한 자질은 지능이 아니라 기질이다.",src:"워런 버핏"},
-            {id:136,cat:"리스크",en:"You only find out who is swimming naked when the tide goes out.",ko:"썰물이 빠져야 누가 알몸으로 수영하고 있었는지 알 수 있다.",src:"워런 버핏"},
-            {id:137,cat:"가치평가",en:"You pay a very high price in the stock market for a cheery consensus.",ko:"주식시장에서 낙관적 합의에 대해서는 매우 높은 가격을 치러야 한다.",src:"워런 버핏"},
-            {id:138,cat:"경영진",en:"I try to buy stock in businesses that are so wonderful that an idiot can run them because sooner or later, one will.",ko:"바보도 운영할 수 있는 훌륭한 사업을 찾아 투자한다. 조만간 그런 일이 생기기 때문이다.",src:"워런 버핏"},
-            {id:139,cat:"인생",en:"Predicting rain doesn't count, building arks does.",ko:"비를 예측하는 것은 의미 없다. 방주를 만드는 것이 중요하다.",src:"워런 버핏"},
-            {id:140,cat:"시장심리",en:"In the business world, the rearview mirror is always clearer than the windshield.",ko:"비즈니스 세계에서 백미러는 항상 앞 유리보다 더 선명하다.",src:"워런 버핏"},
+            {id:126,cat:"시장심리",en:"I will tell you how to become rich. Close the doors. Be fearful when others are greedy. Be greedy when others are fearful.",ko:"부자가 되는 방법을 알려주겠다. 문을 닫고 들어와라. 남들이 탐욕스러울 때 두려워하고, 남들이 두려워할 때 탐욕스러워져라.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:127,cat:"기업분석",en:"I don't look to jump over seven-foot bars; I look around for one-foot bars that I can step over.",ko:"7피트 장대를 뛰어넘으려 하지 않는다. 넘을 수 있는 1피트 장대를 찾는다.",src:"워런 버핏 — 버크셔 주주서한"},
+            {id:128,cat:"장기투자",en:"We don't have to be smarter than the rest, we have to be more disciplined than the rest.",ko:"다른 사람들보다 더 똑똑할 필요는 없다. 단지 더 규율 있으면 된다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:129,cat:"리스크",en:"The most important thing to do if you find yourself in a hole is to stop digging.",ko:"구멍에 빠졌다면 가장 중요한 것은 파기를 멈추는 것이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:130,cat:"가치평가",en:"I put heavy weight on certainty. If you do that, the whole idea of a risk factor doesn't make much sense to me.",ko:"나는 확실성에 큰 비중을 둔다. 그렇게 한다면 리스크 요인이라는 개념은 별 의미가 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:131,cat:"경영진",en:"A public opinion poll is no substitute for thought.",ko:"여론 조사는 생각의 대체물이 아니다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:132,cat:"인생",en:"Without passion, you don't have energy. Without energy, you have nothing.",ko:"열정이 없으면 에너지가 없다. 에너지가 없으면 아무것도 없다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:133,cat:"시장심리",en:"I don't try to jump over seven-foot hurdles; I look for one-foot hurdles I can step over.",ko:"7피트 허들을 뛰어넘으려 하지 않는다. 1피트 허들을 찾는다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:134,cat:"기업분석",en:"An investor should act as though he had a lifetime decision card with just twenty punches on it.",ko:"투자자는 평생 단 20번의 결정만 내릴 수 있는 카드를 가진 것처럼 행동해야 한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:135,cat:"장기투자",en:"The most important quality for an investor is temperament, not intellect.",ko:"투자자에게 가장 중요한 자질은 지능이 아니라 기질이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:136,cat:"리스크",en:"You only find out who is swimming naked when the tide goes out.",ko:"썰물이 빠져야 누가 알몸으로 수영하고 있었는지 알 수 있다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:137,cat:"가치평가",en:"You pay a very high price in the stock market for a cheery consensus.",ko:"주식시장에서 낙관적 합의에 대해서는 매우 높은 가격을 치러야 한다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:138,cat:"경영진",en:"I try to buy stock in businesses that are so wonderful that an idiot can run them because sooner or later, one will.",ko:"바보도 운영할 수 있는 훌륭한 사업을 찾아 투자한다. 조만간 그런 일이 생기기 때문이다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:139,cat:"인생",en:"Predicting rain doesn't count, building arks does.",ko:"비를 예측하는 것은 의미 없다. 방주를 만드는 것이 중요하다.",src:"워런 버핏 — 버크셔 주주총회"},
+            {id:140,cat:"시장심리",en:"In the business world, the rearview mirror is always clearer than the windshield.",ko:"비즈니스 세계에서 백미러는 항상 앞 유리보다 더 선명하다.",src:"워런 버핏 — 버크셔 주주총회"},
             // ── 찰리 멍거 추가 ─────────────────────────────────────────
             {id:141,cat:"기업분석",who:"찰리 멍거",en:"Understanding both the power of compound interest and the difficulty of getting it is the heart and soul of understanding a lot of things.",ko:"복리의 힘과 그것을 얻는 어려움 모두를 이해하는 것이 많은 것을 이해하는 핵심이다.",src:"찰리 멍거"},
             {id:142,cat:"장기투자",who:"찰리 멍거",en:"The best thing a human being can do is to help another human being know more.",ko:"인간이 할 수 있는 최선은 다른 사람이 더 많이 알도록 돕는 것이다.",src:"찰리 멍거"},
