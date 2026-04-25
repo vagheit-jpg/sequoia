@@ -741,27 +741,17 @@ function MoatTab({annData,hasFinData}){
   }
   const cashScore=fcfConvScore+capexScore;
 
-  // ── 4. 재무 건전성 (10점): 부채비율 6점 + ROA 4점
+  // ── 4. 재무 건전성 (10점)
   const lastRow=rows[rows.length-1];
   const debtRatio=lastRow?.debt??null;
-  // ROA: 최근 데이터 우선, 없으면 평균
-  const roaArr=rows.filter(r=>r.roa!=null).map(r=>r.roa);
-  const avgROA=roaArr.length?roaArr.reduce((s,v)=>s+v,0)/roaArr.length:null;
-
-  let debtScore=0,roaScore=0;
+  // 유동비율: current ratio 없으므로 부채비율만 사용, 만점 기준 완화
+  let safetyScore=0;
   if(debtRatio!=null){
-    if(debtRatio<50)debtScore=6;
-    else if(debtRatio<80)debtScore=6;
-    else if(debtRatio<150)debtScore=3;
-    else if(debtRatio<250)debtScore=1;
+    if(debtRatio<50)safetyScore=10;
+    else if(debtRatio<80)safetyScore=10;
+    else if(debtRatio<150)safetyScore=5;
+    else if(debtRatio<250)safetyScore=2;
   }
-  if(avgROA!=null){
-    if(avgROA>=10)roaScore=4;
-    else if(avgROA>=6)roaScore=3;
-    else if(avgROA>=3)roaScore=2;
-    else if(avgROA>=0)roaScore=1;
-  }
-  const safetyScore=debtScore+roaScore;
 
   // ── 총점
   const total=capitalScore+profitScore+cashScore+safetyScore;
@@ -827,15 +817,10 @@ function MoatTab({annData,hasFinData}){
       title:"재무 건전성",full:10,score:safetyScore,
       desc:"외부 충격에도 해자가 무너지지 않을 최소 방벽",
       items:[
-        {label:"부채비율",score:debtScore,max:6,
+        {label:"부채비율",score:safetyScore,max:10,
          val:debtRatio!=null?`${debtRatio}%`:"—",
          bench:"80% 이하",
          detail:debtRatio!=null?(debtRatio<50?"매우 안전":debtRatio<80?"안전":debtRatio<150?"보통":debtRatio<250?"주의":"위험"):"데이터 없음",
-        },
-        {label:"ROA (총자산이익률)",score:roaScore,max:4,
-         val:avgROA!=null?`${avgROA.toFixed(1)}%`:"—",
-         bench:"6% 이상",
-         detail:avgROA!=null?(avgROA>=10?"탁월":avgROA>=6?"우수":avgROA>=3?"양호":avgROA>=0?"미흡":"손실"):"데이터 없음",
         },
       ]
     },
@@ -992,10 +977,25 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
   const [whoFilter,setWhoFilter]=useState("전체");
   const [idx,setIdx]=useState(0);
 
+  // 인물별 색상 (이모티콘 없이 텍스트만)
+  const WHO_LIST=[
+    {id:"전체",    col:C.teal},
+    {id:"버핏",    col:C.gold},
+    {id:"멍거",    col:C.purple},
+    {id:"그레이엄", col:"#60A8DC"},
+    {id:"피터 린치",col:C.green},
+    {id:"하워드 막스",col:C.orange},
+    {id:"필립 피셔",col:"#7EC8A0"},
+    {id:"세스 클라만",col:C.red},
+    {id:"존 템플턴",col:"#A78BFA"},
+    {id:"파브라이", col:"#F472B6"},
+    {id:"리루",    col:"#34D399"},
+    {id:"테리 스미스",col:"#FB923C"},
+  ];
+
   const filtered=(()=>{
     let q=catFilter==="전체"?Q:Q.filter(r=>r.cat===catFilter);
-    if(whoFilter==="버핏")q=q.filter(r=>!r.who);
-    else if(whoFilter==="찰리 멍거")q=q.filter(r=>r.who==="찰리 멍거");
+    if(whoFilter!=="전체")q=q.filter(r=>(r.who||"버핏")===whoFilter);
     return q;
   })();
   const current=filtered[idx]||filtered[0];
@@ -1041,26 +1041,32 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
       </div>
 
 
-      {/* ── 버핏 / 찰리 필터 */}
-      <div style={{display:"flex",gap:6,marginBottom:8}}>
-        {["전체","버핏","찰리 멍거"].map(who=>{
-          const active=whoFilter===who;
-          const col=who==="버핏"?C.gold:who==="찰리 멍거"?C.purple:C.teal;
-          return(
-            <button key={who} onClick={()=>changeWho(who)} style={{
-              background:active?`${col}22`:C.card,
-              border:`1px solid ${active?col:C.border}`,
-              borderRadius:20,padding:"5px 14px",
-              color:active?col:C.muted,
-              fontSize:10,fontWeight:active?700:400,
-              cursor:"pointer",transition:"all 0.15s",
-            }}>
-              {who==="버핏"?"🗒️ 버핏":who==="찰리 멍거"?"🧠 찰리":"전체"}
-            </button>
-          );
-        })}
-        <div style={{marginLeft:"auto",fontSize:9,color:C.muted,alignSelf:"center"}}>
-          {filtered.length}개
+      {/* ── 투자거장 필터 (가로 스크롤) */}
+      <div style={{overflowX:"auto",marginBottom:8,paddingBottom:4,
+        scrollbarWidth:"none",msOverflowStyle:"none"}}>
+        <div style={{display:"flex",gap:5,width:"max-content"}}>
+          {WHO_LIST.map(w=>{
+            const active=whoFilter===w.id;
+            const cnt=w.id==="전체"?Q.length:Q.filter(r=>(r.who||"버핏")===w.id).length;
+            return(
+              <button key={w.id} onClick={()=>changeWho(w.id)} style={{
+                background:active?`${w.col}22`:C.card,
+                border:`1px solid ${active?w.col:C.border}`,
+                borderRadius:16,padding:"4px 11px",
+                color:active?w.col:C.muted,
+                fontSize:9,fontWeight:active?700:400,
+                cursor:"pointer",transition:"all 0.15s",
+                whiteSpace:"nowrap",
+              }}>
+                {w.id}
+                <span style={{
+                  marginLeft:4,fontSize:8,
+                  color:active?w.col:C.border,
+                  fontFamily:"monospace",
+                }}>{cnt}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -2843,6 +2849,74 @@ export default function App(){
             {id:98,cat:"리스크",en:"You don't have to make money back the same way you lost it.",ko:"잃은 방식과 같은 방식으로 되찾을 필요는 없다.",src:"버크셔 주주총회"},
             {id:99,cat:"가치평가",en:"I always invest in simple businesses. If there's lots of technology, I don't understand it.",ko:"나는 항상 단순한 사업에 투자한다. 기술이 복잡하면 이해할 수 없기 때문이다.",src:"버크셔 주주총회"},
             {id:100,cat:"인생",en:"It's better to hang out with people better than you.",ko:"당신보다 나은 사람들과 어울리는 것이 낫다.",src:"버크셔 주주총회"},
+            // ── 벤저민 그레이엄 ─────────────────────────────────────
+            {id:151,cat:"가치평가",who:"그레이엄",en:"The intelligent investor is a realist who sells to optimists and buys from pessimists.",ko:"현명한 투자자는 낙관론자에게 팔고 비관론자에게서 사는 현실주의자다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:152,cat:"리스크",who:"그레이엄",en:"The margin of safety is always dependent on the price paid.",ko:"안전마진은 항상 지불한 가격에 달려 있다.",src:"벤저민 그레이엄 — 증권분석"},
+            {id:153,cat:"시장심리",who:"그레이엄",en:"Mr. Market is your servant, not your guide.",ko:"미스터 마켓은 당신의 안내자가 아니라 하인이다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:154,cat:"장기투자",who:"그레이엄",en:"The stock investor is neither right nor wrong because others agreed or disagreed with him; he is right because his facts and analysis are right.",ko:"투자자가 옳고 그름은 다른 사람의 동의 여부가 아니라 그의 사실과 분석이 옳기 때문이다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:155,cat:"시장심리",who:"그레이엄",en:"The investor who permits himself to be stampeded by unjustified market declines is perversely transforming his basic advantage into a basic disadvantage.",ko:"부당한 시장 하락에 겁먹는 투자자는 자신의 기본 이점을 기본 불이점으로 바꾸는 것이다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:156,cat:"가치평가",who:"그레이엄",en:"Investment is most intelligent when it is most businesslike.",ko:"투자는 가장 사업적일 때 가장 현명하다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:157,cat:"리스크",who:"그레이엄",en:"The individual investor should act consistently as an investor and not as a speculator.",ko:"개인 투자자는 투기자가 아닌 투자자로서 일관되게 행동해야 한다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:158,cat:"시장심리",who:"그레이엄",en:"Obvious prospects for physical growth in a business do not translate into obvious profits for investors.",ko:"기업의 물리적 성장에 대한 명백한 전망이 투자자에게 명백한 이익으로 이어지지는 않는다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            {id:159,cat:"인생",who:"그레이엄",en:"The chief losses to investors come from the purchase of low-quality securities at times of favorable business conditions.",ko:"투자자의 주된 손실은 호황기에 저품질 증권을 매수하는 데서 온다.",src:"벤저민 그레이엄 — 현명한 투자자"},
+            // ── 피터 린치 ─────────────────────────────────────────────
+            {id:160,cat:"기업분석",who:"피터 린치",en:"Invest in what you know.",ko:"당신이 아는 것에 투자하라.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            {id:161,cat:"장기투자",who:"피터 린치",en:"The person that turns over the most rocks wins the game.",ko:"가장 많은 돌을 뒤집는 사람이 이긴다.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            {id:162,cat:"시장심리",who:"피터 린치",en:"Far more money has been lost by investors trying to anticipate corrections than lost in the corrections themselves.",ko:"조정을 예측하려다 잃은 돈이 조정 자체에서 잃은 돈보다 훨씬 많다.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            {id:163,cat:"가치평가",who:"피터 린치",en:"The P/E ratio of any company that's fairly priced will equal its growth rate.",ko:"공정하게 평가된 기업의 PER은 성장률과 같다.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            {id:164,cat:"시장심리",who:"피터 린치",en:"When you sell in desperation, you always sell cheap.",ko:"절망적인 심정으로 팔 때는 항상 싸게 판다.",src:"피터 린치"},
+            {id:165,cat:"장기투자",who:"피터 린치",en:"The key to making money in stocks is not to get scared out of them.",ko:"주식에서 돈을 버는 핵심은 겁먹어서 팔지 않는 것이다.",src:"피터 린치 — 전설로 떠나는 월가의 영웅"},
+            {id:166,cat:"기업분석",who:"피터 린치",en:"Know what you own, and know why you own it.",ko:"무엇을 보유하는지 알고, 왜 보유하는지 알아라.",src:"피터 린치"},
+            {id:167,cat:"리스크",who:"피터 린치",en:"Your ultimate success or failure will depend on your ability to ignore the worries of the world long enough to allow your investments to succeed.",ko:"최종 성공 또는 실패는 세상의 걱정을 충분히 무시하고 투자가 성공할 때까지 기다리는 능력에 달려 있다.",src:"피터 린치"},
+            {id:168,cat:"인생",who:"피터 린치",en:"Everyone has the brain power to make money in stocks. Not everyone has the stomach.",ko:"누구나 주식으로 돈을 벌 지적 능력은 있다. 모두가 버텨낼 배짱을 가진 것은 아니다.",src:"피터 린치"},
+            // ── 하워드 막스 ───────────────────────────────────────────
+            {id:169,cat:"리스크",who:"하워드 막스",en:"The biggest investing errors come not from factors that are informational or analytical, but from those that are psychological.",ko:"가장 큰 투자 실수는 정보나 분석의 문제가 아니라 심리적 요인에서 비롯된다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:170,cat:"시장심리",who:"하워드 막스",en:"The most important thing is to be attentive to cycles and be positioned appropriately.",ko:"가장 중요한 것은 사이클에 주의를 기울이고 적절하게 포지셔닝하는 것이다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:171,cat:"리스크",who:"하워드 막스",en:"Risk means more things can happen than will happen.",ko:"리스크란 일어날 수 있는 일이 실제로 일어날 일보다 더 많다는 것을 의미한다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:172,cat:"시장심리",who:"하워드 막스",en:"Being too far ahead of your time is indistinguishable from being wrong.",ko:"시대를 너무 앞서는 것은 틀린 것과 구별할 수 없다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:173,cat:"장기투자",who:"하워드 막스",en:"You can't predict. You can prepare.",ko:"예측할 수 없다. 준비할 수는 있다.",src:"하워드 막스 — 마스터링 더 마켓 사이클"},
+            {id:174,cat:"리스크",who:"하워드 막스",en:"The riskiest thing in the world is the belief that there is no risk.",ko:"세상에서 가장 위험한 것은 위험이 없다는 믿음이다.",src:"하워드 막스 — 오크트리 메모"},
+            {id:175,cat:"시장심리",who:"하워드 막스",en:"When everyone believes something is risky, their unwillingness to buy reduces its price to the point where it's not risky at all.",ko:"모두가 무언가 위험하다고 믿을 때 가격이 내려가고 결국 전혀 위험하지 않게 된다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:176,cat:"가치평가",who:"하워드 막스",en:"The most important thing is not to make great investments, but to avoid terrible ones.",ko:"가장 중요한 것은 훌륭한 투자가 아니라 끔찍한 투자를 피하는 것이다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:177,cat:"장기투자",who:"하워드 막스",en:"Bull markets are born on pessimism, grown on skepticism, mature on optimism, and die on euphoria.",ko:"강세장은 비관론에서 태어나고, 회의론에서 성장하며, 낙관론에서 성숙하고, 도취감에서 죽는다.",src:"하워드 막스 — 투자에 대한 생각"},
+            {id:178,cat:"인생",who:"하워드 막스",en:"Move forward, but with caution.",ko:"전진하되, 신중하게.",src:"하워드 막스 — 마스터링 더 마켓 사이클"},
+            // ── 필립 피셔 ─────────────────────────────────────────────
+            {id:179,cat:"장기투자",who:"필립 피셔",en:"The stock market is filled with individuals who know the price of everything, but the value of nothing.",ko:"주식시장은 모든 것의 가격은 알지만 가치는 아무것도 모르는 사람들로 가득 차 있다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            {id:180,cat:"기업분석",who:"필립 피셔",en:"I don't want a lot of good investments; I want a few outstanding ones.",ko:"많은 좋은 투자가 아니라 소수의 탁월한 투자를 원한다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            {id:181,cat:"장기투자",who:"필립 피셔",en:"If the job has been correctly done when a common stock is purchased, the time to sell it is almost never.",ko:"주식을 매수할 때 일을 올바르게 했다면, 매도할 시점은 거의 결코 오지 않는다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            {id:182,cat:"기업분석",who:"필립 피셔",en:"Outstanding companies have unusually capable management, together with products that give them a strong competitive position.",ko:"탁월한 기업은 비범하게 유능한 경영진과 강력한 경쟁적 위치를 주는 제품을 가진다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            {id:183,cat:"인생",who:"필립 피셔",en:"It is the young companies with intelligent management that produce the most outstanding long-term investments.",ko:"가장 탁월한 장기 투자를 만들어내는 것은 지능적인 경영진을 가진 젊은 기업들이다.",src:"필립 피셔 — 위대한 기업에 투자하라"},
+            // ── 세스 클라만 ───────────────────────────────────────────
+            {id:184,cat:"리스크",who:"세스 클라만",en:"Value investing is at its core the marriage of a contrarian streak and a calculator.",ko:"가치투자의 핵심은 역발상 성향과 계산기의 결합이다.",src:"세스 클라만 — 안전마진"},
+            {id:185,cat:"가치평가",who:"세스 클라만",en:"The most important word in investing is margin of safety.",ko:"투자에서 가장 중요한 단어는 안전마진이다.",src:"세스 클라만 — 안전마진"},
+            {id:186,cat:"시장심리",who:"세스 클라만",en:"The stock market is the only place where things go on sale and everyone runs out of the store.",ko:"주식시장은 세일이 시작되면 모두가 매장 밖으로 뛰어나가는 유일한 곳이다.",src:"세스 클라만 — 안전마진"},
+            {id:187,cat:"리스크",who:"세스 클라만",en:"Avoiding loss should be the primary goal of every investor.",ko:"손실을 피하는 것이 모든 투자자의 주요 목표가 되어야 한다.",src:"세스 클라만 — 안전마진"},
+            {id:188,cat:"인생",who:"세스 클라만",en:"Humility and intellectual honesty are the most important traits for investors.",ko:"겸손함과 지적 정직함이 투자자에게 가장 중요한 덕목이다.",src:"세스 클라만"},
+            // ── 존 템플턴 ─────────────────────────────────────────────
+            {id:189,cat:"시장심리",who:"존 템플턴",en:"The time of maximum pessimism is the best time to buy, and the time of maximum optimism is the best time to sell.",ko:"최대 비관론의 시기가 최적의 매수 시점이고, 최대 낙관론의 시기가 최적의 매도 시점이다.",src:"존 템플턴"},
+            {id:190,cat:"장기투자",who:"존 템플턴",en:"The four most dangerous words in investing are: this time it's different.",ko:"투자에서 가장 위험한 네 단어는 '이번엔 다르다'이다.",src:"존 템플턴"},
+            {id:191,cat:"리스크",who:"존 템플턴",en:"If you want to have a better performance than the crowd, you must do things differently from the crowd.",ko:"군중보다 더 나은 성과를 원한다면 군중과 다르게 행동해야 한다.",src:"존 템플턴"},
+            {id:192,cat:"시장심리",who:"존 템플턴",en:"Bull markets are born on pessimism, grown on skepticism, mature on optimism, and die on euphoria.",ko:"강세장은 비관론에서 태어나고, 회의론에서 성장하며, 낙관론에서 성숙하고, 도취감에서 죽는다.",src:"존 템플턴"},
+            {id:193,cat:"가치평가",who:"존 템플턴",en:"Invest at the point of maximum pessimism.",ko:"최대 비관론의 지점에서 투자하라.",src:"존 템플턴"},
+            {id:194,cat:"인생",who:"존 템플턴",en:"An investor who has all the answers doesn't even understand the questions.",ko:"모든 답을 가진 투자자는 질문조차 이해하지 못한 것이다.",src:"존 템플턴"},
+            // ── 모니시 파브라이 ───────────────────────────────────────
+            {id:195,cat:"리스크",who:"파브라이",en:"Heads I win, tails I don't lose much.",ko:"앞면이 나오면 내가 이기고, 뒷면이 나와도 많이 잃지 않는다.",src:"모니시 파브라이 — Dhandho Investor"},
+            {id:196,cat:"가치평가",who:"파브라이",en:"Bet heavily when the odds are overwhelmingly in your favor.",ko:"확률이 압도적으로 유리할 때 크게 베팅하라.",src:"모니시 파브라이 — Dhandho Investor"},
+            {id:197,cat:"기업분석",who:"파브라이",en:"Cloning great investors is a great way to make money. I am a shameless cloner.",ko:"위대한 투자자를 복제하는 것은 훌륭한 방법이다. 나는 부끄럼 없이 복제한다.",src:"모니시 파브라이"},
+            {id:198,cat:"장기투자",who:"파브라이",en:"The Dhandho investor minimizes risk while maximizing returns.",ko:"단도 투자자는 수익을 극대화하면서 리스크를 최소화한다.",src:"모니시 파브라이 — Dhandho Investor"},
+            {id:199,cat:"인생",who:"파브라이",en:"Keep life simple. Focus on what matters. Remove noise.",ko:"삶을 단순하게 유지하라. 중요한 것에 집중하라. 소음을 제거하라.",src:"모니시 파브라이"},
+            // ── 리루 ──────────────────────────────────────────────────
+            {id:200,cat:"장기투자",who:"리루",en:"Every era has value investors who produce good long-term results. Without exception, they are all value investors.",ko:"모든 시대에는 좋은 장기 결과를 낼 수 있는 가치 투자자들이 있다. 예외 없이 모두 가치 투자자다.",src:"리루 — 컬럼비아 대학 강연"},
+            {id:201,cat:"기업분석",who:"리루",en:"I look for businesses that can reinvest at high rates of return for decades. That is where the real magic is.",ko:"수십 년간 높은 수익률로 재투자할 수 있는 사업을 찾는다. 진짜 마법은 거기에 있다.",src:"리루"},
+            {id:202,cat:"가치평가",who:"리루",en:"Value investing is not just about discovering cheap stocks. It is about discovering value and adding value.",ko:"가치투자는 싼 주식을 찾는 것만이 아니다. 가치를 발견하고 가치를 더하는 것이다.",src:"리루"},
+            {id:203,cat:"인생",who:"리루",en:"The greatest competitive advantage in life is being a learning machine.",ko:"인생에서 가장 큰 경쟁 우위는 학습하는 기계가 되는 것이다.",src:"리루"},
+            // ── 테리 스미스 ───────────────────────────────────────────
+            {id:204,cat:"기업분석",who:"테리 스미스",en:"Buy good companies. Don't overpay. Do nothing.",ko:"좋은 기업을 사라. 과도하게 지불하지 마라. 아무것도 하지 마라.",src:"테리 스미스 — Fundsmith 주주서한"},
+            {id:205,cat:"장기투자",who:"테리 스미스",en:"Activity is the enemy of investment returns.",ko:"활동은 투자 수익의 적이다.",src:"테리 스미스 — Fundsmith 주주서한"},
+            {id:206,cat:"가치평가",who:"테리 스미스",en:"We look for companies that can generate high returns on capital without requiring too much capital to do so.",ko:"너무 많은 자본 없이도 높은 자본 수익률을 창출할 수 있는 기업을 찾는다.",src:"테리 스미스 — Fundsmith"},
+            {id:207,cat:"기업분석",who:"테리 스미스",en:"If the business model is broken, no amount of cheap valuation can save you.",ko:"비즈니스 모델이 망가졌다면 아무리 싼 밸류에이션도 당신을 구할 수 없다.",src:"테리 스미스"},
+            {id:208,cat:"시장심리",who:"테리 스미스",en:"Most people know the price of everything and the value of nothing.",ko:"대부분의 사람은 모든 것의 가격은 알지만 가치는 아무것도 모른다.",src:"테리 스미스"},
+            {id:209,cat:"인생",who:"테리 스미스",en:"Compounding is the eighth wonder of the world. Those who understand it earn it; those who do not pay it.",ko:"복리는 세계 8대 불가사의다. 이해하는 자는 그것을 얻고, 이해하지 못하는 자는 그것을 낸다.",src:"테리 스미스 — Fundsmith 주주서한"},
             // ── 찰리 멍거 ─────────────────────────────────────────────
             {id:101,cat:"시장심리",who:"찰리 멍거",en:"Invert, always invert.",ko:"역으로 생각하라. 항상 역으로.",src:"찰리 멍거, Poor Charlie's Almanack"},
             {id:102,cat:"리스크",who:"찰리 멍거",en:"All I want to know is where I'm going to die, so I'll never go there.",ko:"내가 알고 싶은 것은 내가 어디서 죽을지뿐이다. 그곳에는 절대 가지 않을 것이다.",src:"찰리 멍거, Poor Charlie's Almanack"},
