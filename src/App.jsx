@@ -2321,17 +2321,23 @@ export default function App(){
                   {/* EPS · FCF · 주가 동행 */}
                   {epsPriceData.length>=2&&(
                     <>
-                      <ST accent={C.purple}>EPS · FCF · 주가 동행 추이</ST>
+                      <ST accent={C.purple}>주가 · EPS 동행 추이</ST>
                       <CW h={240}>
-                        <ComposedChart data={epsPriceData} margin={{top:4,right:4,left:0,bottom:8}}>
+                        <ComposedChart data={epsPriceData} margin={{top:4,right:52,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left"  {...yp("",52)} tickFormatter={v=>v.toLocaleString()}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp("원",52)} tickFormatter={v=>v.toLocaleString()}/>
+                          <YAxis yAxisId="price" orientation="left"  {...yp("원",52)} tickFormatter={v=>v.toLocaleString()} stroke={C.blue}/>
+                          <YAxis yAxisId="eps"   orientation="right" {...yp("원",52)} tickFormatter={v=>v.toLocaleString()} stroke={C.orange}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
-                          <Bar  yAxisId="left"  dataKey="eps" name="EPS(원)" fill={C.purple} opacity={0.7} maxBarSize={20}/>
-                          <Bar  yAxisId="left"  dataKey="fcf" name="FCF(억)" fill={C.teal}   opacity={0.6} maxBarSize={20}/>
-                          <Line yAxisId="right" dataKey="price" name="주가(원)" stroke={C.gold} strokeWidth={2.5} dot={{r:4,fill:C.gold}}/>
+                          <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
+                          <Line yAxisId="price" dataKey="price" name="주가(원)"
+                            stroke={C.blue} strokeWidth={2.5}
+                            dot={{r:4,fill:C.blue,strokeWidth:0}}
+                            activeDot={{r:6}}/>
+                          <Line yAxisId="eps" dataKey="eps" name="EPS(원)"
+                            stroke={C.orange} strokeWidth={2} strokeDasharray="6 3"
+                            dot={{r:4,fill:C.orange,strokeWidth:0}}
+                            activeDot={{r:6}}/>
                         </ComposedChart>
                       </CW>
                     </>
