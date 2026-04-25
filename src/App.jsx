@@ -2326,23 +2326,25 @@ export default function App(){
                         <ComposedChart data={epsPriceData} margin={{top:8,right:8,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="eps"   orientation="left"
-                            {...yp("원",48)} tickFormatter={v=>v.toLocaleString()}
-                            stroke={C.orange}
-                            domain={[0,dataMax=>Math.ceil(dataMax*2.2)]}/>
+                          <YAxis yAxisId="eps" orientation="left"
+                            tick={{fill:"#F97316",fontSize:10}} width={48}
+                            tickFormatter={v=>v.toLocaleString()}
+                            stroke="#F97316" tickCount={5}
+                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||100;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
                           <YAxis yAxisId="price" orientation="right"
-                            {...yp("원",48)} tickFormatter={v=>v.toLocaleString()}
-                            stroke={C.blue}
-                            domain={[0,dataMax=>Math.ceil(dataMax*2.2)]}/>
+                            tick={{fill:"#38BDF8",fontSize:10}} width={48}
+                            tickFormatter={v=>v.toLocaleString()}
+                            stroke="#38BDF8" tickCount={5}
+                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
                           <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
                           <Line yAxisId="eps" dataKey="eps" name="EPS(원)"
-                            stroke={C.orange} strokeWidth={2} strokeDasharray="6 3"
-                            dot={{r:4,fill:C.orange,strokeWidth:0}}
+                            stroke="#F97316" strokeWidth={2} strokeDasharray="6 3"
+                            dot={{r:4,fill:"#F97316",strokeWidth:0}}
                             activeDot={{r:6}}/>
                           <Line yAxisId="price" dataKey="price" name="주가(원)"
-                            stroke={C.blue} strokeWidth={2.5}
-                            dot={{r:4,fill:C.blue,strokeWidth:0}}
+                            stroke="#38BDF8" strokeWidth={2.5}
+                            dot={{r:4,fill:"#38BDF8",strokeWidth:0}}
                             activeDot={{r:6}}/>
                         </ComposedChart>
                       </CW>
