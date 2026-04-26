@@ -81,11 +81,32 @@ function calcDefcon(indicators) {
 
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
-  res.setHeader("Cache-Control", "s-maxage=21600, stale-while-revalidate");
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
 
-  if (Date.now() - cache.ts < CACHE_TTL && cache.data) {
-    return res.status(200).json(cache.data);
+  // ── 디버그 모드: ?debug=1
+  if (req.query?.debug === "1") {
+    const testUrl = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/3/722Y001/MM/202401/202412/0101000`;
+    try {
+      const r = await fetch(testUrl);
+      const json = await r.json();
+      return res.status(200).json({
+        keyPresent: !!ECOS_KEY,
+        keyLength: ECOS_KEY.length,
+        keyPreview: ECOS_KEY ? ECOS_KEY.slice(0,4)+"****" : "EMPTY",
+        httpStatus: r.status,
+        ecosResult: json?.RESULT || null,
+        rowCount: json?.StatisticSearch?.row?.length || 0,
+        firstRow: json?.StatisticSearch?.row?.[0] || null,
+      });
+    } catch(e) {
+      return res.status(200).json({ error: e.message, keyPresent: !!ECOS_KEY });
+    }
   }
+
+  // 인메모리 캐시 진단 중 비활성화
+  // if (Date.now() - cache.ts < CACHE_TTL && cache.data) {
+  //   return res.status(200).json(cache.data);
+  // }
 
   try {
     const now      = new Date();
