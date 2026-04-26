@@ -1247,17 +1247,36 @@ export default function App(){
   const [marketLoading,setMarketLoading]=useState(false);
   const [marketLoaded,setMarketLoaded]=useState(false);
 
+  // 지수 월봉 Yahoo Finance로 가져오기 (^KS11=코스피, ^KQ11=코스닥)
+  const fetchIndex=async(ticker)=>{
+    const cacheKey=`sq_index_v1_${ticker}`;
+    try{
+      const raw=localStorage.getItem(cacheKey);
+      if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<PRICE_CACHE_TTL&&data?.length)return data;}
+    }catch{}
+    try{
+      const res=await fetch(`/api/yahoo?ticker=${encodeURIComponent(ticker)}`);
+      if(!res.ok)throw new Error(`yahoo ${res.status}`);
+      const json=await res.json();
+      // api/yahoo 응답구조: {monthly:[{date,price},...]} 또는 배열 직접
+      const monthly=json?.monthly||json||[];
+      if(!monthly.length)return null;
+      try{localStorage.setItem(cacheKey,JSON.stringify({data:monthly,ts:Date.now()}));}catch{}
+      return monthly;
+    }catch(e){console.warn(`[fetchIndex] ${ticker}:`,e.message);return null;}
+  };
+
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
     Promise.all([
       fetch("/api/macro").then(r=>r.ok?r.json():null).catch(()=>null),
-      fetchPrice("0001","KRX").catch(()=>null),
-      fetchPrice("1001","KRX").catch(()=>null),
+      fetchIndex("^KS11"),
+      fetchIndex("^KQ11"),
     ]).then(([macro,kospi,kosdaq])=>{
       if(macro)setMacroData(macro);
-      if(kospi?.monthly?.length)setKospiMonthly(kospi.monthly);
-      if(kosdaq?.monthly?.length)setKosdaqMonthly(kosdaq.monthly);
+      if(kospi?.length)setKospiMonthly(kospi);
+      if(kosdaq?.length)setKosdaqMonthly(kosdaq);
       setMarketLoaded(true);
       setMarketLoading(false);
     });
