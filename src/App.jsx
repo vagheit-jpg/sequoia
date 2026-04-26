@@ -3162,13 +3162,18 @@ export default function App(){
               return{...d,ma60,gap60:+((d.price/ma60-1)*100).toFixed(2)};
             });
           };
-          const kospiMA=kp60(kospiMonthly);
-          const kosdaqMA=kp60(kosdaqMonthly);
-          const kospiRSI=calcRSI(kospiMonthly);
-          const kosdaqRSI=calcRSI(kosdaqMonthly);
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const kospiMA=useMemo(()=>kp60(kospiMonthly),[kospiMonthly]);
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const kosdaqMA=useMemo(()=>kp60(kosdaqMonthly),[kosdaqMonthly]);
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const kospiRSI=useMemo(()=>calcRSI(kospiMonthly),[kospiMonthly]);
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const kosdaqRSI=useMemo(()=>calcRSI(kosdaqMonthly),[kosdaqMonthly]);
 
           // ── 거시+코스피 병합
-          const macroMerged=(()=>{
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const macroMerged=useMemo(()=>{
             if(!macroData||!kospiMonthly.length)return[];
             const expMap={},rateMap={},fxMap={},ppiMap={};
             (macroData.dailyExport||[]).forEach(r=>{expMap[r.date.slice(0,6)]=r.value;});
@@ -3180,20 +3185,22 @@ export default function App(){
               return{...d,dailyExport:expMap[ym]??null,rate:rateMap[ym]??null,
                      fx:fxMap[ym]??null,ppiYoy:ppiMap[ym]??null};
             });
-          })();
+          },[macroData,kospiMonthly]);
 
           // ── 코스피 YoY
-          const kospiYoY=(()=>{
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const kospiYoY=useMemo(()=>{
             const arr=kospiMonthly.slice(-84);
             return arr.map((d,i)=>{
               if(i<12)return{...d,kospiYoy:null};
               const base=arr[i-12].price;
               return{...d,kospiYoy:base?+((d.price/base-1)*100).toFixed(1):null};
             });
-          })();
+          },[kospiMonthly]);
 
           // ── GDP+코스피YoY 병합
-          const gdpKospiMerged=(()=>{
+          // eslint-disable-next-line react-hooks/rules-of-hooks
+          const gdpKospiMerged=useMemo(()=>{
             const gdpArr=macroData?.gdp||[];
             return gdpArr.slice(-24).map(r=>{
               const y=r.date?.slice(0,4);
@@ -3202,10 +3209,8 @@ export default function App(){
               const kd=kospiYoY.find(k=>k.date?.slice(0,6)===`${y}${m}`);
               return{date:r.date,gdpYoy:r.yoy??r.value,kospiYoy:kd?.kospiYoy??null};
             });
-          })();
+          },[macroData,kospiYoY]);
 
-          // ── 신호등
-          const lastRate=(macroData?.rate||[]).slice(-1)[0]?.value??null;
           const lastFX=(macroData?.fx||[]).slice(-1)[0]?.value??null;
           const lastExp=(macroData?.dailyExport||[]).slice(-1)[0]?.value??null;
           const prevExp=(macroData?.dailyExport||[]).slice(-2,-1)[0]?.value??null;
@@ -3237,9 +3242,6 @@ export default function App(){
             {label:"10Y-3Y금리차", val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
-            {label:"가계신용/GDP", val:(()=>{const v=(macroData?.hhCreditGdpRatio||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
-             color:(()=>{const v=(macroData?.hhCreditGdpRatio||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=120?C.red:v>=100?C.orange:v>=80?C.gold:C.green;})(),
-             tip:(()=>{const v=(macroData?.hhCreditGdpRatio||[]).slice(-1)[0]?.value??null;return v==null?"":v>=120?"과부채↑":v>=100?"경계":v>=80?"주의":"건전";})()},
           ];
 
           // ── IndexChart — 주가탭 위치밴드 스타일
@@ -3642,45 +3644,6 @@ export default function App(){
             </Box>
             )}
 
-            {/* ── 가계신용/GDP 비율 그래프 */}
-            {(macroData?.hhCreditGdpRatio||[]).length>0&&(
-            <Box>
-              <ST accent={C.red}>가계신용/GDP 비율 — 부채 수준 (달리오 단기부채사이클)</ST>
-              {(()=>{
-                const data=macroData.hhCreditGdpRatio||[];
-                const last=data.slice(-1)[0];
-                const v=last?.value??null;
-                const vc=v==null?"#888":v>=120?C.red:v>=100?C.orange:v>=80?C.gold:C.green;
-                const vl=v==null?"":v>=120?"과부채":v>=100?"경계":v>=80?"주의":"건전";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>BIS 기준 — 100% 경계 / 120% 위험 / 한국 현재 수준</span>
-                  {v!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{v}% {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="gdpRatioGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.red} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} tickFormatter={v=>`${v}%`} domain={[60,"auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={120} stroke={C.red}    strokeWidth={1.5} strokeDasharray="4 2" label={{value:"위험 120%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={100} stroke={C.orange} strokeWidth={1.5} strokeDasharray="3 3" label={{value:"경계 100%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={80}  stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 80%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="가계신용/GDP%" stroke={C.red} strokeWidth={2.5} fill="url(#gdpRatioGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
             {/* ── 장단기 금리차 그래프 */}
             {(macroData?.yieldSpread||[]).length>0&&(
             <Box>
@@ -3726,9 +3689,7 @@ export default function App(){
             </> /* econ 섹션 끝 */}
 
             {/* ══ 코스피 섹션 ══ */}
-            {marketSub==="kospi"&&(
-            <>
-            {/* ── 코스피 기술분석 */}
+            <div style={{display:marketSub==="kospi"?"block":"none"}}>
             {kospiMonthly.length>0?(
               <Box>
                 <IndexChart title="코스피" maData={kospiMA} rsiData={kospiRSI} color="#38BDF8"/>
@@ -3736,13 +3697,10 @@ export default function App(){
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스피 데이터 로딩 중...</div></Box>
             )}
-            </>
-            )}
+            </div>
 
             {/* ══ 코스닥 섹션 ══ */}
-            {marketSub==="kosdaq"&&(
-            <>
-            {/* ── 코스닥 기술분석 */}
+            <div style={{display:marketSub==="kosdaq"?"block":"none"}}>
             {kosdaqMonthly.length>0?(
               <Box>
                 <IndexChart title="코스닥" maData={kosdaqMA} rsiData={kosdaqRSI} color={C.purple}/>
@@ -3750,7 +3708,7 @@ export default function App(){
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스닥 데이터 로딩 중...</div></Box>
             )}
-            </>
+            </div>
             )}
           </div>
           );
