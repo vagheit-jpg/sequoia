@@ -3162,18 +3162,13 @@ export default function App(){
               return{...d,ma60,gap60:+((d.price/ma60-1)*100).toFixed(2)};
             });
           };
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const kospiMA=useMemo(()=>kp60(kospiMonthly),[kospiMonthly]);
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const kosdaqMA=useMemo(()=>kp60(kosdaqMonthly),[kosdaqMonthly]);
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const kospiRSI=useMemo(()=>calcRSI(kospiMonthly),[kospiMonthly]);
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const kosdaqRSI=useMemo(()=>calcRSI(kosdaqMonthly),[kosdaqMonthly]);
+          const kospiMA=kp60(kospiMonthly);
+          const kosdaqMA=kp60(kosdaqMonthly);
+          const kospiRSI=calcRSI(kospiMonthly);
+          const kosdaqRSI=calcRSI(kosdaqMonthly);
 
           // ── 거시+코스피 병합
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const macroMerged=useMemo(()=>{
+          const macroMerged=(()=>{
             if(!macroData||!kospiMonthly.length)return[];
             const expMap={},rateMap={},fxMap={},ppiMap={};
             (macroData.dailyExport||[]).forEach(r=>{expMap[r.date.slice(0,6)]=r.value;});
@@ -3185,22 +3180,20 @@ export default function App(){
               return{...d,dailyExport:expMap[ym]??null,rate:rateMap[ym]??null,
                      fx:fxMap[ym]??null,ppiYoy:ppiMap[ym]??null};
             });
-          },[macroData,kospiMonthly]);
+          })();
 
           // ── 코스피 YoY
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const kospiYoY=useMemo(()=>{
+          const kospiYoY=(()=>{
             const arr=kospiMonthly.slice(-84);
             return arr.map((d,i)=>{
               if(i<12)return{...d,kospiYoy:null};
               const base=arr[i-12].price;
               return{...d,kospiYoy:base?+((d.price/base-1)*100).toFixed(1):null};
             });
-          },[kospiMonthly]);
+          })();
 
           // ── GDP+코스피YoY 병합
-          // eslint-disable-next-line react-hooks/rules-of-hooks
-          const gdpKospiMerged=useMemo(()=>{
+          const gdpKospiMerged=(()=>{
             const gdpArr=macroData?.gdp||[];
             return gdpArr.slice(-24).map(r=>{
               const y=r.date?.slice(0,4);
@@ -3209,8 +3202,10 @@ export default function App(){
               const kd=kospiYoY.find(k=>k.date?.slice(0,6)===`${y}${m}`);
               return{date:r.date,gdpYoy:r.yoy??r.value,kospiYoy:kd?.kospiYoy??null};
             });
-          },[macroData,kospiYoY]);
+          })();
 
+          // ── 신호등
+          const lastRate=(macroData?.rate||[]).slice(-1)[0]?.value??null;
           const lastFX=(macroData?.fx||[]).slice(-1)[0]?.value??null;
           const lastExp=(macroData?.dailyExport||[]).slice(-1)[0]?.value??null;
           const prevExp=(macroData?.dailyExport||[]).slice(-2,-1)[0]?.value??null;
@@ -3689,7 +3684,9 @@ export default function App(){
             </> /* econ 섹션 끝 */}
 
             {/* ══ 코스피 섹션 ══ */}
-            <div style={{display:marketSub==="kospi"?"block":"none"}}>
+            {marketSub==="kospi"&&(
+            <>
+            {/* ── 코스피 기술분석 */}
             {kospiMonthly.length>0?(
               <Box>
                 <IndexChart title="코스피" maData={kospiMA} rsiData={kospiRSI} color="#38BDF8"/>
@@ -3697,10 +3694,13 @@ export default function App(){
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스피 데이터 로딩 중...</div></Box>
             )}
-            </div>
+            </>
+            )}
 
             {/* ══ 코스닥 섹션 ══ */}
-            <div style={{display:marketSub==="kosdaq"?"block":"none"}}>
+            {marketSub==="kosdaq"&&(
+            <>
+            {/* ── 코스닥 기술분석 */}
             {kosdaqMonthly.length>0?(
               <Box>
                 <IndexChart title="코스닥" maData={kosdaqMA} rsiData={kosdaqRSI} color={C.purple}/>
@@ -3708,7 +3708,7 @@ export default function App(){
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스닥 데이터 로딩 중...</div></Box>
             )}
-            </div>
+            </>
             )}
           </div>
           );
