@@ -1,1 +1,29 @@
+name: Update Macro Cache
 
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # 6시간마다 (0시, 6시, 12시, 18시 UTC)
+  workflow_dispatch:          # 수동 실행 버튼
+
+jobs:
+  update-cache:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch macro data from ECOS + Yahoo
+        env:
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+        run: |
+          node scripts/fetchMacroCache.js
+
+      - name: Commit and push if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add public/macro-cache.json
+          git diff --staged --quiet || git commit -m "chore: update macro cache [skip ci]"
+          git push
