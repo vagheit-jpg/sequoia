@@ -3363,6 +3363,9 @@ export default function App(){
                 <div>
                   <div style={{color:C.muted,fontSize:8,letterSpacing:"0.1em",marginBottom:2}}>ECONOMIC DEFCON — RAY DALIO 빅사이클 기반</div>
                   <div style={{color:dc.defconColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{dc.defconLabel}</div>
+                  <div style={{color:`${C.muted}99`,fontSize:7,marginTop:2}}>
+                    데이터 기준: {macroData?.updatedAt ? new Date(macroData.updatedAt).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}) : "-"}
+                  </div>
                 </div>
                 <div style={{display:"flex",gap:5,alignItems:"flex-end"}}>
                   {DL.map(l=>(
@@ -3390,9 +3393,31 @@ export default function App(){
                     transition:"width 0.6s ease"}}/>
                 </div>
               </div>
-              <div style={{color:C.muted,fontSize:9,marginBottom:10,lineHeight:1.5,
+              <div style={{color:C.muted,fontSize:9,marginBottom:8,lineHeight:1.5,
                 background:C.card2,borderRadius:7,padding:"5px 8px",
                 borderLeft:`3px solid ${dc.defconColor}`}}>{dc.defconDesc}</div>
+              {/* ── ECON 판정 상세 해설 */}
+              <div style={{background:C.card2,borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:8,color:C.muted,lineHeight:1.7}}>
+                <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontSize:8}}>📋 판정 근거</div>
+                {dc.indicators.map(ind=>{
+                  const sc=ind.score;
+                  const bc=sc>=1?C.green:sc<=-1?C.red:C.gold;
+                  const arrow=sc>=2?"▲▲":sc===1?"▲":sc===-1?"▼":"▼▼";
+                  const vStr=ind.val!=null?(ind.unit==="원"?Math.round(ind.val).toLocaleString():ind.val)+ind.unit:"—";
+                  const reason=sc>=2?`${vStr} — ${ind.good} 구간으로 경제에 우호적`
+                    :sc===1?`${vStr} — 양호하나 추가 관찰 필요`
+                    :sc===-1?`${vStr} — 경계 구간 진입, 주의 필요`
+                    :sc<=-2?`${vStr} — ${ind.bad} 상태로 투자 위험 신호`
+                    :`${vStr} — 중립`;
+                  return(
+                  <div key={ind.key} style={{display:"flex",gap:6,alignItems:"baseline",marginBottom:2}}>
+                    <span style={{color:bc,fontWeight:700,width:14,flexShrink:0}}>{sc!==0?arrow:"—"}</span>
+                    <span style={{color:"#aaa",width:62,flexShrink:0}}>{ind.label}</span>
+                    <span style={{color:C.muted}}>{reason}</span>
+                  </div>
+                  );
+                })}
+              </div>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 8px"}}>
                 {dc.indicators.map(ind=>{
                   const sc=ind.score;
@@ -3443,18 +3468,38 @@ export default function App(){
             {/* ── 수출+코스피 동행 */}
             {macroMerged.length>0&&(
               <Box>
-                <ST accent={C.teal}>일평균수출(좌) · 코스피(우) 동행 추이</ST>
+                <ST accent={C.teal}>일평균수출 · 코스피 동행 추이 (정규화 비교)</ST>
+                <div style={{background:C.card2,borderRadius:8,padding:"4px 9px",marginBottom:6,fontSize:8,color:C.muted,border:`1px solid ${C.border}`}}>
+                  📌 두 지표를 같은 기준(Z-Score)으로 변환 — 위쪽이면 과열, 아래쪽이면 침체 신호
+                </div>
                 <CW h={240}>
-                  <ComposedChart data={macroMerged} margin={{top:6,right:8,left:0,bottom:8}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
-                    <YAxis yAxisId="exp"   orientation="left"  tick={{fill:C.teal,fontSize:9}}    width={46} tickFormatter={v=>`$${v}M`} domain={["auto","auto"]}/>
-                    <YAxis yAxisId="kospi" orientation="right" tick={{fill:"#38BDF8",fontSize:9}} width={40} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <Legend wrapperStyle={{fontSize:9}}/>
-                    <Line yAxisId="exp"   dataKey="dailyExport" name="일평균수출($M)" stroke={C.teal}   strokeWidth={2}   dot={false} connectNulls/>
-                    <Line yAxisId="kospi" dataKey="price"       name="코스피"         stroke="#38BDF8" strokeWidth={2.5} dot={false}/>
-                  </ComposedChart>
+                  {(()=>{
+                    // Z-Score 정규화
+                    const expVals=macroMerged.map(d=>d.dailyExport).filter(v=>v!=null);
+                    const kpVals=macroMerged.map(d=>d.price).filter(v=>v!=null);
+                    const mean=arr=>arr.reduce((s,v)=>s+v,0)/arr.length;
+                    const std=arr=>{const m=mean(arr);return Math.sqrt(arr.map(v=>(v-m)**2).reduce((s,v)=>s+v,0)/arr.length)||1;};
+                    const eM=mean(expVals),eS=std(expVals),kM=mean(kpVals),kS=std(kpVals);
+                    const normalized=macroMerged.map(d=>({
+                      date:d.date,
+                      수출Z:d.dailyExport!=null?+((d.dailyExport-eM)/eS).toFixed(2):null,
+                      코스피Z:d.price!=null?+((d.price-kM)/kS).toFixed(2):null,
+                    }));
+                    return(
+                    <ComposedChart data={normalized} margin={{top:6,right:8,left:0,bottom:8}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
+                      <YAxis tick={{fill:C.muted,fontSize:9}} width={30} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <Legend wrapperStyle={{fontSize:9}}/>
+                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 2"/>
+                      <ReferenceLine y={1}  stroke={`${C.red}44`}    strokeDasharray="3 3"/>
+                      <ReferenceLine y={-1} stroke={`${C.green}44`}  strokeDasharray="3 3"/>
+                      <Line dataKey="수출Z"  name="수출(Z)" stroke={C.teal}   strokeWidth={2}   dot={false} connectNulls/>
+                      <Line dataKey="코스피Z" name="코스피(Z)" stroke="#38BDF8" strokeWidth={2.5} dot={false}/>
+                    </ComposedChart>
+                    );
+                  })()}
                 </CW>
                 {gdpKospiMerged.filter(r=>r.gdpYoy!=null).length>0&&(
                   <>
@@ -3465,7 +3510,7 @@ export default function App(){
                   <CW h={210}>
                     <ComposedChart data={gdpKospiMerged} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={1}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis {...yp("%",44)} domain={["auto","auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/>
                       <Legend wrapperStyle={{fontSize:9}}/>
@@ -3482,7 +3527,7 @@ export default function App(){
                   <CW h={180}>
                     <ComposedChart data={(macroData.ppi||[]).filter(r=>r.yoy!=null).slice(-60)} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis {...yp("%",42)} domain={["auto","auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/>
                       <ReferenceLine y={0}  stroke={C.muted}  strokeDasharray="4 2"/>
@@ -3499,7 +3544,7 @@ export default function App(){
                   <CW h={180}>
                     <ComposedChart data={(macroData.bsi||[]).slice(-60)} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis {...yp("",42)} domain={["auto","auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/>
                       <ReferenceArea y1={100} y2={200} fill={`${C.green}08`}/>
