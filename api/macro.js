@@ -124,17 +124,17 @@ export default async function handler(req, res) {
     return res.status(200).json({ keyPresent: !!ECOS_KEY, keyPreview: ECOS_KEY?ECOS_KEY.slice(0,4)+"****":"EMPTY", keyLen: ECOS_KEY.length, keyFull: ECOS_KEY, results });
   }
 
-  // 인메모리 캐시 진단 중 비활성화
-  // if (Date.now() - cache.ts < CACHE_TTL && cache.data) {
-  //   return res.status(200).json(cache.data);
-  // }
+  if (Date.now() - cache.ts < CACHE_TTL && cache.data) {
+    return res.status(200).json(cache.data);
+  }
 
   try {
     const now      = new Date();
     const endY     = now.getFullYear();
     const endM     = String(now.getMonth() + 1).padStart(2, "0");
     const endDate  = `${endY}${endM}`;
-    const endDate8 = `${endY}${endM}28`;
+    const endD     = String(now.getDate()).padStart(2, "0");
+    const endDate8 = `${endY}${endM}${endD}`;
     const startDate  = `${endY - 8}01`;
     const startDate8 = `${endY - 8}0101`;
     const startDateQ = `${endY - 8}Q1`;
