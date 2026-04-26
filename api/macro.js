@@ -74,7 +74,7 @@ function calcQuarterlyYoY(arr) {
   return arr.map(r => {
     const prevYear = String(parseInt(r.date.slice(0, 4)) - 1) + r.date.slice(4);
     const prev = arr.find(p => p.date === prevYear);
-    return { ...r, yoy: prev != null ? +(r.value - prev.value).toFixed(2) : null };
+    return { ...r, yoy: prev != null && prev.value ? +((r.value / prev.value - 1) * 100).toFixed(1) : null };
   });
 }
 
