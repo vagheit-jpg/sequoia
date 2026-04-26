@@ -3230,49 +3230,80 @@ export default function App(){
              tip:lastBSI==null?"":lastBSI>=100?"확장":lastBSI>=90?"중립":"수축"},
           ];
 
-          // ── IndexChart
+          // ── IndexChart — 주가탭 위치밴드 스타일
           const IndexChart=({title,maData,rsiData,color})=>{
-            const lastValid=maData.filter(d=>d.ma60!=null).slice(-1)[0];
+            // 위치밴드 계산 (maData에 price 필드 있음)
+            const bandData=calcPositionBands(maData);
+            const lastValid=bandData.filter(d=>d.bBase!=null).slice(-1)[0];
             const lastGap=lastValid?.gap60??null;
-            const gapColor=lastGap==null?"#888":lastGap>100?C.red:lastGap>0?C.gold:lastGap>-20?C.teal:C.green;
+            const gapColor=lastGap==null?"#888":lastGap>100?C.red:lastGap>50?C.orange:lastGap>0?C.gold:lastGap>-20?C.teal:C.green;
+            const gapLabel=lastGap==null?"":lastGap>100?"VH이상":lastGap>50?"H이상":lastGap>0?"60MA위":lastGap>-20?"L위":"VL근접";
             return(
             <>
-              {/* 헤더: 현재 이격도 뱃지 */}
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <ST accent={color} style={{margin:0}}>{title} — 월봉 60MA</ST>
+                <ST accent={color}>{title} — 월봉 60MA 위치밴드</ST>
                 {lastGap!=null&&(
                   <div style={{background:`${gapColor}20`,border:`1px solid ${gapColor}66`,
                     borderRadius:6,padding:"3px 9px",fontSize:10,fontWeight:700,color:gapColor,fontFamily:"monospace"}}>
-                    60MA 이격도 {lastGap>0?"+":""}{lastGap}%
+                    이격도 {lastGap>0?"+":""}{lastGap}% {gapLabel}
                   </div>
                 )}
               </div>
-              {/* 가격 + 60MA */}
-              <CW h={240}>
-                <ComposedChart data={maData} margin={{top:6,right:40,left:0,bottom:8}}>
+              {/* 위치밴드 차트 */}
+              <CW h={300}>
+                <ComposedChart data={bandData} margin={{top:16,right:44,left:0,bottom:8}}>
+                  <defs>
+                    <linearGradient id={`floorShade_${title}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C.blue} stopOpacity={0.0}/>
+                      <stop offset="100%" stopColor={C.blue} stopOpacity={0.14}/>
+                    </linearGradient>
+                    <linearGradient id={`peakShade_${title}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={C.purple} stopOpacity={0.14}/>
+                      <stop offset="100%" stopColor={C.purple} stopOpacity={0.0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(maData.length/7)||1}/>
+                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(bandData.length/7)||1}/>
                   <YAxis {...yp("",52)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
                   <Tooltip content={<MTip/>} cursor={false}/>
-                  <Legend wrapperStyle={{fontSize:9}}/>
-                  <Line dataKey="ma60"  name="60월선" stroke={C.gold} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls/>
-                  <Line dataKey="price" name={title}  stroke={color}  strokeWidth={2.5} dot={false}/>
+                  <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
+                  <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"  strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}                    dot={false} legendType="line"/>
+                  <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}   strokeWidth={1.5} strokeDasharray="6 3" fill={`url(#floorShade_${title})`}       dot={false} legendType="line"/>
+                  <Line dataKey="bBase"     name="60월선"    stroke={C.goldL}  strokeWidth={2}                         dot={false}/>
+                  <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange} strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
+                  <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}    strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                  <Area dataKey="bPeak"     name="EH ×2.5"  stroke={C.purple} strokeWidth={1}   strokeDasharray="3 4" fill={`url(#peakShade_${title})`}        dot={false} legendType="line"/>
+                  <Area dataKey="price"     name={title}    stroke={color}    strokeWidth={2.5} fill={`${color}14`}   dot={false}/>
+                  {lastValid&&[
+                    {key:"bPeak",    color:C.purple,  label:"EH"},
+                    {key:"bTop",     color:C.red,     label:"VH"},
+                    {key:"bShoulder",color:C.orange,  label:"H"},
+                    {key:"bBase",    color:C.goldL,   label:"60월선"},
+                    {key:"bKnee",    color:C.blue,    label:"L"},
+                    {key:"bFloor",   color:"#3B7DD8", label:"VL"},
+                  ].map(b=>(
+                    <ReferenceDot key={b.key} x={lastValid.date} y={lastValid[b.key]} r={0}
+                      label={{value:b.label,position:"right",fill:b.color,fontSize:9,fontWeight:700}}/>
+                  ))}
                 </ComposedChart>
               </CW>
-              {/* 60MA 이격도 */}
-              <ST accent={C.gold} right="60월선 기준">이격도</ST>
-              <CW h={130}>
-                <ComposedChart data={maData.filter(d=>d.gap60!=null)} margin={{top:4,right:20,left:0,bottom:8}}>
+              {/* 이격도 바 차트 */}
+              <ST accent={C.teal}>60MA 이격도 (%)</ST>
+              <CW h={170}>
+                <ComposedChart data={bandData.filter(d=>d.gap60!=null)} margin={{top:4,right:44,left:0,bottom:8}}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(maData.length/7)||1}/>
-                  <YAxis {...yp("%",44)} domain={["auto","auto"]}/>
+                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(bandData.length/7)||1}/>
+                  <YAxis {...yp("%",44)}/>
                   <Tooltip content={<MTip/>} cursor={false}/>
-                  <ReferenceLine y={0}    stroke={C.gold}   strokeDasharray="4 2" label={{value:"60MA",fill:C.gold,fontSize:8,position:"insideTopRight"}}/>
-                  <ReferenceLine y={100}  stroke={C.red}    strokeDasharray="3 3" label={{value:"+100%",fill:C.red,fontSize:8,position:"insideTopRight"}}/>
-                  <ReferenceLine y={-20}  stroke={C.green}  strokeDasharray="3 3" label={{value:"-20%",fill:C.green,fontSize:8,position:"insideBottomRight"}}/>
-                  <ReferenceArea y1={-20} y2={-100} fill={`${C.green}10`}/>
-                  <ReferenceArea y1={100} y2={300}  fill={`${C.red}10`}/>
-                  <Area dataKey="gap60" name="이격도%" stroke={color} strokeWidth={2} fill={`${color}18`} dot={false}/>
+                  <ReferenceArea y1={-100} y2={-40} fill={`${C.green}10`}/>
+                  <ReferenceArea y1={150}  y2={500} fill={`${C.red}08`}/>
+                  <ReferenceLine y={0}   stroke={C.dim}    strokeDasharray="2 2"/>
+                  <ReferenceLine y={-40} stroke={C.green}  strokeDasharray="4 2" label={{value:"VL -40%", fill:C.green, fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={-20} stroke={C.teal}   strokeDasharray="4 2" label={{value:"L -20%",  fill:C.teal,  fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={50}  stroke={C.gold}   strokeDasharray="4 2" label={{value:"H +50%",  fill:C.gold,  fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"VH +100%",fill:C.orange,fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={150} stroke={C.red}    strokeDasharray="4 2" label={{value:"EH +150%",fill:C.red,  fontSize:8,position:"insideTopRight"}}/>
+                  <Bar dataKey="gap60" name="이격도(%)" maxBarSize={8} radius={[2,2,0,0]} fill={C.teal}/>
                 </ComposedChart>
               </CW>
               {/* RSI */}
@@ -3285,7 +3316,7 @@ export default function App(){
                   <Tooltip content={<MTip/>} cursor={false}/>
                   <ReferenceArea y1={70} y2={100} fill={`${C.red}12`}/>
                   <ReferenceArea y1={0}  y2={30}  fill={`${C.green}12`}/>
-                  <ReferenceLine y={70} stroke={C.red}   strokeDasharray="4 2" label={{value:"과매수70",fill:C.red,fontSize:9}}/>
+                  <ReferenceLine y={70} stroke={C.red}   strokeDasharray="4 2" label={{value:"과매수70",fill:C.red,  fontSize:9}}/>
                   <ReferenceLine y={30} stroke={C.green} strokeDasharray="4 2" label={{value:"과매도30",fill:C.green,fontSize:9}}/>
                   <Area dataKey="rsi" name="RSI(%)" stroke={C.green} strokeWidth={2} fill={`${C.green}18`} dot={false}/>
                 </ComposedChart>
