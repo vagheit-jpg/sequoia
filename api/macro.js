@@ -111,7 +111,7 @@ export default async function handler(req, res) {
         };
       } catch(e) { results[name] = { error: e.message }; }
     }
-    return res.status(200).json({ keyPresent: !!ECOS_KEY, keyPreview: ECOS_KEY?ECOS_KEY.slice(0,4)+"****":"EMPTY", results });
+    return res.status(200).json({ keyPresent: !!ECOS_KEY, keyPreview: ECOS_KEY?ECOS_KEY.slice(0,4)+"****":"EMPTY", keyLen: ECOS_KEY.length, keyFull: ECOS_KEY, results });
   }
 
   // 인메모리 캐시 진단 중 비활성화
