@@ -51,6 +51,16 @@ async function fetchIndexMonthly(yahooTicker) {
   }).filter(r => r.price != null);
 }
 
+// ── 일별 → 월별 변환 (말일 값 사용)
+function dailyToMonthly(arr) {
+  const map = {};
+  for (const r of arr) {
+    const ym = r.date.slice(0, 6); // YYYYMMDD → YYYYMM
+    map[ym] = r.value; // 같은 달이면 덮어쓰기 → 마지막 값(말일)
+  }
+  return Object.entries(map).sort((a,b)=>a[0]>b[0]?1:-1).map(([date,value])=>({date,value}));
+}
+
 // ── YoY 계산
 function calcMonthlyYoY(arr) {
   return arr.map((r, i) => {
@@ -88,13 +98,13 @@ export default async function handler(req, res) {
   // ── 디버그 모드: ?debug=1 — 각 시리즈 개별 테스트
   if (req.query?.debug === "1") {
     const tests = [
-      ["기준금리", "722Y001", "0101000", "MM", "202201", "202412"],
-      ["환율",     "731Y004", "0000001", "MM", "202201", "202412"],
-      ["수출",     "901Y012", "0000001", "MM", "202201", "202412"],
-      ["GDP",      "111Y002", "C0000",   "QQ", "2022Q1", "2024Q4"],
-      ["PPI",      "404Y014", "*AA",     "MM", "202201", "202412"],
-      ["BSI",      "512Y004", "AA",      "MM", "202201", "202412"],
-      ["CPI",      "021Y126", "0",       "MM", "202201", "202412"],
+      ["기준금리", "722Y001", "0101000", "D",  "20220101", "20241231"],
+      ["환율",     "731Y004", "0000001", "D",  "20220101", "20241231"],
+      ["수출",     "901Y012", "0000001", "MM", "202201",   "202412"  ],
+      ["GDP",      "111Y002", "C0000",   "QQ", "2022Q1",   "2024Q4"  ],
+      ["PPI",      "404Y014", "*AA",     "MM", "202201",   "202412"  ],
+      ["BSI",      "512Y004", "AA",      "MM", "202201",   "202412"  ],
+      ["CPI",      "021Y126", "0",       "MM", "202201",   "202412"  ],
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
@@ -124,7 +134,9 @@ export default async function handler(req, res) {
     const endY     = now.getFullYear();
     const endM     = String(now.getMonth() + 1).padStart(2, "0");
     const endDate  = `${endY}${endM}`;
+    const endDate8 = `${endY}${endM}28`;
     const startDate  = `${endY - 8}01`;
+    const startDate8 = `${endY - 8}0101`;
     const startDateQ = `${endY - 8}Q1`;
 
     // ── 병렬 호출: ECOS 7개 + Yahoo 지수 2개
@@ -132,7 +144,7 @@ export default async function handler(req, res) {
       await Promise.allSettled([
         fetchECOS("111Y002", "C0000",   startDateQ, `${endY}Q4`, "QQ"),  // GDP
         fetchECOS("901Y012", "0000001", startDate,  endDate,     "MM"),  // 수출
-        fetchECOS("722Y001", "0101000", startDate,  endDate,     "MM"),  // 기준금리
+        fetchECOS("722Y001", "0101000", startDate8, endDate8,    "D" ),  // 기준금리 (일별)
         fetchECOS("731Y004", "0000001", startDate,  endDate,     "MM"),  // 환율
         fetchECOS("404Y014", "*AA",     startDate,  endDate,     "MM"),  // PPI
         fetchECOS("512Y004", "AA",      startDate,  endDate,     "MM"),  // BSI
@@ -158,7 +170,7 @@ export default async function handler(req, res) {
     const gdpLevel    = gdpArr;
     const dailyExport = exportArr.map(r => ({ date: r.date, value: +(r.value / 21).toFixed(1) }));
     const exportYoY   = calcMonthlyYoY(dailyExport);
-    const rate        = rateArr;
+    const rate        = dailyToMonthly(rateArr);
     const fx          = fxArr;
     const ppi         = calcMonthlyYoY(ppiArr);
     const bsi         = bsiArr;
