@@ -13,29 +13,34 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      - name: Ensure public directory exists
-        run: mkdir -p public
-
       - name: Fetch macro data
         env:
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
-        run: node scripts/fetchMacroCache.js
-
-      - name: Commit and push
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          git reset --soft origin/main
-          git add public/macro-cache.json
-          git diff --staged --quiet || git commit -m "chore: update macro cache [skip ci]"
-          git push origin main
+          mkdir -p public
+          node scripts/fetchMacroCache.js
+
+      - name: Push via GitHub API
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CONTENT=$(base64 -w 0 public/macro-cache.json)
+          SHA=$(gh api repos/vagheit-jpg/sequoia/contents/public/macro-cache.json --jq '.sha' 2>/dev/null || echo "")
+          if [ -z "$SHA" ]; then
+            gh api repos/vagheit-jpg/sequoia/contents/public/macro-cache.json \
+              --method PUT \
+              -f message="chore: update macro cache [skip ci]" \
+              -f content="$CONTENT"
+          else
+            gh api repos/vagheit-jpg/sequoia/contents/public/macro-cache.json \
+              --method PUT \
+              -f message="chore: update macro cache [skip ci]" \
+              -f content="$CONTENT" \
+              -f sha="$SHA"
+          fi
