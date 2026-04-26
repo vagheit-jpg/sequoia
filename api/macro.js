@@ -8,7 +8,7 @@ let cache = { data: null, ts: 0 };
 async function fetchECOS(statCode, itemCode, startDate, endDate, freq = "MM") {
   // ECOS 공식 URL: /StatisticSearch/{key}/json/kr/{startRow}/{endRow}/{statCode}/{freq}/{startDate}/{endDate}/{itemCode}
   // encodeURIComponent 제거 — *AA 같은 와일드카드가 %2AAA로 인코딩되면 ERROR-100 발생
-  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/200/${statCode}/${freq}/${startDate}/${endDate}/${itemCode}`;
+  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/800/${statCode}/${freq}/${startDate}/${endDate}/${itemCode}`;
   const res = await fetch(url);
   const json = await res.json();
   if (json?.RESULT?.CODE && json.RESULT.CODE !== "INFO-000") {
@@ -136,7 +136,7 @@ export default async function handler(req, res) {
     const endD     = String(now.getDate()).padStart(2, "0");
     const endDate8 = `${endY}${endM}${endD}`;
     const startDate  = `${endY - 8}01`;
-    const startDate8 = `${endY - 8}0101`;
+    const startDate8 = `${endY - 2}0101`;  // 일별은 최근 2년만 (200개 제한 대응)
     const startDateQ = `${endY - 8}Q1`;
 
     // ── 병렬 호출: ECOS 7개 + Yahoo 지수 2개
