@@ -6,7 +6,9 @@ let cache = { data: null, ts: 0 };
 
 // ── ECOS 호출
 async function fetchECOS(statCode, itemCode, startDate, endDate, freq = "MM") {
-  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/200/${statCode}/${freq}/${startDate}/${endDate}/${itemCode}`;
+  // ECOS 공식 URL: /StatisticSearch/{key}/json/kr/{startRow}/{endRow}/{statCode}/{freq}/{startDate}/{endDate}/{itemCode}
+  const encodedItem = encodeURIComponent(itemCode);
+  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/200/${statCode}/${freq}/${startDate}/${endDate}/${encodedItem}`;
   const res = await fetch(url);
   const json = await res.json();
   if (json?.RESULT?.CODE && json.RESULT.CODE !== "INFO-000") {
@@ -83,24 +85,32 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
 
-  // ── 디버그 모드: ?debug=1
+  // ── 디버그 모드: ?debug=1 — 각 시리즈 개별 테스트
   if (req.query?.debug === "1") {
-    const testUrl = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/3/722Y001/MM/202401/202412/0101000`;
-    try {
-      const r = await fetch(testUrl);
-      const json = await r.json();
-      return res.status(200).json({
-        keyPresent: !!ECOS_KEY,
-        keyLength: ECOS_KEY.length,
-        keyPreview: ECOS_KEY ? ECOS_KEY.slice(0,4)+"****" : "EMPTY",
-        httpStatus: r.status,
-        ecosResult: json?.RESULT || null,
-        rowCount: json?.StatisticSearch?.row?.length || 0,
-        firstRow: json?.StatisticSearch?.row?.[0] || null,
-      });
-    } catch(e) {
-      return res.status(200).json({ error: e.message, keyPresent: !!ECOS_KEY });
+    const tests = [
+      ["기준금리", "722Y001", "0101000", "MM", "202201", "202412"],
+      ["환율",     "731Y004", "0000001", "MM", "202201", "202412"],
+      ["수출",     "901Y012", "0000001", "MM", "202201", "202412"],
+      ["GDP",      "111Y002", "C0000",   "QQ", "2022Q1", "2024Q4"],
+      ["PPI",      "404Y014", "*AA",     "MM", "202201", "202412"],
+      ["BSI",      "512Y004", "AA",      "MM", "202201", "202412"],
+      ["CPI",      "021Y126", "0",       "MM", "202201", "202412"],
+    ];
+    const results = {};
+    for (const [name, stat, item, freq, sd, ed] of tests) {
+      const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/3/${stat}/${freq}/${sd}/${ed}/${encodeURIComponent(item)}`;
+      try {
+        const r = await fetch(url);
+        const json = await r.json();
+        results[name] = {
+          code: json?.RESULT?.CODE || "OK",
+          msg:  json?.RESULT?.MESSAGE || "",
+          rows: json?.StatisticSearch?.row?.length || 0,
+          sample: json?.StatisticSearch?.row?.[0] || null,
+        };
+      } catch(e) { results[name] = { error: e.message }; }
     }
+    return res.status(200).json({ keyPresent: !!ECOS_KEY, keyPreview: ECOS_KEY?ECOS_KEY.slice(0,4)+"****":"EMPTY", results });
   }
 
   // 인메모리 캐시 진단 중 비활성화
