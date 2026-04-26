@@ -1246,6 +1246,7 @@ export default function App(){
   const [kosdaqMonthly,setKosdaqMonthly]=useState([]);
   const [marketLoading,setMarketLoading]=useState(false);
   const [marketLoaded,setMarketLoaded]=useState(false);
+  const [marketSub,setMarketSub]=useState("econ"); // econ | kospi | kosdaq
 
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
@@ -3339,6 +3340,20 @@ export default function App(){
               </div></Box>
             )}
 
+            {/* ── 서브탭 버튼 */}
+            <div style={{display:"flex",gap:6,marginBottom:10}}>
+              {[["econ","E-CON"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
+                <button key={k} onClick={()=>setMarketSub(k)}
+                  style={{flex:1,padding:"7px 0",borderRadius:8,border:`1.5px solid ${marketSub===k?C.teal:C.border}`,
+                    background:marketSub===k?`${C.teal}22`:C.card2,
+                    color:marketSub===k?C.teal:C.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* ══ E-CON 섹션 ══ */}
+            {marketSub==="econ"&&<>
             {/* ══ ECON DEFCON ══ */}
             {dc&&(
             <div style={{background:C.card,border:`2px solid ${dc.defconColor}55`,
@@ -3430,11 +3445,11 @@ export default function App(){
               <Box>
                 <ST accent={C.teal}>일평균수출(좌) · 코스피(우) 동행 추이</ST>
                 <CW h={240}>
-                  <ComposedChart data={macroMerged} margin={{top:6,right:48,left:0,bottom:8}}>
+                  <ComposedChart data={macroMerged} margin={{top:6,right:8,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(macroMerged.length/7)||1}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                     <YAxis yAxisId="exp"   orientation="left"  tick={{fill:C.teal,fontSize:9}}    width={46} tickFormatter={v=>`$${v}M`} domain={["auto","auto"]}/>
-                    <YAxis yAxisId="kospi" orientation="right" tick={{fill:"#38BDF8",fontSize:9}} width={50} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
+                    <YAxis yAxisId="kospi" orientation="right" tick={{fill:"#38BDF8",fontSize:9}} width={40} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
                     <Legend wrapperStyle={{fontSize:9}}/>
                     <Line yAxisId="exp"   dataKey="dailyExport" name="일평균수출($M)" stroke={C.teal}   strokeWidth={2}   dot={false} connectNulls/>
@@ -3497,7 +3512,11 @@ export default function App(){
                 )}
               </Box>
             )}
+            </> /* econ 섹션 끝 */}
 
+            {/* ══ 코스피 섹션 ══ */}
+            {marketSub==="kospi"&&(
+            <>
             {/* ── 코스피 기술분석 */}
             {kospiMonthly.length>0?(
               <Box>
@@ -3506,7 +3525,12 @@ export default function App(){
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스피 데이터 로딩 중...</div></Box>
             )}
+            </>
+            )}
 
+            {/* ══ 코스닥 섹션 ══ */}
+            {marketSub==="kosdaq"&&(
+            <>
             {/* ── 코스닥 기술분석 */}
             {kosdaqMonthly.length>0?(
               <Box>
@@ -3514,6 +3538,8 @@ export default function App(){
               </Box>
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스닥 데이터 로딩 중...</div></Box>
+            )}
+            </>
             )}
           </div>
           );
