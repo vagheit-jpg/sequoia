@@ -1251,8 +1251,12 @@ export default function App(){
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
-    fetch("/api/macro").then(r=>r.ok?r.json():null).catch(()=>null)
-    .then(macro=>{
+    // 정적 캐시 우선 시도 → 실패 시 API 폴백
+    const loadMacro = () =>
+      fetch("/macro-cache.json").then(r=>r.ok?r.json():Promise.reject())
+      .catch(()=>fetch("/api/macro").then(r=>r.ok?r.json():null))
+      .catch(()=>null);
+    loadMacro().then(macro=>{
       if(macro){
         setMacroData(macro);
         if(macro.kospiMonthly?.length)  setKospiMonthly(macro.kospiMonthly);
@@ -3520,7 +3524,7 @@ export default function App(){
                     📌 코스피 6~9개월 선행 → GDP 후행 확인
                   </div>
                   <CW h={210}>
-                    <ComposedChart data={gdpKospiMerged} margin={{top:4,right:44,left:0,bottom:8}}>
+                    <ComposedChart data={gdpKospiMerged} margin={{top:4,right:0,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis yAxisId="gdp"   orientation="left"  tick={{fill:C.gold,fontSize:9}}    width={36} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
@@ -3551,11 +3555,24 @@ export default function App(){
                   </CW>
                   </>
                 )}
-                {(macroData?.bsi||[]).length>0&&(
-                  <>
-                  <ST accent={C.purple} right="한국은행 BSI">BSI 제조업 — 경기 방향성 선행</ST>
-                  <CW h={180}>
-                    <ComposedChart data={(macroData.bsi||[]).slice(-60)} margin={{top:4,right:20,left:0,bottom:8}}>
+                {(macroData?.bsi||[]).length>0&&(()=>{
+                  const bsiRaw=(macroData.bsi||[]).slice(-60);
+                  // 3개월, 6개월 이동평균 계산
+                  const withMA=bsiRaw.map((r,i,a)=>{
+                    const ma3=i>=2  ?+((a[i].value+a[i-1].value+a[i-2].value)/3).toFixed(1):null;
+                    const ma6=i>=5  ?+(a.slice(i-5,i+1).reduce((s,x)=>s+x.value,0)/6).toFixed(1):null;
+                    return{...r,ma3,ma6};
+                  });
+                  const lastMA6=withMA.filter(d=>d.ma6!=null).slice(-1)[0];
+                  const trend=lastMA6&&lastMA6.ma6>withMA.filter(d=>d.ma6!=null).slice(-4,-1)[0]?.ma6?"개선↑":"둔화↓";
+                  const trendColor=trend.includes("개선")?C.green:C.red;
+                  return(<>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <ST accent={C.purple} right="한국은행 BSI">BSI 제조업 — 경기 방향성 선행</ST>
+                    {lastMA6&&<span style={{fontSize:9,color:trendColor,fontWeight:700,marginBottom:4}}>6MA {lastMA6.ma6} {trend}</span>}
+                  </div>
+                  <CW h={190}>
+                    <ComposedChart data={withMA} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis {...yp("",42)} domain={["auto","auto"]}/>
@@ -3563,11 +3580,13 @@ export default function App(){
                       <ReferenceArea y1={100} y2={200} fill={`${C.green}08`}/>
                       <ReferenceArea y1={0}   y2={100} fill={`${C.red}08`}/>
                       <ReferenceLine y={100} stroke={C.green} strokeDasharray="4 2" label={{value:"기준100",fill:C.green,fontSize:8,position:"insideTopRight"}}/>
-                      <Line dataKey="value" name="BSI 제조업" stroke={C.purple} strokeWidth={2.5} dot={false} connectNulls/>
+                      <Line dataKey="value" name="BSI 원시값" stroke={`${C.purple}55`} strokeWidth={1.5} dot={false} connectNulls strokeDasharray="3 2"/>
+                      <Line dataKey="ma3"   name="3MA(단기)" stroke={C.purple}         strokeWidth={2}   dot={false} connectNulls/>
+                      <Line dataKey="ma6"   name="6MA(추세)" stroke={C.gold}           strokeWidth={2.5} dot={false} connectNulls/>
                     </ComposedChart>
                   </CW>
-                  </>
-                )}
+                  </>);
+                })()}
               </Box>
             )}
             </> /* econ 섹션 끝 */}
