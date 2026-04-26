@@ -83,10 +83,10 @@ function calcDefcon(indicators) {
   const totalScore = indicators.reduce((s, d) => s + d.score, 0);
   const maxScore   = indicators.length * 2;
   let defcon, defconLabel, defconColor, defconDesc;
-  if      (totalScore <= -15) { defcon=1; defconLabel="ECON-1  위기"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선"; }
-  else if (totalScore <=  -8) { defcon=2; defconLabel="ECON-2  경계"; defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 축소 검토"; }
+  if      (totalScore <= -14) { defcon=1; defconLabel="ECON-1  위기"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선"; }
+  else if (totalScore <=  -7) { defcon=2; defconLabel="ECON-2  경계"; defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 축소 검토"; }
   else if (totalScore <=   1) { defcon=3; defconLabel="ECON-3  주의"; defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 필요"; }
-  else if (totalScore <=  11) { defcon=4; defconLabel="ECON-4  관망"; defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색"; }
+  else if (totalScore <=  10) { defcon=4; defconLabel="ECON-4  관망"; defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색"; }
   else                        { defcon=5; defconLabel="ECON-5  안정"; defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
   return { defcon, defconLabel, defconColor, defconDesc, totalScore, maxScore, indicators };
 }
@@ -139,8 +139,8 @@ export default async function handler(req, res) {
     const startDate8 = `${endY - 2}0101`;  // 일별은 최근 2년만 (200개 제한 대응)
     const startDateQ = `${endY - 8}Q1`;
 
-    // ── 병렬 호출: ECOS 10개 + Yahoo 지수 2개
-    const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR, gdpNomR] =
+    // ── 병렬 호출: ECOS 9개 + Yahoo 지수 2개
+    const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -154,7 +154,6 @@ export default async function handler(req, res) {
         fetchECOS("151Y001", "1000000", startDateQ, `${endY}Q4`, "Q"),  // 가계신용 잔액(분기)
         fetchECOS("721Y001", "5050000", startDate,  endDate,     "M"),  // 국고채 10Y 수익률
         fetchECOS("721Y001", "5020000", startDate,  endDate,     "M"),  // 국고채 3Y 수익률
-        fetchECOS("200Y001", "10101",   startDateQ, `${endY}Q4`, "Q"),  // 명목GDP (십억원, 원계열)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -171,7 +170,6 @@ export default async function handler(req, res) {
     const hhCreditArr   = ok(hhCreditR);
     const bond10YArr    = ok(bond10YR);
     const bond3YArr     = ok(bond3YR);
-    const gdpNomArr     = ok(gdpNomR);
 
     // ── 가공
     // GDP: 이미 전기비% → yoy 필드로 매핑
@@ -183,21 +181,14 @@ export default async function handler(req, res) {
     const rate        = dailyToMonthly(rateArr);
     const fx          = dailyToMonthly(fxArr);
     const ppi         = calcMonthlyYoY(ppiArr);
-    const bsi         = bsiArr;
+    // BSI: itemCode 99988은 한 달에 여러 row → 날짜별 마지막 값만 유지
+    const bsiMap = {};
+    for (const r of bsiArr) bsiMap[r.date] = r.value;
+    const bsi = Object.entries(bsiMap).sort((a,b)=>a[0]>b[0]?1:-1).map(([date,value])=>({date,value}));
     const cpi         = calcMonthlyYoY(cpiArr);
 
     // ── 가계신용 YoY (분기, 전년동기비 %)
     const hhCreditYoY = calcQuarterlyYoY(hhCreditArr);
-
-    // ── 가계신용/명목GDP 비율 (분기, %)
-    // 가계신용(십억원) / 명목GDP 연환산(십억원) * 100
-    // 명목GDP는 분기값이므로 연환산: 해당 분기 × 4
-    const hhCreditGdpRatio = hhCreditArr.map(r => {
-      const gdpQ = gdpNomArr.find(g => g.date === r.date);
-      if (!gdpQ || !gdpQ.value) return null;
-      const annualGdp = gdpQ.value * 4;  // 분기 → 연환산
-      return { date: r.date, value: +(r.value / annualGdp * 100).toFixed(1) };
-    }).filter(Boolean);
 
     // ── 장단기 금리차: 국고채 10Y − 3Y (월별, %p)
     const yieldSpread = bond10YArr.map(r => {
@@ -236,8 +227,6 @@ export default async function handler(req, res) {
         score: score(lastYoy(hhCreditYoY), [8,5,2], 1) },
       { key:"금리차", label:"10Y-3Y 금리차", val:last(yieldSpread),   unit:"%p", good:"정상화", warn:"평탄", bad:"역전",
         score: score(last(yieldSpread), [-0.5,0,0.5], -1) * 2 },  // 가중치 2배 — 경기침체 선행 신뢰도 최고
-      { key:"부채비율", label:"가계신용/GDP", val:last(hhCreditGdpRatio), unit:"%", good:"건전", warn:"주의", bad:"과부채",
-        score: score(last(hhCreditGdpRatio), [120,100,80], 1) },  // BIS 기준: 100% 경계, 120% 위험
     ];
 
     const defconData = calcDefcon(indicators);
@@ -246,7 +235,7 @@ export default async function handler(req, res) {
       gdp, gdpLevel, dailyExport, exportYoY,
       rate, fx, ppi, cpi, bsi,
       kospiMonthly, kosdaqMonthly,
-      hhCreditYoY, hhCreditGdpRatio, yieldSpread,
+      hhCreditYoY, yieldSpread,
       defconData,
       updatedAt: Date.now(),
       _debug: {
@@ -254,7 +243,6 @@ export default async function handler(req, res) {
         fx:fxArr.length, ppi:ppiArr.length, bsi:bsiArr.length, cpi:cpiArr.length,
         kospi:kospiMonthly.length, kosdaq:kosdaqMonthly.length,
         hhCredit:hhCreditArr.length, bond10Y:bond10YArr.length, bond3Y:bond3YArr.length,
-        gdpNom:gdpNomArr.length,
       }
     };
 
