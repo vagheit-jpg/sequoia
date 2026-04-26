@@ -1240,6 +1240,29 @@ export default function App(){
   const searchRef=useRef();
   const RANGES=[{label:"10년",months:120},{label:"5년",months:60},{label:"3년",months:36},{label:"1년",months:12}];
 
+  // ── 시장탭: 거시경제 + 코스피/코스닥 지수 데이터
+  const [macroData,setMacroData]=useState(null);
+  const [kospiMonthly,setKospiMonthly]=useState([]);
+  const [kosdaqMonthly,setKosdaqMonthly]=useState([]);
+  const [marketLoading,setMarketLoading]=useState(false);
+  const [marketLoaded,setMarketLoaded]=useState(false);
+
+  useEffect(()=>{
+    if(tab!=="market"||marketLoaded)return;
+    setMarketLoading(true);
+    Promise.all([
+      fetch("/api/macro").then(r=>r.ok?r.json():null).catch(()=>null),
+      fetchPrice("0001","KRX").catch(()=>null),
+      fetchPrice("1001","KRX").catch(()=>null),
+    ]).then(([macro,kospi,kosdaq])=>{
+      if(macro)setMacroData(macro);
+      if(kospi?.monthly?.length)setKospiMonthly(kospi.monthly);
+      if(kosdaq?.monthly?.length)setKosdaqMonthly(kosdaq.monthly);
+      setMarketLoaded(true);
+      setMarketLoading(false);
+    });
+  },[tab,marketLoaded]);
+
   // Supabase 로드 + localStorage 이중 보장
   // PC 마우스 환경에서만 스크롤바 표시
   useEffect(()=>{
@@ -1652,6 +1675,7 @@ export default function App(){
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
     {id:"buffett",label:"📚 투자거장의 말"},
+    {id:"market",label:"🌐 시장"},
   ];
 
   if(dbLoading)return(
@@ -3122,6 +3146,381 @@ export default function App(){
           const todayQ=Q[todaySeed%Q.length];
 
           return <BuffettTabInner Q={Q} todayQ={todayQ} CATS={CATS} CAT_COLOR={CAT_COLOR} CAT_ICON={CAT_ICON}/>;
+        })()}
+
+        {/* ════ 시장 탭 ════ */}
+        {tab==="market"&&(()=>{
+          const kp60=(arr)=>{
+            if(!arr.length)return[];
+            return arr.map((d,i,a)=>{
+              if(i<59)return{...d,ma60:null,gap60:null};
+              const avg=a.slice(i-59,i+1).reduce((s,x)=>s+(x.price||0),0)/60;
+              return{...d,ma60:+avg.toFixed(0),gap60:+((d.price/avg-1)*100).toFixed(2)};
+            });
+          };
+          const kospiMA=kp60(kospiMonthly);
+          const kosdaqMA=kp60(kosdaqMonthly);
+          const kospiRSI=calcRSI(kospiMonthly);
+          const kospiMACD=calcMACD(kospiMonthly);
+          const kosdaqRSI=calcRSI(kosdaqMonthly);
+          const kosdaqMACD=calcMACD(kosdaqMonthly);
+
+          // ── 거시 + 코스피 병합 (월별)
+          const macroMerged=(()=>{
+            if(!macroData||!kospiMonthly.length)return[];
+            const exportMap={},rateMap={},fxMap={},ppiMap={};
+            (macroData.dailyExport||[]).forEach(r=>{exportMap[r.date.slice(0,6)]=r.value;});
+            (macroData.rate||[]).forEach(r=>{rateMap[r.date.slice(0,6)]=r.value;});
+            (macroData.fx||[]).forEach(r=>{fxMap[r.date.slice(0,6)]=r.value;});
+            (macroData.ppi||[]).forEach(r=>{ppiMap[r.date.slice(0,6)]=r.yoy;});
+            return kospiMonthly.slice(-84).map(d=>{
+              const ym=d.date?.slice(0,6)||"";
+              return{...d,dailyExport:exportMap[ym]??null,rate:rateMap[ym]??null,
+                     fx:fxMap[ym]??null,ppiYoy:ppiMap[ym]??null};
+            });
+          })();
+
+          // ── 코스피 YoY 계산 (전년동월비)
+          const kospiYoY=(()=>{
+            const arr=kospiMonthly.slice(-84);
+            return arr.map((d,i)=>{
+              if(i<12)return{...d,kospiYoy:null};
+              const base=arr[i-12].price;
+              return{...d,kospiYoy:base?+((d.price/base-1)*100).toFixed(1):null};
+            });
+          })();
+
+          // GDP + 코스피YoY 병합 (분기 → 해당 분기 마지막 월에 매핑)
+          const gdpKospiMerged=(()=>{
+            const gdpArr=macroData?.gdp||[];
+            return gdpArr.slice(-24).map(r=>{
+              // 분기코드 ex: "2024Q2" → 6월
+              const y=r.date?.slice(0,4);
+              const q=r.date?.slice(5);
+              const qMonth={"Q1":"03","Q2":"06","Q3":"09","Q4":"12"}[q]||"12";
+              const ym=`${y}${qMonth}`;
+              const kd=kospiYoY.find(k=>k.date?.slice(0,6)===ym);
+              return{date:r.date,gdpYoy:r.yoy??r.value,kospiYoy:kd?.kospiYoy??null};
+            });
+          })();
+
+          // BSI(PMI대용) 데이터
+          const bsiData=(macroData?.bsi||[]).slice(-60);
+
+          // ── 신호등
+          const lastRate=(macroData?.rate||[]).slice(-1)[0]?.value??null;
+          const lastFX=(macroData?.fx||[]).slice(-1)[0]?.value??null;
+          const lastExport=(macroData?.dailyExport||[]).slice(-1)[0]?.value??null;
+          const prevExport=(macroData?.dailyExport||[]).slice(-2,-1)[0]?.value??null;
+          const lastGDP=(macroData?.gdp||[]).slice(-1)[0]?.value??null;
+          const lastPPI=(macroData?.ppi||[]).filter(r=>r.yoy!=null).slice(-1)[0]?.yoy??null;
+          const lastBSI=(macroData?.bsi||[]).slice(-1)[0]?.value??null;
+          const signals=[
+            {label:"기준금리",val:lastRate!=null?`${lastRate}%`:"-",
+             color:lastRate==null?"#888":lastRate<=2.5?C.green:lastRate<=3.5?C.gold:C.red,
+             tip:lastRate==null?"":lastRate<=2.5?"완화적":lastRate<=3.5?"중립":"긴축적"},
+            {label:"원/달러",val:lastFX!=null?`${Math.round(lastFX).toLocaleString()}원`:"-",
+             color:lastFX==null?"#888":lastFX<=1200?C.green:lastFX<=1350?C.gold:C.red,
+             tip:lastFX==null?"":lastFX<=1200?"원화강세":lastFX<=1350?"중립":"원화약세"},
+            {label:"일평균수출",val:lastExport!=null?`$${lastExport?.toFixed(0)}M`:"-",
+             color:lastExport==null||prevExport==null?"#888":lastExport>=prevExport?C.green:C.red,
+             tip:lastExport==null||prevExport==null?"":lastExport>=prevExport?"증가↑":"감소↓"},
+            {label:"GDP성장률",val:lastGDP!=null?`${lastGDP}%`:"-",
+             color:lastGDP==null?"#888":lastGDP>=3?C.green:lastGDP>=1?C.gold:C.red,
+             tip:lastGDP==null?"":lastGDP>=3?"견조":lastGDP>=1?"완만":"부진"},
+            {label:"PPI(YoY)",val:lastPPI!=null?`${lastPPI>0?"+":""}${lastPPI}%`:"-",
+             color:lastPPI==null?"#888":lastPPI>4?C.red:lastPPI>2?C.gold:C.green,
+             tip:lastPPI==null?"":lastPPI>4?"원가압력↑":lastPPI>2?"보통":"안정"},
+            {label:"BSI제조업",val:lastBSI!=null?`${lastBSI}`:"-",
+             color:lastBSI==null?"#888":lastBSI>=100?C.green:lastBSI>=90?C.gold:C.red,
+             tip:lastBSI==null?"":lastBSI>=100?"확장":lastBSI>=90?"중립":"수축"},
+          ];
+
+          const IndexChart=({title,data,maData,rsiData,macdData,color})=>(
+            <>
+              <ST accent={color}>{title} — 가격 위치 & 60MA</ST>
+              <CW h={260}>
+                <ComposedChart data={maData} margin={{top:6,right:36,left:0,bottom:8}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(maData.length/6)||1}/>
+                  <YAxis {...yp("",52)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
+                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <Legend wrapperStyle={{fontSize:9}}/>
+                  <Line dataKey="ma60"  name="60MA"  stroke={C.gold}  strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls/>
+                  <Line dataKey="price" name={title} stroke={color}   strokeWidth={2.5} dot={false}/>
+                </ComposedChart>
+              </CW>
+              <ST accent={C.green}>RSI (14개월)</ST>
+              <CW h={130}>
+                <ComposedChart data={rsiData} margin={{top:4,right:20,left:0,bottom:8}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(rsiData.length/6)||1}/>
+                  <YAxis domain={[0,100]} {...yp("%")}/>
+                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <ReferenceArea y1={70} y2={100} fill={`${C.red}12`}/>
+                  <ReferenceArea y1={0}  y2={30}  fill={`${C.green}12`}/>
+                  <ReferenceLine y={70} stroke={C.red}   strokeDasharray="4 2" label={{value:"과매수70",fill:C.red,  fontSize:9}}/>
+                  <ReferenceLine y={30} stroke={C.green} strokeDasharray="4 2" label={{value:"과매도30",fill:C.green,fontSize:9}}/>
+                  <Area dataKey="rsi" name="RSI(%)" stroke={C.green} strokeWidth={2} fill={`${C.green}18`} dot={false}/>
+                </ComposedChart>
+              </CW>
+              <ST accent={C.blueL}>MACD</ST>
+              <CW h={130}>
+                <ComposedChart data={macdData} margin={{top:4,right:20,left:0,bottom:8}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(macdData.length/6)||1}/>
+                  <YAxis {...yp("",38)}/>
+                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <ReferenceLine y={0} stroke={C.dim}/>
+                  <Bar  dataKey="hist"   name="히스토그램" maxBarSize={5} radius={[2,2,0,0]} fill={C.blueL} fillOpacity={0.6}/>
+                  <Line dataKey="macd"   name="MACD"      stroke={C.blueL}  strokeWidth={2}   dot={false}/>
+                  <Line dataKey="signal" name="Signal"    stroke={C.orange} strokeWidth={1.5} dot={false}/>
+                </ComposedChart>
+              </CW>
+            </>
+          );
+
+          return(
+          <div style={{animation:"fadeIn 0.3s ease"}}>
+            {marketLoading&&(
+              <Box><div style={{color:C.muted,textAlign:"center",padding:24,fontSize:12}}>
+                🌐 거시경제 데이터 로딩중...
+              </div></Box>
+            )}
+
+            {/* ══════════════════════════════════════
+                ECON DEFCON 위젯
+            ══════════════════════════════════════ */}
+            {macroData?.defconData&&(()=>{
+              const dc=macroData.defconData;
+              const LEVELS=[
+                {n:1,label:"위기",color:"#FF1A1A"},
+                {n:2,label:"경계",color:"#FF6B00"},
+                {n:3,label:"주의",color:"#F0C800"},
+                {n:4,label:"관망",color:"#38BDF8"},
+                {n:5,label:"안정",color:"#00C878"},
+              ];
+              // 점수 -18~+18 → 0~100%
+              const pct=Math.round((dc.totalScore+18)/36*100);
+              return(
+              <div style={{background:C.card,border:`2px solid ${dc.defconColor}55`,
+                borderRadius:14,padding:"14px 14px 12px",marginBottom:10,
+                boxShadow:`0 0 24px ${dc.defconColor}22`}}>
+
+                {/* 헤더 */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <div>
+                    <div style={{color:C.muted,fontSize:8,letterSpacing:"0.12em",marginBottom:2}}>ECONOMIC DEFCON — RAY DALIO 빅사이클 기반</div>
+                    <div style={{color:dc.defconColor,fontSize:18,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.05em"}}>
+                      {dc.defconLabel}
+                    </div>
+                  </div>
+                  {/* 5단계 게이지 */}
+                  <div style={{display:"flex",gap:5,alignItems:"flex-end"}}>
+                    {LEVELS.map(l=>(
+                      <div key={l.n} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                        <div style={{
+                          width:22, height:22+(l.n===1?6:l.n===2?3:0),
+                          borderRadius:4,
+                          background: dc.defcon===l.n ? l.color : `${l.color}28`,
+                          border:`1.5px solid ${dc.defcon===l.n?l.color:l.color+"44"}`,
+                          boxShadow: dc.defcon===l.n?`0 0 10px ${l.color}88`:"none",
+                          transition:"all 0.3s",
+                        }}/>
+                        <div style={{color:dc.defcon===l.n?l.color:C.muted,fontSize:7,fontWeight:700}}>{l.n}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 점수 게이지 바 */}
+                <div style={{marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                    <span style={{color:C.muted,fontSize:8}}>위기 ← 종합점수 → 안정</span>
+                    <span style={{color:dc.defconColor,fontSize:9,fontWeight:700,fontFamily:"monospace"}}>
+                      {dc.totalScore>0?"+":""}{dc.totalScore} / {dc.maxScore}
+                    </span>
+                  </div>
+                  <div style={{background:C.dim,borderRadius:6,height:7,overflow:"hidden"}}>
+                    <div style={{
+                      width:`${pct}%`,height:"100%",borderRadius:6,
+                      background:`linear-gradient(90deg,#FF1A1A,#FF6B00,#F0C800,#38BDF8,#00C878)`,
+                      transition:"width 0.6s ease",
+                    }}/>
+                  </div>
+                </div>
+
+                {/* 설명 */}
+                <div style={{color:C.muted,fontSize:9,marginBottom:10,lineHeight:1.5,
+                  background:C.card2,borderRadius:7,padding:"5px 8px",
+                  borderLeft:`3px solid ${dc.defconColor}`}}>
+                  {dc.defconDesc}
+                </div>
+
+                {/* 지표별 기여도 */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 8px"}}>
+                  {dc.indicators.map(ind=>{
+                    const sc=ind.score;
+                    const barColor=sc>=1?C.green:sc<=-1?C.red:C.gold;
+                    const statusText=sc>=2?ind.good:sc<=-2?ind.bad:sc===1?ind.good:sc===-1?ind.warn:ind.warn;
+                    return(
+                    <div key={ind.key} style={{display:"flex",alignItems:"center",gap:5,
+                      background:C.card2,borderRadius:6,padding:"4px 7px"}}>
+                      <div style={{flex:"0 0 56px"}}>
+                        <div style={{color:C.muted,fontSize:7,marginBottom:1}}>{ind.label}</div>
+                        <div style={{color:barColor,fontSize:9,fontWeight:700,fontFamily:"monospace"}}>
+                          {ind.val!=null?(ind.unit==="원"?Math.round(ind.val).toLocaleString():
+                            ind.unit==="%"?(ind.val>0?"+":"")+ind.val:ind.val)+ind.unit:"—"}
+                        </div>
+                      </div>
+                      {/* 점수 바 */}
+                      <div style={{flex:1,display:"flex",alignItems:"center",gap:3}}>
+                        <div style={{flex:1,background:C.dim,borderRadius:3,height:5,overflow:"hidden"}}>
+                          <div style={{
+                            marginLeft:sc<0?`${50+sc*25}%`:"50%",
+                            width:`${Math.abs(sc)*25}%`,
+                            height:"100%",background:barColor,borderRadius:3,
+                          }}/>
+                        </div>
+                        <div style={{color:barColor,fontSize:7,width:26,textAlign:"right",flexShrink:0}}>
+                          {statusText}
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{color:`${C.muted}88`,fontSize:7,marginTop:6,textAlign:"right"}}>
+                  Ray Dalio 빅사이클 · 단기부채사이클 기반 / 투자 참고용
+                </div>
+              </div>
+              );
+            })()}
+
+            {/* ── 섹션1: 거시 신호등 (6칸) ── */}
+            <Box>
+              <ST accent={C.teal}>거시경제 신호등</ST>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
+                {signals.map(s=>(
+                  <div key={s.label} style={{background:C.card2,border:`1px solid ${s.color}44`,borderRadius:10,padding:"9px 6px",textAlign:"center"}}>
+                    <div style={{color:C.muted,fontSize:8,marginBottom:3}}>{s.label}</div>
+                    <div style={{width:9,height:9,borderRadius:"50%",background:s.color,margin:"0 auto 3px"}}/>
+                    <div style={{color:s.color,fontSize:10,fontWeight:700,fontFamily:"monospace"}}>{s.val}</div>
+                    <div style={{color:C.muted,fontSize:8,marginTop:2}}>{s.tip}</div>
+                  </div>
+                ))}
+              </div>
+            </Box>
+
+            {/* ── 섹션2: 일평균수출 + 코스피 동행 ── */}
+            {macroMerged.length>0&&(
+              <Box>
+                <ST accent={C.teal}>일평균수출(좌) · 코스피(우) 동행 추이</ST>
+                <CW h={250}>
+                  <ComposedChart data={macroMerged} margin={{top:6,right:48,left:0,bottom:8}}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(macroMerged.length/7)||1}/>
+                    <YAxis yAxisId="export" orientation="left"  tick={{fill:C.teal,fontSize:9}}   width={46} tickFormatter={v=>`$${v}M`} domain={["auto","auto"]}/>
+                    <YAxis yAxisId="kospi"  orientation="right" tick={{fill:"#38BDF8",fontSize:9}} width={50} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <Legend wrapperStyle={{fontSize:9}}/>
+                    <Line yAxisId="export" dataKey="dailyExport" name="일평균수출($M)" stroke={C.teal}   strokeWidth={2}   dot={false} connectNulls/>
+                    <Line yAxisId="kospi"  dataKey="price"       name="코스피"         stroke="#38BDF8" strokeWidth={2.5} dot={false}/>
+                  </ComposedChart>
+                </CW>
+
+                {/* ── GDP YoY vs 코스피 YoY 비교 ── */}
+                {gdpKospiMerged.length>0&&(
+                  <>
+                  <ST accent={C.gold} right="전년동기비% 비교">GDP YoY · 코스피 YoY</ST>
+                  <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",marginBottom:6,fontSize:9,color:C.muted,lineHeight:1.6}}>
+                    📌 GDP는 분기 후행 / 코스피는 6~9개월 선행 — 코스피가 먼저 움직이고 GDP가 뒤따르는 구조
+                  </div>
+                  <CW h={220}>
+                    <ComposedChart data={gdpKospiMerged} margin={{top:6,right:20,left:0,bottom:8}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={1}/>
+                      <YAxis {...yp("%",44)} domain={["auto","auto"]}/>
+                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <Legend wrapperStyle={{fontSize:9}}/>
+                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 2"/>
+                      <Bar  dataKey="gdpYoy"   name="GDP YoY%"   fill={C.gold}    opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
+                      <Line dataKey="kospiYoy" name="코스피 YoY%" stroke="#38BDF8" strokeWidth={2.5} dot={{r:3}} connectNulls/>
+                    </ComposedChart>
+                  </CW>
+                  </>
+                )}
+
+                {/* ── PPI YoY ── */}
+                {(macroData?.ppi||[]).filter(r=>r.yoy!=null).length>0&&(
+                  <>
+                  <ST accent={C.orange} right="생산자물가 전년비%">PPI (원가 압력 지표)</ST>
+                  <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",marginBottom:6,fontSize:9,color:C.muted,lineHeight:1.6}}>
+                    📌 PPI↑ → 기업 원가 상승 → OPM 압박 선행 / +3% 초과 시 이익률 주의
+                  </div>
+                  <CW h={190}>
+                    <ComposedChart data={(macroData.ppi||[]).filter(r=>r.yoy!=null).slice(-60)} margin={{top:4,right:20,left:0,bottom:8}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                      <YAxis {...yp("%",42)} domain={["auto","auto"]}/>
+                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 2"/>
+                      <ReferenceLine y={3} stroke={C.orange} strokeDasharray="3 3" label={{value:"주의+3%",fill:C.orange,fontSize:8,position:"insideTopRight"}}/>
+                      <ReferenceLine y={-3} stroke={C.blue} strokeDasharray="3 3" label={{value:"디플레-3%",fill:C.blue,fontSize:8,position:"insideBottomRight"}}/>
+                      <Bar  dataKey="yoy" name="PPI YoY%"
+                        maxBarSize={12} radius={[2,2,0,0]}
+                        fill={C.orange} opacity={0.7}/>
+                    </ComposedChart>
+                  </CW>
+                  </>
+                )}
+
+                {/* ── BSI(PMI대용) ── */}
+                {bsiData.length>0&&(
+                  <>
+                  <ST accent={C.purple} right="BSI 제조업 업황">BSI — 경기 방향성 선행지표</ST>
+                  <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:8,padding:"6px 10px",marginBottom:6,fontSize:9,color:C.muted,lineHeight:1.6}}>
+                    📌 한국은행 기업경기실사지수 (PMI 대용) — 100 이상: 확장 / 미만: 수축. 주가 1~3개월 선행
+                  </div>
+                  <CW h={190}>
+                    <ComposedChart data={bsiData} margin={{top:4,right:20,left:0,bottom:8}}>
+                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                      <YAxis {...yp("",42)} domain={["auto","auto"]}/>
+                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <ReferenceLine y={100} stroke={C.green} strokeDasharray="4 2" label={{value:"기준100",fill:C.green,fontSize:8,position:"insideTopRight"}}/>
+                      <ReferenceArea y1={100} y2={200} fill={`${C.green}08`}/>
+                      <ReferenceArea y1={0}   y2={100} fill={`${C.red}08`}/>
+                      <Line dataKey="value" name="BSI 제조업" stroke={C.purple} strokeWidth={2.5} dot={false} connectNulls/>
+                    </ComposedChart>
+                  </CW>
+                  </>
+                )}
+              </Box>
+            )}
+
+            {/* ── 섹션3: 코스피 기술분석 ── */}
+            {kospiMonthly.length>0?(
+              <Box>
+                <IndexChart title="코스피" data={kospiMonthly} maData={kospiMA}
+                  rsiData={kospiRSI} macdData={kospiMACD} color="#38BDF8"/>
+              </Box>
+            ):(
+              <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스피 데이터 로딩 중...</div></Box>
+            )}
+
+            {/* ── 섹션4: 코스닥 기술분석 ── */}
+            {kosdaqMonthly.length>0?(
+              <Box>
+                <IndexChart title="코스닥" data={kosdaqMonthly} maData={kosdaqMA}
+                  rsiData={kosdaqRSI} macdData={kosdaqMACD} color={C.purple}/>
+              </Box>
+            ):(
+              <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스닥 데이터 로딩 중...</div></Box>
+            )}
+          </div>
+          );
         })()}
 
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
