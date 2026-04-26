@@ -3473,89 +3473,6 @@ export default function App(){
               </div>
             </Box>
 
-            {/* ── 가계신용 증가율 그래프 */}
-            {(macroData?.hhCreditYoY||[]).filter(r=>r.yoy!=null).length>0&&(
-            <Box>
-              <ST accent={C.orange}>가계신용 증가율 (전년동기비 %)</ST>
-              {(()=>{
-                const data=(macroData.hhCreditYoY||[]).filter(r=>r.yoy!=null);
-                const last=data.slice(-1)[0];
-                const v=last?.yoy??null;
-                const vc=v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;
-                const vl=v==null?"":v>=8?"과열":v>=5?"경계":v>=2?"완만":"감소";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>달리오 단기부채사이클 — 가계신용 팽창 모니터</span>
-                  {v!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{v>0?"+":""}{v}% {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="hhGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.orange} stopOpacity={0.35}/>
-                        <stop offset="100%" stopColor={C.orange} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,7)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={0}   stroke={C.muted}        strokeDasharray="4 2"/>
-                    <ReferenceLine y={8}   stroke={`${C.red}66`}   strokeDasharray="3 3" label={{value:"과열 8%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={5}   stroke={`${C.orange}66`}strokeDasharray="3 3" label={{value:"경계 5%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={2}   stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"완만 2%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="yoy" name="가계신용YoY" stroke={C.orange} strokeWidth={2.5} fill="url(#hhGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 장단기 금리차 그래프 */}
-            {(macroData?.yieldSpread||[]).length>0&&(
-            <Box>
-              <ST accent={C.teal}>장단기 금리차 — 국고채 10Y − 3Y (%p)</ST>
-              {(()=>{
-                const data=macroData.yieldSpread||[];
-                const last=data.slice(-1)[0];
-                const v=last?.value??null;
-                const vc=v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;
-                const vl=v==null?"":v<-0.5?"역전":v<0?"평탄":v<0.5?"보통":"정상화";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>달리오 빅사이클 — 역전 시 경기침체 선행 신호</span>
-                  {v!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{v>0?"+":""}{v}%p {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="ysGradPos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
-                      </linearGradient>
-                      <linearGradient id="ysGradNeg" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.red} stopOpacity={0.02}/>
-                        <stop offset="100%" stopColor={C.red} stopOpacity={0.3}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={0}    stroke={C.red}          strokeWidth={1.5} strokeDasharray="4 2" label={{value:"역전선",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={0.5}  stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"0.5%p",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={-0.5} stroke={`${C.red}55`}   strokeDasharray="3 3" label={{value:"-0.5%p",fill:C.red,fontSize:7,position:"insideBottomRight"}}/>
-                    <Area dataKey="value" name="10Y-3Y" stroke={C.teal} strokeWidth={2.5} fill="url(#ysGradPos)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
             {/* ── 수출+코스피 동행 */}
             {macroMerged.length>0&&(
               <Box>
@@ -3680,6 +3597,89 @@ export default function App(){
                   </>);
                 })()}
               </Box>
+            )}
+
+            {/* ── 가계신용 증가율 그래프 */}
+            {(macroData?.hhCreditYoY||[]).filter(r=>r.yoy!=null).length>0&&(
+            <Box>
+              <ST accent={C.orange}>가계신용 증가율 (전년동기비 %)</ST>
+              {(()=>{
+                const data=(macroData.hhCreditYoY||[]).filter(r=>r.yoy!=null);
+                const last=data.slice(-1)[0];
+                const v=last?.yoy??null;
+                const vc=v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;
+                const vl=v==null?"":v>=8?"과열":v>=5?"경계":v>=2?"완만":"감소";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>달리오 단기부채사이클 — 가계신용 팽창 모니터</span>
+                  {v!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{v>0?"+":""}{v}% {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="hhGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.orange} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.orange} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0}   stroke={C.muted}        strokeDasharray="4 2"/>
+                    <ReferenceLine y={8}   stroke={`${C.red}66`}   strokeDasharray="3 3" label={{value:"과열 8%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={5}   stroke={`${C.orange}66`}strokeDasharray="3 3" label={{value:"경계 5%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={2}   stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"완만 2%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="yoy" name="가계신용YoY" stroke={C.orange} strokeWidth={2.5} fill="url(#hhGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 장단기 금리차 그래프 */}
+            {(macroData?.yieldSpread||[]).length>0&&(
+            <Box>
+              <ST accent={C.teal}>장단기 금리차 — 국고채 10Y − 3Y (%p)</ST>
+              {(()=>{
+                const data=macroData.yieldSpread||[];
+                const last=data.slice(-1)[0];
+                const v=last?.value??null;
+                const vc=v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;
+                const vl=v==null?"":v<-0.5?"역전":v<0?"평탄":v<0.5?"보통":"정상화";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>달리오 빅사이클 — 역전 시 경기침체 선행 신호</span>
+                  {v!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{v>0?"+":""}{v}%p {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="ysGradPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
+                      </linearGradient>
+                      <linearGradient id="ysGradNeg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.02}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0}    stroke={C.red}          strokeWidth={1.5} strokeDasharray="4 2" label={{value:"역전선",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={0.5}  stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"0.5%p",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={-0.5} stroke={`${C.red}55`}   strokeDasharray="3 3" label={{value:"-0.5%p",fill:C.red,fontSize:7,position:"insideBottomRight"}}/>
+                    <Area dataKey="value" name="10Y-3Y" stroke={C.teal} strokeWidth={2.5} fill="url(#ysGradPos)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
             )}
             </> /* econ 섹션 끝 */}
 
