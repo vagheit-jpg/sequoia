@@ -7,8 +7,8 @@ let cache = { data: null, ts: 0 };
 // ── ECOS 호출
 async function fetchECOS(statCode, itemCode, startDate, endDate, freq = "MM") {
   // ECOS 공식 URL: /StatisticSearch/{key}/json/kr/{startRow}/{endRow}/{statCode}/{freq}/{startDate}/{endDate}/{itemCode}
-  const encodedItem = encodeURIComponent(itemCode);
-  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/200/${statCode}/${freq}/${startDate}/${endDate}/${encodedItem}`;
+  // encodeURIComponent 제거 — *AA 같은 와일드카드가 %2AAA로 인코딩되면 ERROR-100 발생
+  const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/200/${statCode}/${freq}/${startDate}/${endDate}/${itemCode}`;
   const res = await fetch(url);
   const json = await res.json();
   if (json?.RESULT?.CODE && json.RESULT.CODE !== "INFO-000") {
@@ -98,7 +98,8 @@ export default async function handler(req, res) {
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
-      const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/3/${stat}/${freq}/${sd}/${ed}/${encodeURIComponent(item)}`;
+      // encodeURIComponent 제거 — 와일드카드(*) 그대로 전송
+      const url = `https://ecos.bok.or.kr/api/StatisticSearch/${ECOS_KEY}/json/kr/1/3/${stat}/${freq}/${sd}/${ed}/${item}`;
       try {
         const r = await fetch(url);
         const json = await r.json();
