@@ -3469,54 +3469,67 @@ export default function App(){
             {macroMerged.length>0&&(
               <Box>
                 <ST accent={C.teal}>일평균수출 · 코스피 동행 추이 (정규화 비교)</ST>
-                <div style={{background:C.card2,borderRadius:8,padding:"4px 9px",marginBottom:6,fontSize:8,color:C.muted,border:`1px solid ${C.border}`}}>
-                  📌 두 지표를 같은 기준(Z-Score)으로 변환 — 위쪽이면 과열, 아래쪽이면 침체 신호
-                </div>
-                <CW h={240}>
-                  {(()=>{
-                    // Z-Score 정규화
-                    const expVals=macroMerged.map(d=>d.dailyExport).filter(v=>v!=null);
-                    const kpVals=macroMerged.map(d=>d.price).filter(v=>v!=null);
-                    const mean=arr=>arr.reduce((s,v)=>s+v,0)/arr.length;
-                    const std=arr=>{const m=mean(arr);return Math.sqrt(arr.map(v=>(v-m)**2).reduce((s,v)=>s+v,0)/arr.length)||1;};
-                    const eM=mean(expVals),eS=std(expVals),kM=mean(kpVals),kS=std(kpVals);
-                    const normalized=macroMerged.map(d=>({
-                      date:d.date,
-                      수출Z:d.dailyExport!=null?+((d.dailyExport-eM)/eS).toFixed(2):null,
-                      코스피Z:d.price!=null?+((d.price-kM)/kS).toFixed(2):null,
-                    }));
-                    return(
+                {(()=>{
+                  // Z-Score 정규화 (편차 1.5배 확대)
+                  const expVals=macroMerged.map(d=>d.dailyExport).filter(v=>v!=null);
+                  const kpVals=macroMerged.map(d=>d.price).filter(v=>v!=null);
+                  const mean=arr=>arr.reduce((s,v)=>s+v,0)/arr.length;
+                  const std=arr=>{const m=mean(arr);return Math.sqrt(arr.map(v=>(v-m)**2).reduce((s,v)=>s+v,0)/arr.length)||1;};
+                  const eM=mean(expVals),eS=std(expVals),kM=mean(kpVals),kS=std(kpVals);
+                  const AMP=1.5; // 시인성 확대 계수
+                  const normalized=macroMerged.map(d=>({
+                    date:d.date,
+                    수출Z:d.dailyExport!=null?+((d.dailyExport-eM)/eS*AMP).toFixed(2):null,
+                    코스피Z:d.price!=null?+((d.price-kM)/kS*AMP).toFixed(2):null,
+                  }));
+                  // 최신 고/저평가 계산
+                  const last=normalized.filter(d=>d.수출Z!=null&&d.코스피Z!=null).slice(-1)[0];
+                  const gap=last?+(last.코스피Z-last.수출Z).toFixed(2):null;
+                  const gapLabel=gap==null?"":gap>1.5?"강한 과열":gap>0.5?"과열":gap>-0.5?"중립":gap>-1.5?"저평가":"강한 저평가";
+                  const gapColor=gap==null?"#888":gap>1?"#FF6B00":gap>0?"#F0C800":gap>-1?"#38BDF8":"#00C878";
+                  return(<>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                    background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                    <span style={{fontSize:8,color:C.muted}}>📌 Z-Score 기반 — 코스피가 수출 대비</span>
+                    {gap!=null&&(
+                      <span style={{fontSize:10,fontWeight:700,color:gapColor,fontFamily:"monospace"}}>
+                        {gap>0?"+":""}{gap}σ {gapLabel}
+                      </span>
+                    )}
+                  </div>
+                  <CW h={240}>
                     <ComposedChart data={normalized} margin={{top:6,right:8,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
-                      <YAxis tick={{fill:C.muted,fontSize:9}} width={30} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                      <YAxis tick={{fill:C.muted,fontSize:9}} width={32} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/>
                       <Legend wrapperStyle={{fontSize:9}}/>
-                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 2"/>
-                      <ReferenceLine y={1}  stroke={`${C.red}44`}    strokeDasharray="3 3"/>
-                      <ReferenceLine y={-1} stroke={`${C.green}44`}  strokeDasharray="3 3"/>
-                      <Line dataKey="수출Z"  name="수출(Z)" stroke={C.teal}   strokeWidth={2}   dot={false} connectNulls/>
+                      <ReferenceLine y={0}    stroke={C.muted}           strokeDasharray="4 2"/>
+                      <ReferenceLine y={1.5}  stroke={`${C.red}55`}      strokeDasharray="3 3" label={{value:"과열",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                      <ReferenceLine y={-1.5} stroke={`${C.green}55`}    strokeDasharray="3 3" label={{value:"침체",fill:C.green,fontSize:7,position:"insideBottomRight"}}/>
+                      <Line dataKey="수출Z"   name="수출(Z)"   stroke={C.teal}   strokeWidth={2}   dot={false} connectNulls/>
                       <Line dataKey="코스피Z" name="코스피(Z)" stroke="#38BDF8" strokeWidth={2.5} dot={false}/>
                     </ComposedChart>
-                    );
-                  })()}
-                </CW>
+                  </CW>
+                  </>);
+                })()}
                 {gdpKospiMerged.filter(r=>r.gdpYoy!=null).length>0&&(
                   <>
-                  <ST accent={C.gold} right="전년동기비%">GDP YoY · 코스피 YoY</ST>
+                  <ST accent={C.gold} right="코스피YoY(우) / GDP전기비%(좌)">GDP · 코스피 YoY 비교</ST>
                   <div style={{background:C.card2,borderRadius:8,padding:"5px 9px",marginBottom:6,fontSize:9,color:C.muted,lineHeight:1.6,border:`1px solid ${C.border}`}}>
                     📌 코스피 6~9개월 선행 → GDP 후행 확인
                   </div>
                   <CW h={210}>
-                    <ComposedChart data={gdpKospiMerged} margin={{top:4,right:20,left:0,bottom:8}}>
+                    <ComposedChart data={gdpKospiMerged} margin={{top:4,right:44,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
-                      <YAxis {...yp("%",44)} domain={["auto","auto"]}/>
+                      <YAxis yAxisId="gdp"   orientation="left"  tick={{fill:C.gold,fontSize:9}}    width={36} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
+                      <YAxis yAxisId="kospi" orientation="right" tick={{fill:"#38BDF8",fontSize:9}} width={44} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/>
                       <Legend wrapperStyle={{fontSize:9}}/>
-                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 2"/>
-                      <Bar  dataKey="gdpYoy"   name="GDP YoY%"   fill={C.gold}    opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
-                      <Line dataKey="kospiYoy" name="코스피 YoY%" stroke="#38BDF8" strokeWidth={2.5} dot={{r:3}} connectNulls/>
+                      <ReferenceLine yAxisId="gdp" y={0} stroke={C.muted} strokeDasharray="4 2"/>
+                      <Bar  yAxisId="gdp"   dataKey="gdpYoy"   name="GDP 전기비%"  fill={C.gold}    opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
+                      <Line yAxisId="kospi" dataKey="kospiYoy" name="코스피 YoY%" stroke="#38BDF8" strokeWidth={2.5} dot={{r:3}} connectNulls/>
                     </ComposedChart>
                   </CW>
                   </>
