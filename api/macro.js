@@ -98,13 +98,13 @@ export default async function handler(req, res) {
   // ── 디버그 모드: ?debug=1 — 각 시리즈 개별 테스트
   if (req.query?.debug === "1") {
     const tests = [
-      ["기준금리", "722Y001", "0101000", "D",  "20220101", "20241231"],
-      ["환율",     "731Y003", "0000003", "D",  "20220101", "20241231"],
-      ["수출",     "901Y118", "T002",    "MM", "202201",   "202412"  ],
-      ["GDP",      "200Y102", "10111",   "QQ", "2022Q1",   "2024Q4"  ],
-      ["PPI",      "404Y014", "*AA",     "MM", "202201",   "202412"  ],
-      ["BSI",      "512Y013", "99988",   "MM", "202201",   "202412"  ],
-      ["CPI",      "901Y009", "0",       "MM", "202201",   "202412"  ],
+      ["기준금리", "722Y001", "0101000", "D", "20220101", "20241231"],
+      ["환율",     "731Y003", "0000003", "D", "20220101", "20241231"],
+      ["수출",     "901Y118", "T002",    "M", "202201",   "202412"  ],
+      ["GDP",      "200Y102", "10111",   "Q", "2022Q1",   "2024Q4"  ],
+      ["PPI",      "404Y014", "*AA",     "M", "202201",   "202412"  ],
+      ["BSI",      "512Y013", "99988",   "M", "202201",   "202412"  ],
+      ["CPI",      "901Y009", "0",       "M", "202201",   "202412"  ],
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
@@ -142,13 +142,13 @@ export default async function handler(req, res) {
     // ── 병렬 호출: ECOS 7개 + Yahoo 지수 2개
     const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR] =
       await Promise.allSettled([
-        fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "QQ"),  // GDP 실질 전기비%
-        fetchECOS("901Y118", "T002",    startDate,  endDate,     "MM"),  // 수출금액
-        fetchECOS("722Y001", "0101000", startDate8, endDate8,    "D" ),  // 기준금리 (일별)
-        fetchECOS("731Y003", "0000003", startDate8, endDate8,    "D" ),  // 원/달러 종가
-        fetchECOS("404Y014", "*AA",     startDate,  endDate,     "MM"),  // PPI 총지수
-        fetchECOS("512Y013", "99988",   startDate,  endDate,     "MM"),  // BSI 전산업
-        fetchECOS("901Y009", "0",       startDate,  endDate,     "MM"),  // CPI 총지수
+        fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
+        fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
+        fetchECOS("722Y001", "0101000", startDate8, endDate8,    "D"),  // 기준금리(일별)
+        fetchECOS("731Y003", "0000003", startDate8, endDate8,    "D"),  // 원/달러 종가(일별)
+        fetchECOS("404Y014", "*AA",     startDate,  endDate,     "M"),  // PPI 총지수
+        fetchECOS("512Y013", "99988",   startDate,  endDate,     "M"),  // BSI 전산업
+        fetchECOS("901Y009", "0",       startDate,  endDate,     "M"),  // CPI 총지수
         fetchIndexMonthly("^KS11"),   // 코스피 월봉
         fetchIndexMonthly("^KQ11"),   // 코스닥 월봉
       ]);
@@ -166,10 +166,10 @@ export default async function handler(req, res) {
     const kosdaqMonthly = ok(kosdaqR);
 
     // ── 가공
-    // GDP: 이미 전기비% 값 → yoy 필드로 그대로 사용
+    // GDP: 이미 전기비% → yoy 필드로 매핑
     const gdp         = gdpArr.map(r => ({ ...r, yoy: r.value }));
     const gdpLevel    = gdpArr;
-    // 수출: 천불 단위 → 일평균($M) = 천불/21/1000
+    // 수출: 천불 → 일평균$M (1천불/21일/1000 = $M)
     const dailyExport = exportArr.map(r => ({ date: r.date, value: +(r.value / 21000).toFixed(1) }));
     const exportYoY   = calcMonthlyYoY(dailyExport);
     const rate        = dailyToMonthly(rateArr);
