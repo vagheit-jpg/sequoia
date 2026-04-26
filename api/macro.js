@@ -105,13 +105,21 @@ export default async function handler(req, res) {
       ["PPI",      "404Y014", "*AA",     "M", "202201",   "202412"  ],
       ["BSI",      "512Y013", "99988",   "M", "202201",   "202412"  ],
       ["CPI",      "901Y009", "0",       "M", "202201",   "202412"  ],
-      ["가계신용_시도1", "151Y001", "1060000",  "Q", "2024Q1", "2024Q4"],  
-      ["가계신용_시도2", "151Y001", "*",         "Q", "2024Q1", "2024Q4"],  // 와일드카드
-      ["국고채10Y_시도1","721Y001", "5010200",   "M", "202401", "202412"],
-      ["국고채10Y_시도2","721Y001", "010200000", "M", "202401", "202412"],
-      ["국고채3Y_시도1", "721Y001", "5010150",   "M", "202401", "202412"],
-      ["국고채3Y_시도2", "721Y001", "010150000", "M", "202401", "202412"],
+      ["가계신용_전체", "151Y001", "*",   "Q", "2024Q1",   "2024Q4"  ],
+      ["국고채_전체",   "721Y001", "*",   "M", "202401",   "202412"  ],
     ];
+    // ── StatisticItemList로 실제 itemCode 조회
+    const itemListResults = {};
+    for (const statCode of ["151Y001", "721Y001"]) {
+      const url = `https://ecos.bok.or.kr/api/StatisticItemList/${ECOS_KEY}/json/kr/1/50/${statCode}/`;
+      try {
+        const r = await fetch(url);
+        const json = await r.json();
+        itemListResults[statCode] = (json?.StatisticItemList?.row || []).map(row => ({
+          code: row.ITEM_CODE, name: row.ITEM_NAME, cycle: row.CYCLE,
+        }));
+      } catch(e) { itemListResults[statCode] = { error: e.message }; }
+    }
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
       // encodeURIComponent 제거 — 와일드카드(*) 그대로 전송
@@ -127,7 +135,7 @@ export default async function handler(req, res) {
         };
       } catch(e) { results[name] = { error: e.message }; }
     }
-    return res.status(200).json({ keyPresent: !!ECOS_KEY, keyPreview: ECOS_KEY?ECOS_KEY.slice(0,4)+"****":"EMPTY", keyLen: ECOS_KEY.length, keyFull: ECOS_KEY, results });
+    return res.status(200).json({ keyPresent: !!ECOS_KEY, keyPreview: ECOS_KEY?ECOS_KEY.slice(0,4)+"****":"EMPTY", keyLen: ECOS_KEY.length, keyFull: ECOS_KEY, results, itemListResults });
   }
 
   if (Date.now() - cache.ts < CACHE_TTL && cache.data) {
