@@ -3237,6 +3237,9 @@ export default function App(){
             {label:"10Y-3Y금리차", val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
+            {label:"가계신용/GDP", val:(()=>{const v=(macroData?.hhCreditGdpRatio||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
+             color:(()=>{const v=(macroData?.hhCreditGdpRatio||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=120?C.red:v>=100?C.orange:v>=80?C.gold:C.green;})(),
+             tip:(()=>{const v=(macroData?.hhCreditGdpRatio||[]).slice(-1)[0]?.value??null;return v==null?"":v>=120?"과부채↑":v>=100?"경계":v>=80?"주의":"건전";})()},
           ];
 
           // ── IndexChart — 주가탭 위치밴드 스타일
@@ -3632,6 +3635,45 @@ export default function App(){
                     <ReferenceLine y={5}   stroke={`${C.orange}66`}strokeDasharray="3 3" label={{value:"경계 5%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={2}   stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"완만 2%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
                     <Area dataKey="yoy" name="가계신용YoY" stroke={C.orange} strokeWidth={2.5} fill="url(#hhGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 가계신용/GDP 비율 그래프 */}
+            {(macroData?.hhCreditGdpRatio||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>가계신용/GDP 비율 — 부채 수준 (달리오 단기부채사이클)</ST>
+              {(()=>{
+                const data=macroData.hhCreditGdpRatio||[];
+                const last=data.slice(-1)[0];
+                const v=last?.value??null;
+                const vc=v==null?"#888":v>=120?C.red:v>=100?C.orange:v>=80?C.gold:C.green;
+                const vl=v==null?"":v>=120?"과부채":v>=100?"경계":v>=80?"주의":"건전";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>BIS 기준 — 100% 경계 / 120% 위험 / 한국 현재 수준</span>
+                  {v!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{v}% {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="gdpRatioGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} tickFormatter={v=>`${v}%`} domain={[60,"auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={120} stroke={C.red}    strokeWidth={1.5} strokeDasharray="4 2" label={{value:"위험 120%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={100} stroke={C.orange} strokeWidth={1.5} strokeDasharray="3 3" label={{value:"경계 100%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={80}  stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 80%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="가계신용/GDP%" stroke={C.red} strokeWidth={2.5} fill="url(#gdpRatioGrad)" dot={false} connectNulls/>
                   </ComposedChart>
                 </CW>
                 </>);
