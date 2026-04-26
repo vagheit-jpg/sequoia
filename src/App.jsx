@@ -3153,17 +3153,16 @@ export default function App(){
           const kp60=(arr)=>{
             if(!arr.length)return[];
             return arr.map((d,i,a)=>{
-              if(i<59)return{...d,ma60:null};
+              if(i<59)return{...d,ma60:null,gap60:null};
               const avg=a.slice(i-59,i+1).reduce((s,x)=>s+(x.price||0),0)/60;
-              return{...d,ma60:+avg.toFixed(0)};
+              const ma60=+avg.toFixed(0);
+              return{...d,ma60,gap60:+((d.price/ma60-1)*100).toFixed(2)};
             });
           };
           const kospiMA=kp60(kospiMonthly);
           const kosdaqMA=kp60(kosdaqMonthly);
           const kospiRSI=calcRSI(kospiMonthly);
-          const kospiMACD=calcMACD(kospiMonthly);
           const kosdaqRSI=calcRSI(kosdaqMonthly);
-          const kosdaqMACD=calcMACD(kosdaqMonthly);
 
           // ── 거시+코스피 병합
           const macroMerged=(()=>{
@@ -3232,22 +3231,53 @@ export default function App(){
           ];
 
           // ── IndexChart
-          const IndexChart=({title,maData,rsiData,macdData,color})=>(
+          const IndexChart=({title,maData,rsiData,color})=>{
+            const lastValid=maData.filter(d=>d.ma60!=null).slice(-1)[0];
+            const lastGap=lastValid?.gap60??null;
+            const gapColor=lastGap==null?"#888":lastGap>100?C.red:lastGap>0?C.gold:lastGap>-20?C.teal:C.green;
+            return(
             <>
-              <ST accent={color}>{title} — 60MA</ST>
-              <CW h={250}>
+              {/* 헤더: 현재 이격도 뱃지 */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                <ST accent={color} style={{margin:0}}>{title} — 월봉 60MA</ST>
+                {lastGap!=null&&(
+                  <div style={{background:`${gapColor}20`,border:`1px solid ${gapColor}66`,
+                    borderRadius:6,padding:"3px 9px",fontSize:10,fontWeight:700,color:gapColor,fontFamily:"monospace"}}>
+                    60MA 이격도 {lastGap>0?"+":""}{lastGap}%
+                  </div>
+                )}
+              </div>
+              {/* 가격 + 60MA */}
+              <CW h={240}>
                 <ComposedChart data={maData} margin={{top:6,right:40,left:0,bottom:8}}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                   <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(maData.length/7)||1}/>
                   <YAxis {...yp("",52)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
                   <Tooltip content={<MTip/>} cursor={false}/>
                   <Legend wrapperStyle={{fontSize:9}}/>
-                  <Line dataKey="ma60"  name="60MA"  stroke={C.gold} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls/>
-                  <Line dataKey="price" name={title} stroke={color}  strokeWidth={2.5} dot={false}/>
+                  <Line dataKey="ma60"  name="60월선" stroke={C.gold} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls/>
+                  <Line dataKey="price" name={title}  stroke={color}  strokeWidth={2.5} dot={false}/>
                 </ComposedChart>
               </CW>
-              <ST accent={C.green}>RSI (14개월)</ST>
+              {/* 60MA 이격도 */}
+              <ST accent={C.gold} right="60월선 기준">이격도</ST>
               <CW h={130}>
+                <ComposedChart data={maData.filter(d=>d.gap60!=null)} margin={{top:4,right:20,left:0,bottom:8}}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(maData.length/7)||1}/>
+                  <YAxis {...yp("%",44)} domain={["auto","auto"]}/>
+                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <ReferenceLine y={0}    stroke={C.gold}   strokeDasharray="4 2" label={{value:"60MA",fill:C.gold,fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={100}  stroke={C.red}    strokeDasharray="3 3" label={{value:"+100%",fill:C.red,fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={-20}  stroke={C.green}  strokeDasharray="3 3" label={{value:"-20%",fill:C.green,fontSize:8,position:"insideBottomRight"}}/>
+                  <ReferenceArea y1={-20} y2={-100} fill={`${C.green}10`}/>
+                  <ReferenceArea y1={100} y2={300}  fill={`${C.red}10`}/>
+                  <Area dataKey="gap60" name="이격도%" stroke={color} strokeWidth={2} fill={`${color}18`} dot={false}/>
+                </ComposedChart>
+              </CW>
+              {/* RSI */}
+              <ST accent={C.green}>RSI (14개월)</ST>
+              <CW h={120}>
                 <ComposedChart data={rsiData} margin={{top:4,right:20,left:0,bottom:8}}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                   <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(rsiData.length/7)||1}/>
@@ -3260,21 +3290,9 @@ export default function App(){
                   <Area dataKey="rsi" name="RSI(%)" stroke={C.green} strokeWidth={2} fill={`${C.green}18`} dot={false}/>
                 </ComposedChart>
               </CW>
-              <ST accent={C.blueL}>MACD</ST>
-              <CW h={130}>
-                <ComposedChart data={macdData} margin={{top:4,right:20,left:0,bottom:8}}>
-                  <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                  <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(macdData.length/7)||1}/>
-                  <YAxis {...yp("",38)}/>
-                  <Tooltip content={<MTip/>} cursor={false}/>
-                  <ReferenceLine y={0} stroke={C.dim}/>
-                  <Bar  dataKey="hist"   name="히스토그램" maxBarSize={5} radius={[2,2,0,0]} fill={C.blueL} fillOpacity={0.6}/>
-                  <Line dataKey="macd"   name="MACD"      stroke={C.blueL}  strokeWidth={2}   dot={false}/>
-                  <Line dataKey="signal" name="Signal"    stroke={C.orange} strokeWidth={1.5} dot={false}/>
-                </ComposedChart>
-              </CW>
             </>
-          );
+            );
+          };
 
           const dc=macroData?.defconData;
           const DL=[
@@ -3452,7 +3470,7 @@ export default function App(){
             {/* ── 코스피 기술분석 */}
             {kospiMonthly.length>0?(
               <Box>
-                <IndexChart title="코스피" maData={kospiMA} rsiData={kospiRSI} macdData={kospiMACD} color="#38BDF8"/>
+                <IndexChart title="코스피" maData={kospiMA} rsiData={kospiRSI} color="#38BDF8"/>
               </Box>
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스피 데이터 로딩 중...</div></Box>
@@ -3461,7 +3479,7 @@ export default function App(){
             {/* ── 코스닥 기술분석 */}
             {kosdaqMonthly.length>0?(
               <Box>
-                <IndexChart title="코스닥" maData={kosdaqMA} rsiData={kosdaqRSI} macdData={kosdaqMACD} color={C.purple}/>
+                <IndexChart title="코스닥" maData={kosdaqMA} rsiData={kosdaqRSI} color={C.purple}/>
               </Box>
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스닥 데이터 로딩 중...</div></Box>
