@@ -74,7 +74,9 @@ const fetchPrice=async(ticker,market)=>{
 const ema=(arr,n)=>{const k=2/(n+1);let e=arr[0];return arr.map((v,i)=>{if(i===0)return e;e=v*k+e*(1-k);return+e.toFixed(2);});};
 
 const calcMA60=(monthly)=>{
-  const N=60;
+  const len=monthly.length;
+  const N=len>=60?60:len>=15?15:len>=3?len:0;
+  if(N===0)return monthly.map(d=>({...d,ma60:null,gap60:null}));
   return monthly.map((d,i)=>{
     if(i<N-1)return{...d,ma60:null,gap60:null};
     const avg=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
@@ -327,7 +329,10 @@ const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
 // 가격 위치 밴드 — ma60 배수 기반 통일
 // 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
 const calcPositionBands=(monthly)=>{
-  const N=60;
+  const len=monthly.length;
+  // 데이터 부족 시 adaptive N: 최소 3개 이상이면 가용 전체로 MA 계산
+  const N=len>=60?60:len>=15?15:len>=3?len:0;
+  if(N===0)return monthly.map(d=>({...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null}));
   return monthly.map((d,i)=>{
     if(i<N-1)return{...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null};
     const ma=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
@@ -1251,7 +1256,20 @@ export default function App(){
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
-    // 정적 캐시 우선 시도 → 실패 시 API 폴백
+    // localStorage 캐시 우선 (1시간 TTL)
+    const MACRO_CACHE_TTL=60*60*1000;
+    let cached=null;
+    try{
+      const raw=localStorage.getItem("sq_macro_v1");
+      if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<MACRO_CACHE_TTL&&data)cached=data;}
+    }catch{}
+    if(cached){
+      setMacroData(cached);
+      if(cached.kospiMonthly?.length)  setKospiMonthly(cached.kospiMonthly);
+      if(cached.kosdaqMonthly?.length) setKosdaqMonthly(cached.kosdaqMonthly);
+      setMarketLoaded(true);setMarketLoading(false);
+      return;
+    }
     const loadMacro = () =>
       fetch("/api/macro").then(r=>r.ok?r.json():null).catch(()=>null);
     loadMacro().then(macro=>{
@@ -1259,6 +1277,7 @@ export default function App(){
         setMacroData(macro);
         if(macro.kospiMonthly?.length)  setKospiMonthly(macro.kospiMonthly);
         if(macro.kosdaqMonthly?.length) setKosdaqMonthly(macro.kosdaqMonthly);
+        try{localStorage.setItem("sq_macro_v1",JSON.stringify({data:macro,ts:Date.now()}));}catch{}
       }
       setMarketLoaded(true);
       setMarketLoading(false);
@@ -3155,9 +3174,12 @@ export default function App(){
         {tab==="market"&&(()=>{
           const kp60=(arr)=>{
             if(!arr.length)return[];
+            const len=arr.length;
+            const N=len>=60?60:len>=15?15:len>=3?len:0;
+            if(N===0)return arr.map(d=>({...d,ma60:null,gap60:null}));
             return arr.map((d,i,a)=>{
-              if(i<59)return{...d,ma60:null,gap60:null};
-              const avg=a.slice(i-59,i+1).reduce((s,x)=>s+(x.price||0),0)/60;
+              if(i<N-1)return{...d,ma60:null,gap60:null};
+              const avg=a.slice(i-N+1,i+1).reduce((s,x)=>s+(x.price||0),0)/N;
               const ma60=+avg.toFixed(0);
               return{...d,ma60,gap60:+((d.price/ma60-1)*100).toFixed(2)};
             });
@@ -3182,28 +3204,6 @@ export default function App(){
             });
           })();
 
-          // ── 코스피 YoY
-          const kospiYoY=(()=>{
-            const arr=kospiMonthly.slice(-84);
-            return arr.map((d,i)=>{
-              if(i<12)return{...d,kospiYoy:null};
-              const base=arr[i-12].price;
-              return{...d,kospiYoy:base?+((d.price/base-1)*100).toFixed(1):null};
-            });
-          })();
-
-          // ── GDP+코스피YoY 병합
-          const gdpKospiMerged=(()=>{
-            const gdpArr=macroData?.gdp||[];
-            return gdpArr.slice(-24).map(r=>{
-              const y=r.date?.slice(0,4);
-              const q=r.date?.slice(5);
-              const m={"Q1":"03","Q2":"06","Q3":"09","Q4":"12"}[q]||"12";
-              const kd=kospiYoY.find(k=>k.date?.slice(0,6)===`${y}${m}`);
-              return{date:r.date,gdpYoy:r.yoy??r.value,kospiYoy:kd?.kospiYoy??null};
-            });
-          })();
-
           // ── 신호등
           const lastRate=(macroData?.rate||[]).slice(-1)[0]?.value??null;
           const lastFX=(macroData?.fx||[]).slice(-1)[0]?.value??null;
@@ -3212,6 +3212,7 @@ export default function App(){
           const lastGDP=(macroData?.gdp||[]).slice(-1)[0]?.value??null;
           const lastPPI=[...(macroData?.ppi||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
           const lastBSI=(macroData?.bsi||[]).slice(-1)[0]?.value??null;
+          const lastCPI=[...(macroData?.cpi||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
           const signals=[
             {label:"기준금리", val:lastRate!=null?`${lastRate}%`:"-",
              color:lastRate==null?"#888":lastRate<=2.5?C.green:lastRate<=3.5?C.gold:C.red,
@@ -3231,6 +3232,9 @@ export default function App(){
             {label:"BSI제조업",val:lastBSI!=null?`${lastBSI}`:"-",
              color:lastBSI==null?"#888":lastBSI>=100?C.green:lastBSI>=90?C.gold:C.red,
              tip:lastBSI==null?"":lastBSI>=100?"확장":lastBSI>=90?"중립":"수축"},
+            {label:"CPI(YoY)",val:lastCPI!=null?`${lastCPI>0?"+":""}${lastCPI}%`:"-",
+             color:lastCPI==null?"#888":lastCPI>5?C.red:lastCPI>3?C.orange:lastCPI>1?C.gold:C.green,
+             tip:lastCPI==null?"":lastCPI>5?"고인플레":lastCPI>3?"경계":lastCPI>1?"보통":"안정"},
             {label:"가계신용YoY", val:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
              color:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;})(),
              tip:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v>=8?"과열↑":v>=5?"경계":v>=2?"완만":"감소↓";})()},
@@ -3521,27 +3525,7 @@ export default function App(){
                   </CW>
                   </>);
                 })()}
-                {gdpKospiMerged.filter(r=>r.gdpYoy!=null).length>0&&(
-                  <>
-                  <ST accent={C.gold} right="코스피YoY(우) / GDP전기비%(좌)">GDP · 코스피 YoY 비교</ST>
-                  <div style={{background:C.card2,borderRadius:8,padding:"5px 9px",marginBottom:6,fontSize:9,color:C.muted,lineHeight:1.6,border:`1px solid ${C.border}`}}>
-                    📌 코스피 6~9개월 선행 → GDP 후행 확인
-                  </div>
-                  <CW h={210}>
-                    <ComposedChart data={gdpKospiMerged} margin={{top:4,right:0,left:0,bottom:8}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
-                      <YAxis yAxisId="gdp"   orientation="left"  tick={{fill:C.gold,fontSize:9}}    width={36} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
-                      <YAxis yAxisId="kospi" orientation="right" tick={{fill:"#38BDF8",fontSize:9}} width={44} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
-                      <Tooltip content={<MTip/>} cursor={false}/>
-                      <Legend wrapperStyle={{fontSize:9}}/>
-                      <ReferenceLine yAxisId="gdp" y={0} stroke={C.muted} strokeDasharray="4 2"/>
-                      <Bar  yAxisId="gdp"   dataKey="gdpYoy"   name="GDP 전기비%"  fill={C.gold}    opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
-                      <Line yAxisId="kospi" dataKey="kospiYoy" name="코스피 YoY%" stroke="#38BDF8" strokeWidth={2.5} dot={{r:3}} connectNulls/>
-                    </ComposedChart>
-                  </CW>
-                  </>
-                )}
+
                 {(macroData?.ppi||[]).filter(r=>r.yoy!=null).length>0&&(
                   <>
                   <ST accent={C.orange} right="생산자물가 전년비%">PPI — 원가 압력 선행지표</ST>
@@ -3729,7 +3713,7 @@ export default function App(){
 
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-        html,body{overflow-x:hidden;background:#040710;}
+        html,body{overflow-x:hidden;background:#040710;overscroll-behavior:none;min-height:100%;}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         *{-webkit-tap-highlight-color:transparent;}
         /* 기본: 스크롤바 전체 숨김 (모바일 포함 모든 환경) */
