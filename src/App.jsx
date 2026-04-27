@@ -1282,8 +1282,8 @@ export default function App(){
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
-    // localStorage 캐시 우선 (1시간 TTL)
-    const MACRO_CACHE_TTL=60*60*1000;
+    // localStorage 캐시 우선 (24시간 TTL)
+    const MACRO_CACHE_TTL=24*60*60*1000;
     let cached=null;
     try{
       const raw=localStorage.getItem("sq_macro_v1");
@@ -2252,7 +2252,7 @@ export default function App(){
             </CW>
             <ST accent={C.teal}>QMA 이격도 (%)</ST>
             <CW h={180}>
-              <ComposedChart data={withMA60Slice} margin={{top:4,right:20,left:0,bottom:8}}>
+              <ComposedChart data={calculatedData} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("%")}/>
                 <Tooltip content={<MTip/>} cursor={false}/>
