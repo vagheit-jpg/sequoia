@@ -1471,7 +1471,7 @@ export default function App(){
     if(gap===null)return{label:"—",color:C.muted};
     if(gap<=-40)return{label:"필수매수",color:C.green};   // VL: ×0.6 이하
     if(gap<=-20) return{label:"적극매수",color:C.teal};        // L:  ×0.8 이하
-    if(gap<=0) return{label:"매수",color:C.Turquoise};        // M:  ×1.0 이하
+    if(gap<=0) return{label:"매수",color:"#40E0D0"};        // M:  ×1.0 이하
     if(gap<50)  return{label:"관망",color:C.gold};        // MH:  ×1.5 미만
     if(gap<100) return{label:"과열",color:C.orange};      // H:  ×2.0 미만
     if(gap<150) return{label:"매도",color:"#FF6B00"};     // VH: ×2.5 미만
