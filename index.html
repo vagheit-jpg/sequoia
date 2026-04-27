@@ -7,6 +7,9 @@
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    /* [이 두 줄이 핵심입니다] */
+      overscroll-behavior-y: none;  /* 위아래 튕김(검은 영역 노출) 차단 */
+      overflow-x: hidden;           /* 좌우 흔들림 방지 */
     </style>
   </head>
   <body>
