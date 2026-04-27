@@ -2799,7 +2799,7 @@ export default function App(){
                           ※ 유지CAPEX = 사업 현상유지에 필요한 최소 설비투자. 높을수록 보수적 평가. DCF 파라미터에서 조정 가능.
                         </div>
                       </div>
-                  )}
+            
                 </>
               ):(
                 <div style={{color:C.muted,textAlign:"center",padding:20,fontSize:12}}>📂 엑셀 업로드 후 DCF 계산이 표시됩니다.</div>
