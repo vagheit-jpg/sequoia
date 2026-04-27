@@ -2221,7 +2221,7 @@ export default function App(){
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp()}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
                 <Line dataKey="bBase"     name="QMA" stroke={C.goldL} strokeWidth={2} dot={false}/>
@@ -2255,7 +2255,7 @@ export default function App(){
               <ComposedChart data={withMA60Slice} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("%")}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                 <ReferenceArea y1={-100} y2={-40} fill={`${C.green}10`}/>
                 <ReferenceArea y1={150} y2={500} fill={`${C.red}08`}/>
                 <ReferenceLine y={0}   stroke={C.dim}   strokeDasharray="2 2"/>
@@ -2335,7 +2335,7 @@ export default function App(){
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                     <Area dataKey="perHi"  name={`PER ${bandApplied.perHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Area dataKey="perMid" name={`PER ${bandApplied.perMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Area dataKey="perLo"  name={`PER ${bandApplied.perLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
@@ -2347,7 +2347,7 @@ export default function App(){
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                     <Area dataKey="pbrHi"  name={`PBR ${bandApplied.pbrHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Area dataKey="pbrMid" name={`PBR ${bandApplied.pbrMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Area dataKey="pbrLo"  name={`PBR ${bandApplied.pbrLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
@@ -2376,7 +2376,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(u1)}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Bar dataKey="rev" name="매출액"   fill={C.blue}   opacity={0.7} maxBarSize={24}/>
                       <Bar dataKey="op"  name="영업이익" fill={C.green}  opacity={0.8} maxBarSize={24}/>
                       <Bar dataKey="net" name="순이익"   fill={C.purple} opacity={0.7} maxBarSize={24}/>
@@ -2397,7 +2397,7 @@ export default function App(){
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left"  {...yp("%",44)} domain={["auto","auto"]}/>
                           <YAxis yAxisId="right" orientation="right" {...yp("%",44)} domain={["auto","auto"]}/>
-                          <Tooltip content={<MTip/>} cursor={false}/>
+                          <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                           <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
                           <ReferenceLine yAxisId="right" y={0} stroke={C.muted} strokeDasharray="4 3"/>
                           <Bar yAxisId="left" dataKey="opm" name="OPM%" fill={C.gold}   opacity={0.75} maxBarSize={22} radius={[3,3,0,0]}/>
@@ -2414,7 +2414,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp("%")}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Line dataKey="opm" name="OPM%" stroke={C.gold}  strokeWidth={2} dot={{r:3}}/>
                       <Line dataKey="roe" name="ROE%" stroke={C.green} strokeWidth={2} dot={{r:3}}/>
                       <Line dataKey="roa" name="ROA%" stroke={C.blueL} strokeWidth={2} dot={{r:3}}/>
@@ -2428,7 +2428,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(uc,52)}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
                       <Bar  dataKey="fcf" name={`FCF(${uc})`} fill={C.gold}   opacity={0.9} maxBarSize={20} radius={[3,3,0,0]}/>
                       <Line dataKey="cfo" name="영업CF" stroke={C.teal}   strokeWidth={2} dot={{r:3}} connectNulls/>
@@ -2454,7 +2454,7 @@ export default function App(){
                             tickFormatter={v=>v.toLocaleString()}
                             stroke="#38BDF8" tickCount={5}
                             domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
-                          <Tooltip content={<MTip/>} cursor={false}/>
+                          <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                           <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
                           <Line yAxisId="eps" dataKey="eps" name="EPS(원)"
                             stroke="#F97316" strokeWidth={2} strokeDasharray="6 3"
@@ -2519,7 +2519,7 @@ export default function App(){
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp()}/>
                 <YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
@@ -2609,7 +2609,7 @@ export default function App(){
               <ComposedChart data={withRSI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                 <ReferenceArea y1={70} y2={100} fill={`${C.red}12`}/><ReferenceArea y1={0} y2={30} fill={`${C.green}12`}/>
                 <ReferenceLine y={70} stroke={C.red}   strokeDasharray="4 2" label={{value:"과매수70",fill:C.red,  fontSize:9}}/>
                 <ReferenceLine y={30} stroke={C.green} strokeDasharray="4 2" label={{value:"과매도30",fill:C.green,fontSize:9}}/>
@@ -2621,7 +2621,7 @@ export default function App(){
               <ComposedChart data={withMACD} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",38)}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                 <ReferenceLine y={0} stroke={C.dim}/>
                 <Bar dataKey="hist" name="히스토그램" maxBarSize={6} radius={[2,2,0,0]} fill={C.blueL} fillOpacity={0.65}/>
                 <Line dataKey="macd"   name="MACD"   stroke={C.blueL}  strokeWidth={2}   dot={false}/>
@@ -2637,7 +2637,7 @@ export default function App(){
                 </linearGradient></defs>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("",44)} tickFormatter={v=>`${(v/1e6).toFixed(1)}M`}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                 <Area dataKey="obv" name="OBV" stroke={C.teal} strokeWidth={2} fill="url(#obvG)" dot={false}/>
               </AreaChart>
             </CW>
@@ -2646,7 +2646,7 @@ export default function App(){
               <ComposedChart data={withMFI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                 <XAxis {...xp(rangeIdx===0)}/><YAxis domain={[0,100]} {...yp("%")}/>
-                <Tooltip content={<MTip/>} cursor={false}/>
+                <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                 <ReferenceArea y1={80} y2={100} fill={`${C.red}12`}/><ReferenceArea y1={0} y2={20} fill={`${C.green}12`}/>
                 <ReferenceLine y={80} stroke={C.red}   strokeDasharray="4 2" label={{value:"과열80",  fill:C.red,  fontSize:9}}/>
                 <ReferenceLine y={20} stroke={C.green} strokeDasharray="4 2" label={{value:"과매도20",fill:C.green,fontSize:9}}/>
@@ -2758,7 +2758,7 @@ export default function App(){
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                           <YAxis yAxisId="right" orientation="right" {...yp(du,44)} tickFormatter={v=>v.toLocaleString()}/>
-                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                          <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                           <Bar  yAxisId="right" dataKey="fcf"    name={`FCF(${du})`}   fill={C.teal}   opacity={0.4} maxBarSize={28}/>
                           <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
                           <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
@@ -2823,7 +2823,7 @@ export default function App(){
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp("%",52)} domain={[0,"auto"]}/>
                       <YAxis yAxisId="right" orientation="right" {...yp("%",48)} domain={[0,"auto"]}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <ReferenceLine yAxisId="right" y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"부채100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
                       <Bar  yAxisId="right" dataKey="debt"     name="부채비율%"   fill={C.red}  opacity={0.55} maxBarSize={28}/>
                       <Line yAxisId="left"  dataKey="retained" name="자본유보율%" stroke={C.teal} strokeWidth={2.5} dot={{r:3}}/>
@@ -2836,7 +2836,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis {...yp(ua)}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Bar dataKey="assets" name="자산총계" fill={C.blue}  opacity={0.6} maxBarSize={24}/>
                       <Bar dataKey="liab"   name="부채총계" fill={C.red}   opacity={0.6} maxBarSize={24}/>
                       <Bar dataKey="equity" name="자본총계" fill={C.green} opacity={0.7} maxBarSize={24}/>
@@ -2849,7 +2849,7 @@ export default function App(){
                       <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                       <YAxis yAxisId="left"  {...yp(ua,48)}/>
                       <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <Bar yAxisId="left" dataKey="equity" name="자본총계" stackId="s" fill={C.green} opacity={0.75} maxBarSize={28}/>
                       <Bar yAxisId="left" dataKey="liab"   name="부채총계" stackId="s" fill={C.red}   opacity={0.65} maxBarSize={28}/>
                       <Line yAxisId="right" dataKey="debt" name="부채비율%" stroke={C.orange} strokeWidth={2.5} dot={{r:3}}/>
@@ -2874,7 +2874,7 @@ export default function App(){
                   <ComposedChart data={co.divData} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
-                    <YAxis {...yp("원")}/><Tooltip content={<MTip/>} cursor={false}/>
+                    <YAxis {...yp("원")}/><Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                     <Bar dataKey="dps" name="DPS(원)" fill={C.gold} opacity={0.8} maxBarSize={40} radius={[4,4,0,0]}/>
                   </ComposedChart>
                 </CW>
@@ -2885,7 +2885,7 @@ export default function App(){
                     <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
                     <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
                     <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                    <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                     <Bar  yAxisId="right" dataKey="divYield"  name="배당수익률%" fill={C.green}  opacity={0.8} maxBarSize={36} radius={[4,4,0,0]}/>
                     <Line yAxisId="left"  dataKey="divPayout" name="배당성향%"   stroke={C.purple} strokeWidth={2.5} dot={{r:4}}/>
                   </ComposedChart>
@@ -3304,7 +3304,7 @@ export default function App(){
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                   <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(bandData.length/7)||1}/>
                   <YAxis {...yp("",52)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
-                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                   <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                   <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"  strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}                    dot={false} legendType="line"/>
                   <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}   strokeWidth={1.5} strokeDasharray="6 3" fill={`url(#floorShade_${title})`}       dot={false} legendType="line"/>
@@ -3333,7 +3333,7 @@ export default function App(){
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                   <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(bandData.length/7)||1}/>
                   <YAxis {...yp("%",44)}/>
-                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                   <ReferenceArea y1={-100} y2={-40} fill={`${C.green}10`}/>
                   <ReferenceArea y1={150}  y2={500} fill={`${C.red}08`}/>
                   <ReferenceLine y={0}   stroke={C.dim}    strokeDasharray="2 2"/>
@@ -3352,7 +3352,7 @@ export default function App(){
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                   <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(rsiData.length/7)||1}/>
                   <YAxis domain={[0,100]} {...yp("%")}/>
-                  <Tooltip content={<MTip/>} cursor={false}/>
+                  <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                   <ReferenceArea y1={70} y2={100} fill={`${C.red}12`}/>
                   <ReferenceArea y1={0}  y2={30}  fill={`${C.green}12`}/>
                   <ReferenceLine y={70} stroke={C.red}   strokeDasharray="4 2" label={{value:"과매수70",fill:C.red,  fontSize:9}}/>
@@ -3540,7 +3540,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis tick={{fill:C.muted,fontSize:9}} width={32} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
-                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                       <Legend wrapperStyle={{fontSize:9}}/>
                       <ReferenceLine y={0}    stroke={C.muted}           strokeDasharray="4 2"/>
                       <ReferenceLine y={1.5}  stroke={`${C.red}55`}      strokeDasharray="3 3" label={{value:"과열",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
@@ -3560,7 +3560,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis {...yp("%",42)} domain={["auto","auto"]}/>
-                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                       <ReferenceLine y={0}  stroke={C.muted}  strokeDasharray="4 2"/>
                       <ReferenceLine y={3}  stroke={C.orange} strokeDasharray="3 3" label={{value:"주의+3%",fill:C.orange,fontSize:8,position:"insideTopRight"}}/>
                       <ReferenceLine y={-3} stroke={C.blueL}  strokeDasharray="3 3" label={{value:"디플레-3%",fill:C.blueL,fontSize:8,position:"insideBottomRight"}}/>
@@ -3595,7 +3595,7 @@ export default function App(){
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                       <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                       <YAxis {...yp("",42)} domain={["auto","auto"]}/>
-                      <Tooltip content={<MTip/>} cursor={false}/>
+                      <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                       <ReferenceArea y1={100} y2={200} fill={`${C.green}08`}/>
                       <ReferenceArea y1={0}   y2={100} fill={`${C.red}08`}/>
                       <ReferenceLine y={100} stroke={C.green} strokeDasharray="4 2" label={{value:"기준100",fill:C.green,fontSize:8,position:"insideTopRight"}}/>
@@ -3636,7 +3636,7 @@ export default function App(){
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}%`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                     <ReferenceLine y={0}   stroke={C.muted}        strokeDasharray="4 2"/>
                     <ReferenceLine y={8}   stroke={`${C.red}66`}   strokeDasharray="3 3" label={{value:"과열 8%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={5}   stroke={`${C.orange}66`}strokeDasharray="3 3" label={{value:"경계 5%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
@@ -3680,7 +3680,7 @@ export default function App(){
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,4)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <Tooltip isAnimationActive={false} content={<MTip/>} cursor={false}/>
                     <ReferenceLine y={0}    stroke={C.red}          strokeWidth={1.5} strokeDasharray="4 2" label={{value:"역전선",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={0.5}  stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"0.5%p",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={-0.5} stroke={`${C.red}55`}   strokeDasharray="3 3" label={{value:"-0.5%p",fill:C.red,fontSize:7,position:"insideBottomRight"}}/>
