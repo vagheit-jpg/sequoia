@@ -3280,7 +3280,7 @@ export default function App(){
             return(
             <>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <ST accent={color}>{title} — 월봉 60QMA 위치밴드</ST>
+                <ST accent={color}>{title} — 60QMA 위치밴드</ST>
                 {lastGap!=null&&(
                   <div style={{background:`${gapColor}20`,border:`1px solid ${gapColor}66`,
                     borderRadius:6,padding:"3px 9px",fontSize:10,fontWeight:700,color:gapColor,fontFamily:"monospace"}}>
@@ -3308,7 +3308,7 @@ export default function App(){
                   <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                   <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"  strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}                    dot={false} legendType="line"/>
                   <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}   strokeWidth={1.5} strokeDasharray="6 3" fill={`url(#floorShade_${title})`}       dot={false} legendType="line"/>
-                  <Line dataKey="bBase"     name="60월선"    stroke={C.goldL}  strokeWidth={2}                         dot={false}/>
+                  <Line dataKey="bBase"     name="60QMA"    stroke={C.goldL}  strokeWidth={2}                         dot={false}/>
                   <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange} strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                   <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}    strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                   <Area dataKey="bPeak"     name="EH ×2.5"  stroke={C.purple} strokeWidth={1}   strokeDasharray="3 4" fill={`url(#peakShade_${title})`}        dot={false} legendType="line"/>
@@ -3317,7 +3317,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple,  label:"EH"},
                     {key:"bTop",     color:C.red,     label:"VH"},
                     {key:"bShoulder",color:C.orange,  label:"H"},
-                    {key:"bBase",    color:C.goldL,   label:"60월선"},
+                    {key:"bBase",    color:C.goldL,   label:"60QMA"},
                     {key:"bKnee",    color:C.blue,    label:"L"},
                     {key:"bFloor",   color:"#3B7DD8", label:"VL"},
                   ].map(b=>(
