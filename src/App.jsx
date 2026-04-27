@@ -3303,7 +3303,7 @@ export default function App(){
               {/* 이격도 바 차트 */}
               <ST accent={C.teal}>60MA 이격도 (%)</ST>
               <CW h={170}>
-                <ComposedChart data={bandData.filter(d=>d.gap60!=null)} margin={{top:4,right:44,left:0,bottom:8}}>
+                <ComposedChart data={bandData.filter(d=>d.gap60!=null)} margin={{top:4,right:20,left:0,bottom:8}}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                   <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={Math.floor(bandData.length/7)||1}/>
                   <YAxis {...yp("%",44)}/>
@@ -3311,11 +3311,11 @@ export default function App(){
                   <ReferenceArea y1={-100} y2={-40} fill={`${C.green}10`}/>
                   <ReferenceArea y1={150}  y2={500} fill={`${C.red}08`}/>
                   <ReferenceLine y={0}   stroke={C.dim}    strokeDasharray="2 2"/>
-                  <ReferenceLine y={-40} stroke={C.green}  strokeDasharray="4 2" label={{value:"VL -40%", fill:C.green, fontSize:8,position:"insideTopRight"}}/>
-                  <ReferenceLine y={-20} stroke={C.teal}   strokeDasharray="4 2" label={{value:"L -20%",  fill:C.teal,  fontSize:8,position:"insideTopRight"}}/>
-                  <ReferenceLine y={50}  stroke={C.gold}   strokeDasharray="4 2" label={{value:"H +50%",  fill:C.gold,  fontSize:8,position:"insideTopRight"}}/>
-                  <ReferenceLine y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"VH +100%",fill:C.orange,fontSize:8,position:"insideTopRight"}}/>
-                  <ReferenceLine y={150} stroke={C.red}    strokeDasharray="4 2" label={{value:"EH +150%",fill:C.red,  fontSize:8,position:"insideTopRight"}}/>
+                  <ReferenceLine y={-40} stroke={C.green}  strokeDasharray="4 2" label={{value:"VL -40%", fill:C.green, fontSize:8,position:"insideTopLeft"}}/>
+                  <ReferenceLine y={-20} stroke={C.teal}   strokeDasharray="4 2" label={{value:"L -20%",  fill:C.teal,  fontSize:8,position:"insideTopLeft"}}/>
+                  <ReferenceLine y={50}  stroke={C.gold}   strokeDasharray="4 2" label={{value:"H +50%",  fill:C.gold,  fontSize:8,position:"insideTopLeft"}}/>
+                  <ReferenceLine y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"VH +100%",fill:C.orange,fontSize:8,position:"insideTopLeft"}}/>
+                  <ReferenceLine y={150} stroke={C.red}    strokeDasharray="4 2" label={{value:"EH +150%",fill:C.red,  fontSize:8,position:"insideTopLeft"}}/>
                   <Bar dataKey="gap60" name="이격도(%)" maxBarSize={8} radius={[2,2,0,0]} fill={C.teal}/>
                 </ComposedChart>
               </CW>
