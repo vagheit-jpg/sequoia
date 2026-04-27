@@ -1913,7 +1913,7 @@ export default function App(){
           {[
             {k:"PER",v:per?`${per}배`:"—",c:C.gold},
             {k:"PBR",v:pbr?`${pbr}배`:"—",c:C.gold},
-            {k:"이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
+            {k:"60QA 이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
             {k:"신호",v:gs.label,c:gs.color},
             {k:"내재가치",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL,
               sub:(()=>{if(!dcfResults.avg||!price)return null;const pct=Math.round((price/dcfResults.avg-1)*100);return{v:`${pct>0?"+":""}${pct}%`,c:pct>0?C.red:C.green,label:pct>0?"고평가":"저평가"};})()},
