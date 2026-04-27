@@ -73,27 +73,14 @@ const fetchPrice=async(ticker,market)=>{
 // ══════════════════════════════════════════════════════════════
 const ema=(arr,n)=>{const k=2/(n+1);let e=arr[0];return arr.map((v,i)=>{if(i===0)return e;e=v*k+e*(1-k);return+e.toFixed(2);});};
 
-const calcMA60 = (monthly) => {
-  if (!monthly || monthly.length === 0) return [];
-
-  return monthly.map((d, i) => {
-    // 현재 위치(i)까지 가용한 데이터 개수. 최대 60개로 제한하여 60월선의 신뢰성 유지
-    const N = Math.min(i + 1, 60);
-
-    // 상장 3개월 차부터는 무조건 계산 시작 (데이터 유실 차단)
-    if (i < 2) return { ...d, ma60: null, gap60: null };
-
-    // 최근 N개월치 슬라이스하여 평균 계산
-    const startIdx = Math.max(0, i - N + 1);
-    const window = monthly.slice(startIdx, i + 1);
-    const avg = window.reduce((s, x) => s + (x.price || 0), 0) / window.length;
-
-    return {
-      ...d,
-      ma60: Math.round(avg),
-      // 현재가와 QMA 사이의 이격도(%) 산출
-      gap60: parseFloat(((d.price / avg - 1) * 100).toFixed(2))
-    };
+const calcMA60=(monthly)=>{
+  const len=monthly.length;
+  const N=len>=60?60:len>=15?15:len>=3?len:0;
+  if(N===0)return monthly.map(d=>({...d,ma60:null,gap60:null}));
+  return monthly.map((d,i)=>{
+    if(i<N-1)return{...d,ma60:null,gap60:null};
+    const avg=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
+    return{...d,ma60:+avg.toFixed(0),gap60:+((d.price/avg-1)*100).toFixed(2)};
   });
 };
 const calcMAN=(monthly,N)=>{
@@ -1387,13 +1374,8 @@ export default function App(){
   const displayMonthly=useMemo(()=>monthly.slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
 
   const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
- // 이격도 차트용: 10년(120개월)치가 있으면 다 보여주고, 없으면 있는 만큼만 노출
-const withMA60Slice = useMemo(() => {
-  if (!monthly || monthly.length === 0) return [];
-  
-  // 전체 계산 데이터 중 최근 120개를 추출 (slice는 데이터가 부족하면 알아서 전체를 반환함)
-  return calcMA60(monthly).slice(-120);
-}, [monthly]);
+  // 이격도 차트용: 전체 monthly 기반 계산 후 슬라이스 (QMA 누락 방지)
+  const withMA60Slice=useMemo(()=>calcMA60(monthly).slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
     const full=calcMA60(monthly);
