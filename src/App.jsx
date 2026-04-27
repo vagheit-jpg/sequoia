@@ -3713,7 +3713,8 @@ export default function App(){
 
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-        html,body{overflow-x:hidden;background:#040710;overscroll-behavior:none;min-height:100%;}
+        html,body{overflow-x:hidden;background:#040710;min-height:100%;}
+        @media (hover:none) and (pointer:coarse){html,body{overscroll-behavior-y:none;}}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         *{-webkit-tap-highlight-color:transparent;}
         /* 기본: 스크롤바 전체 숨김 (모바일 포함 모든 환경) */
