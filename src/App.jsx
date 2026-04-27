@@ -2490,7 +2490,7 @@ export default function App(){
                   {label:"QMA",sub:"×1.0",  color:C.goldL},
                   {label:"H",   sub:"×1.5",  color:C.orange},
                   {label:"VH",  sub:"×2.0",  color:C.red},
-                  {label:"EH", sub:"×2.0↑", color:C.purple},
+                  {label:"EH", sub:"×2.5↑", color:C.purple},
                 ].map(b=>(
                   <div key={b.label} style={{display:"flex",alignItems:"center",gap:4,
                     background:`${b.color}18`,borderRadius:6,padding:"3px 8px",
