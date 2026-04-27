@@ -113,33 +113,44 @@ const calc3LineSignal=(monthly, fin={})=>{
   };
   const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
 
-  // ── 1. 이격도 점수 (가중치: 60월=×3, 60주=×2, 60일=×1)
-  // 구간점수 × 가중치
-  const pM=zm!=null?zm.zScore*3:0;  // 최대 ±9점  (6점 기준시 ×3=9, 조정)
-  const pW=zw!=null?zw.zScore*2:0;  // 최대 ±6점
-  const pD=zd!=null?zd.zScore*1:0;  // 최대 ±3점
-  const priceScore=pM+pW+pD;        // 범위: -18 ~ +12
-  // 가중 최대점수 계산 (데이터 있는 선만)
-  const priceMaxPos=(zm!=null?6:0)+(zw!=null?4:0)+(zd!=null?2:0);  // 만점기준
-  const priceMaxNeg=(zm!=null?9:0)+(zw!=null?6:0)+(zd!=null?3:0);  // 최저기준
+// ── 1. 이격도 점수 (단일 기준선 60MA 통합 가중치 적용)
+  // 기존의 월/주/일 구분을 없애고, 퀀텀 기준선(60MA) 하나에 가중치를 통합(9점)합니다.
+  const pQ = zm != null ? zm.zScore * 3 : 0; // 통합 퀀텀 스코어 (최대 ±9점)
+  const priceScore = pQ;
 
-  // ── 2. 배열 점수
-  let arrangement="혼재",arrangementColor="#8AA8C8",arrangementEn="mixed";
-  let arrScore=0;
-  if(ma60m&&ma60w&&ma60d){
-    if(ma60d>ma60w&&ma60w>ma60m){arrangement="정배열";arrangementColor="#00C878";arrangementEn="bull";arrScore=+3;}
-    else if(ma60d<ma60w&&ma60w<ma60m){arrangement="역배열";arrangementColor="#FF3D5A";arrangementEn="bear";arrScore=-3;}
-  } else if(ma60w&&ma60d){
-    if(ma60d>ma60w){arrangement="단기 정배열";arrangementColor="#10A898";arrangementEn="bull";arrScore=+2;}
-    else if(ma60d<ma60w){arrangement="단기 역배열";arrangementColor="#FF7830";arrangementEn="bear";arrScore=-2;}
+  // 가중 최대점수 계산 (데이터 무결성: 60MA 존재 여부만 확인)
+  const priceMaxPos = zm != null ? 9 : 0; // 만점 기준
+  const priceMaxNeg = zm != null ? 9 : 0; // 최저 기준
+
+  // ── 2. 배열 및 추세 분석 (통합 기준선 상회/하회 판정)
+  let arrangement = "데이터 부족";
+  let arrangementColor = DARK.muted; // "#8AA8C8"
+  let arrangementEn = "none";
+  let arrScore = 0;
+
+  if (zm != null) {
+    // 현재 주가가 퀀텀 기준선(bBase) 대비 어디에 있는지가 유일한 추세 기준입니다.
+    const currentPrice = monthly[monthly.length - 1]?.price;
+    const baseValue = zm.base; // 퀀텀 기준선(60MA)의 현재 수치
+
+    if (currentPrice > baseValue) {
+      arrangement = "기준선 상회(강세)";
+      arrangementColor = DARK.green; // "#00C878"
+      arrangementEn = "bull";
+      arrScore = +3;
+    } else {
+      arrangement = "기준선 하회(약세)";
+      arrangementColor = DARK.red;   // "#FF3D5A"
+      arrangementEn = "bear";
+      arrScore = -3;
+    }
   }
 
-  const hasAll=ma60m!==null&&ma60w!==null&&ma60d!==null;
-  const missingLines=[
-    ma60m===null?"60월선(5년 데이터 부족)":null,
-    ma60w===null?"60주선(15개월 데이터 부족)":null,
-  ].filter(Boolean);
-
+  // ── 3. 데이터 무결성 체크 (눈속임 문구 삭제)
+  // 이제 여러 선이 필요 없으므로 zm(60MA) 존재 여부만 중요합니다.
+  const hasAll = zm !== null;
+  const missingLines = zm === null ? ["퀀텀 기준선(데이터 부족)"] : [];
+  
   // ── 3. 실적 점수 (재무제표 있을 때만)
   const {
     epsTrend="", fcfTrend="", momentum="",
@@ -328,25 +339,36 @@ const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
 });
 // 가격 위치 밴드 — ma60 배수 기반 통일
 // 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
-const calcPositionBands=(monthly)=>{
-  const len=monthly.length;
-  // 데이터 부족 시 adaptive N: 최소 3개 이상이면 가용 전체로 MA 계산
-  const N=len>=60?60:len>=15?15:len>=3?len:0;
-  if(N===0)return monthly.map(d=>({...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null}));
-  return monthly.map((d,i)=>{
-    if(i<N-1)return{...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null};
-    const ma=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
-    return{...d,
-      bFloor   :Math.round(ma*0.6),
-      bKnee    :Math.round(ma*0.8),
-      bBase    :Math.round(ma*1.0),
-      bShoulder:Math.round(ma*1.5),
-      bTop     :Math.round(ma*2.0),
-      bPeak    :Math.round(ma*2.5),
+const calcPositionBands = (monthly) => {
+  if (!monthly || monthly.length === 0) return [];
+  return monthly.map((d, i) => {
+    // [수정 핵심] 고정된 N이 아니라, 현재 위치(i)까지 가용한 데이터 개수를 유동적으로 결정
+    // 최대 60개까지만 보되, 데이터가 적으면 있는 만큼(i + 1)만 계산에 사용합니다.
+    const currentWindowSize = Math.min(i + 1, 60);
+    // 데이터가 너무 적은 극초반(예: 1~2개월차)만 제외하고 모두 계산
+    if (currentWindowSize < 3) {
+      return { 
+        ...d, 
+        bFloor: null, bKnee: null, bBase: null, 
+        bShoulder: null, bTop: null, bPeak: null 
+      };
+    }
+    // [수정 핵심] 슬라이스 범위를 i - currentWindowSize + 1로 잡아야 
+    // 상장 초기부터 선이 끊기지 않고 부드럽게 이어집니다.
+    const window = monthly.slice(i - currentWindowSize + 1, i + 1);
+    const sum = window.reduce((s, x) => s + (x.price || 0), 0);
+    const ma = sum / window.length;
+    return {
+      ...d,
+      bFloor: Math.round(ma * 0.6),
+      bKnee: Math.round(ma * 0.8),
+      bBase: Math.round(ma * 1.0),    // 이것이 움직이는 기준선(60MA)
+      bShoulder: Math.round(ma * 1.5),
+      bTop: Math.round(ma * 2.0),
+      bPeak: Math.round(ma * 2.5),
     };
   });
 };
-
 const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   if(!monthly.length)return monthly;
   const epsMap={},bpsMap={};
@@ -2198,7 +2220,7 @@ export default function App(){
                 <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
-                <Line dataKey="bBase"     name={rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"} stroke={C.goldL} strokeWidth={2} dot={false}/>
+                <Line dataKey="bBase"     name={rangeIdx<=1?"60MA":rangeIdx===2?"60MA":"60MA"} stroke={C.goldL} strokeWidth={2} dot={false}/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                 <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeP)" dot={false} legendType="line"/>
@@ -2210,7 +2232,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple,  label:"EH"},
                     {key:"bTop",     color:C.red,     label:"VH"},
                     {key:"bShoulder",color:C.orange,  label:"H"},
-                    {key:"bBase",    color:C.goldL,   label:rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"},
+                    {key:"bBase",    color:C.goldL,   label:rangeIdx<=1?"60MA":rangeIdx===2?"60MA":"60MA"},
                     {key:"bFloor",   color:"#3B7DD8", label:"VL"},
                     {key:"bKnee",    color:C.blue,    label:"L"},
                   ].map(b=>(
@@ -2461,7 +2483,7 @@ export default function App(){
                 {[
                   {label:"VL",  sub:"×0.6↓",color:"#3B7DD8"},
                   {label:"L",   sub:"×0.8",  color:C.blue},
-                  {label:rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선",sub:"×1.0",  color:C.goldL},
+                  {label:rangeIdx<=1?"60MA":rangeIdx===2?"60MA":"60MA",sub:"×1.0",  color:C.goldL},
                   {label:"H",   sub:"×1.5",  color:C.orange},
                   {label:"VH",  sub:"×2.0",  color:C.red},
                   {label:"EH", sub:"×2.0↑", color:C.purple},
@@ -2497,7 +2519,7 @@ export default function App(){
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
-                <Line dataKey="bBase"     name={rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"} stroke={C.goldL} strokeWidth={2.5} dot={false} legendType="line"/>
+                <Line dataKey="bBase"     name={rangeIdx<=1?"60MA":rangeIdx===2?"60MA":"60MA"} stroke={C.goldL} strokeWidth={2.5} dot={false} legendType="line"/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={2}   strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={2}   strokeDasharray="5 3" dot={false}/>
                 <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1.5} strokeDasharray="3 4" fill="url(#peakShade)"  dot={false} legendType="line"/>
@@ -2509,7 +2531,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:rangeIdx<=1?"60월선":rangeIdx===2?"60주선":"60일선"},
+                    {key:"bBase",    color:C.goldL,  label:rangeIdx<=1?"60MA":rangeIdx===2?"60MA":"60MA"},
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
@@ -2556,7 +2578,7 @@ export default function App(){
                         background:`${C.goldL}18`,border:`1px solid ${C.goldL}44`,
                         borderRadius:4,padding:"2px 8px",display:"inline-block",marginBottom:4,
                       }}>
-                        기준선: {rangeIdx<=1?"60월선 (월봉)":rangeIdx===2?"60주선 (주봉)":"60일선 (일봉)"}
+                        기준선: {rangeIdx<=1?"60MA (월봉)":rangeIdx===2?"60MA (주봉)":"60MA (일봉)"}
                       </span>
                       {[
                         {z:"VL",  r:"-40%↓", c:"#3B7DD8"},
