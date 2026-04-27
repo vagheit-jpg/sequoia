@@ -6,18 +6,6 @@ import {
   ReferenceLine, ReferenceArea, ReferenceDot,
 } from "recharts";
 
-// App.jsx 내부
-useEffect(() => {
-  // 테마가 바뀔 때마다 실행됩니다.
-  
-  // 1. 브라우저 바닥(1층)의 색상을 현재 테마의 배경색(C.bg)으로 똑같이 맞춥니다.
-  // 화이트 모드면 바닥도 연회색(#F2F4F8), 다크 모드면 바닥도 검은색(#040710)이 됩니다.
-  document.body.style.backgroundColor = C.bg;
-
-  // 2. 모바일에서 화면이 덜컹거리며 들리는 효과(오버스크롤) 자체를 꺼버립니다.
-  document.body.style.overscrollBehaviorY = "none";
-  
-}, [C]); // C(테마)가 바뀔 때마다 이 명령을 수행하라!
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
 // ══════════════════════════════════════════════════════════════
