@@ -2,11 +2,39 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>SEQUOIA QUANTUM™</title>
+    <meta name="color-scheme" content="light dark">
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      
+      /* 퀀텀 시스템 최적화 레이아웃 */
+      html, body { 
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        width: 100%;
+        height: 100%;
+        /* [핵심] 모바일에서 화면이 튕기며 배경이 노출되는 현상을 원천 차단 */
+        overscroll-behavior-y: none !important;
+      }
+
+      /* 1. 라이트 모드 테마 (#f2f4f8) */
+      @media (prefers-color-scheme: light) {
+        html, body {
+          background-color: #f2f4f8 !important;
+        }
+      }
+
+      /* 2. 다크 모드 테마 (#040710) */
+      @media (prefers-color-scheme: dark) {
+        html, body {
+          background-color: #040710 !important;
+        }
+      }
+
+      #root {
+        width: 100%;
+        min-height: 100%;
+      }
     </style>
   </head>
   <body>
