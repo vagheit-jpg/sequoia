@@ -1469,9 +1469,10 @@ export default function App(){
 
   const gapSig=(gap)=>{
     if(gap===null)return{label:"—",color:C.muted};
-    if(gap<=-40)return{label:"적극매수",color:C.green};   // VL: ×0.6 이하
-    if(gap<-20) return{label:"매수",color:C.teal};        // L:  ×0.8 이하
-    if(gap<50)  return{label:"관망",color:C.gold};        // M:  ×1.5 미만
+    if(gap<=-40)return{label:"필수매수",color:C.green};   // VL: ×0.6 이하
+    if(gap<=-20) return{label:"적극매수",color:C.teal};        // L:  ×0.8 이하
+    if(gap<=0) return{label:"매수",color:C.Turquoise};        // M:  ×1.0 이하
+    if(gap<50)  return{label:"관망",color:C.gold};        // MH:  ×1.5 미만
     if(gap<100) return{label:"과열",color:C.orange};      // H:  ×2.0 미만
     if(gap<150) return{label:"매도",color:"#FF6B00"};     // VH: ×2.5 미만
     return{label:"적극매도",color:C.red};                  // EH: ×2.5 이상
@@ -2203,7 +2204,7 @@ export default function App(){
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
                 <div style={{color:gs.color,fontWeight:700,fontSize:12}}>QMA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
                 <Tag color={gs.color} size={11}>{gs.label}</Tag>
-                <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
+                <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / ≤-0%:매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
               </div>
             )}
             <ST accent={C.blue} right="▲매수 ▼매도">주가 & QMA 위치밴드</ST>
