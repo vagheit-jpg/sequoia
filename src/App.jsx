@@ -113,44 +113,48 @@ const calc3LineSignal=(monthly, fin={})=>{
   };
   const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
 
-// ── 1. 이격도 점수 (단일 기준선 60QMA 통합 가중치 적용)
-  // 기존의 월/주/일 구분을 없애고, 퀀텀 기준선(60QMA) 하나에 가중치를 통합(9점)합니다.
+// ── 1. 이격도 점수 (60QMA 통합 및 에러 방지 로직)
   const pQ = zm != null ? zm.zScore * 3 : 0; // 통합 퀀텀 스코어 (최대 ±9점)
-  const priceScore = pQ;
+  
+  // [에러 해결 핵심] 기존 변수명을 유지하여 하단 합산 로직과의 충돌을 방지합니다.
+  const pM = pQ; 
+  const pW = 0;
+  const pD = 0;
+  
+  const priceScore = pM + pW + pD; // 최종 점수 산출
 
-  // 가중 최대점수 계산 (데이터 무결성: 60QMA 존재 여부만 확인)
-  const priceMaxPos = zm != null ? 9 : 0; // 만점 기준
-  const priceMaxNeg = zm != null ? 9 : 0; // 최저 기준
+  // 가중 최대점수 계산 (데이터 무결성 확인)
+  const priceMaxPos = zm != null ? 9 : 0;
+  const priceMaxNeg = zm != null ? 9 : 0;
 
-  // ── 2. 배열 및 추세 분석 (통합 기준선 상회/하회 판정)
+  // ── 2. 배열 및 추세 분석 (60QMA 기준 상회/하회 판정)
   let arrangement = "데이터 부족";
-  let arrangementColor = DARK.muted; // "#8AA8C8"
+  let arrangementColor = DARK.muted;
   let arrangementEn = "none";
   let arrScore = 0;
 
   if (zm != null) {
-    // 현재 주가가 퀀텀 기준선(bBase) 대비 어디에 있는지가 유일한 추세 기준입니다.
+    // 60QMA(기준선) 대비 현재 주가 위치 판정
     const currentPrice = monthly[monthly.length - 1]?.price;
-    const baseValue = zm.base; // 퀀텀 기준선(60QMA)의 현재 수치
+    const baseValue = zm.base;
 
     if (currentPrice > baseValue) {
-      arrangement = "기준선 상회(강세)";
-      arrangementColor = DARK.green; // "#00C878"
+      arrangement = "60QMA 상회";
+      arrangementColor = DARK.green;
       arrangementEn = "bull";
       arrScore = +3;
     } else {
-      arrangement = "기준선 하회(약세)";
-      arrangementColor = DARK.red;   // "#FF3D5A"
+      arrangement = "60QMA 하회";
+      arrangementColor = DARK.red;
       arrangementEn = "bear";
       arrScore = -3;
     }
   }
 
-  // ── 3. 데이터 무결성 체크 (눈속임 문구 삭제)
-  // 이제 여러 선이 필요 없으므로 zm(60QMA) 존재 여부만 중요합니다.
+  // ── 3. 결손 데이터 알림
   const hasAll = zm !== null;
-  const missingLines = zm === null ? ["퀀텀 기준선(데이터 부족)"] : [];
-  
+  const missingLines = zm === null ? ["60QMA 데이터 부족"] : [];
+
   // ── 3. 실적 점수 (재무제표 있을 때만)
   const {
     epsTrend="", fcfTrend="", momentum="",
