@@ -1660,7 +1660,7 @@ export default function App(){
       }
     } else if(priceZoneEn==="peak"){
       verdict="극단 과열 주의";verdictColor=C.red;verdictIcon="🔴";
-      reason="QMA 대비 EH 이격도 초과 — 역사적 극단 과열";
+      reason="QMA 대비 이격도 EH 초과 — 역사적 극단 과열";
       interpretation="어떤 실적에도 리스크 극단적으로 높음";
     } else {
       // gap이 있지만 priceZone 미산출 (매우 드문 케이스)
