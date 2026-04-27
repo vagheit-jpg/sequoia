@@ -2204,7 +2204,7 @@ export default function App(){
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
                 <div style={{color:gs.color,fontWeight:700,fontSize:12}}>QMA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
                 <Tag color={gs.color} size={11}>{gs.label}</Tag>
-                <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / ≤-0%:매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
+                <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / ≤-0%:매수 / +100%:매도 / +150%:적극매도 / </div>
               </div>
             )}
             <ST accent={C.blue} right="▲매수 ▼매도">주가 & QMA 위치밴드</ST>
