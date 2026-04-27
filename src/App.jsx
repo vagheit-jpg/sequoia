@@ -328,25 +328,43 @@ const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
 });
 // 가격 위치 밴드 — ma60 배수 기반 통일
 // 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
-const calcPositionBands=(monthly)=>{
-  const len=monthly.length;
-  // 데이터 부족 시 adaptive N: 최소 3개 이상이면 가용 전체로 MA 계산
-  const N=len>=60?60:len>=15?15:len>=3?len:0;
-  if(N===0)return monthly.map(d=>({...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null}));
-  return monthly.map((d,i)=>{
-    if(i<N-1)return{...d,bKnee:null,bBase:null,bShoulder:null,bTop:null,bPeak:null,bFloor:null};
-    const ma=monthly.slice(i-N+1,i+1).reduce((s,x)=>s+x.price,0)/N;
-    return{...d,
-      bFloor   :Math.round(ma*0.6),
-      bKnee    :Math.round(ma*0.8),
-      bBase    :Math.round(ma*1.0),
-      bShoulder:Math.round(ma*1.5),
-      bTop     :Math.round(ma*2.0),
-      bPeak    :Math.round(ma*2.5),
+
+
+
+const calcPositionBands = (monthly) => {
+  if (!monthly || monthly.length === 0) return [];
+
+  return monthly.map((d, i) => {
+    // [수정 핵심] 고정된 N이 아니라, 현재 위치(i)까지 가용한 데이터 개수를 유동적으로 결정
+    // 최대 60개까지만 보되, 데이터가 적으면 있는 만큼(i + 1)만 계산에 사용합니다.
+    const currentWindowSize = Math.min(i + 1, 60);
+
+    // 데이터가 너무 적은 극초반(예: 1~2개월차)만 제외하고 모두 계산
+    if (currentWindowSize < 3) {
+      return { 
+        ...d, 
+        bFloor: null, bKnee: null, bBase: null, 
+        bShoulder: null, bTop: null, bPeak: null 
+      };
+    }
+
+    // [수정 핵심] 슬라이스 범위를 i - currentWindowSize + 1로 잡아야 
+    // 상장 초기부터 선이 끊기지 않고 부드럽게 이어집니다.
+    const window = monthly.slice(i - currentWindowSize + 1, i + 1);
+    const sum = window.reduce((s, x) => s + (x.price || 0), 0);
+    const ma = sum / window.length;
+
+    return {
+      ...d,
+      bFloor: Math.round(ma * 0.6),
+      bKnee: Math.round(ma * 0.8),
+      bBase: Math.round(ma * 1.0),    // 이것이 움직이는 기준선(60MA)
+      bShoulder: Math.round(ma * 1.5),
+      bTop: Math.round(ma * 2.0),
+      bPeak: Math.round(ma * 2.5),
     };
   });
 };
-
 const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   if(!monthly.length)return monthly;
   const epsMap={},bpsMap={};
