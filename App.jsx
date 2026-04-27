@@ -580,20 +580,25 @@ const FALLBACK_STOCKS = [
 // 7. 공통 UI
 // ══════════════════════════════════════════════════════════════
 const Box=({children,p="12px 14px",mb=12,style={}})=>(
-  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:11,padding:p,marginBottom:mb,...style}}>{children}</div>
+  /* background를 C.card로 유지하여 테마 변경 시 즉각 대응하게 함 */
+  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:11,padding:p,marginBottom:mb,position:"relative",...style}}>{children}</div>
 );
+
 const ST=({children,accent,right})=>(
   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,marginTop:4}}>
     <div style={{color:accent,fontSize:12,fontWeight:700,letterSpacing:"0.05em",borderLeft:`3px solid ${accent}`,paddingLeft:8}}>{children}</div>
     {right&&<div style={{color:C.muted,fontSize:10}}>{right}</div>}
   </div>
 );
+
 const Tag=({children,color,size=10})=>(
   <span style={{background:`${color}22`,color,border:`1px solid ${color}44`,borderRadius:4,padding:"2px 6px",fontSize:size,fontWeight:700}}>{children}</span>
 );
+
 const CW=({children,h=200})=>(
   <div style={{marginBottom:16}}><ResponsiveContainer width="100%" height={h}>{children}</ResponsiveContainer></div>
 );
+
 const QTick=({x,y,payload,yearOnly})=>{
   if(!payload?.value)return null;
   const parts=payload.value.split(".");
@@ -606,10 +611,22 @@ const QTick=({x,y,payload,yearOnly})=>{
     <text y={isQ1?14:0} textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{q}</text>
   </g>);
 };
+
 const FinTick=({x,y,payload})=>(<g transform={`translate(${x},${y+4})`}><text textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{payload?.value}</text></g>);
+
 const MTip=({active,payload,label})=>{
+  /* 수정: active가 false인 순간 즉시 null을 반환하여 모바일 잔상을 원천 차단합니다 */
   if(!active||!payload?.length)return null;
-  return(<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 11px",fontSize:11,minWidth:120}}>
+  return(<div style={{
+    background:C.card,
+    border:`1px solid ${C.border}`,
+    borderRadius:8,
+    padding:"8px 11px",
+    fontSize:11,
+    minWidth:120,
+    boxShadow:"0 4px 12px rgba(0,0,0,0.2)", // 시각적 구분을 위한 그림자 추가
+    pointerEvents:"none" // 툴팁이 터치 스크롤을 방해하지 않도록 설정
+  }}>
     <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontFamily:"monospace"}}>{label}</div>
     {payload.map((p,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:2}}>
       <span style={{color:C.muted}}>{p.name}</span>
@@ -617,6 +634,7 @@ const MTip=({active,payload,label})=>{
     </div>))}
   </div>);
 };
+
 const ViewToggle=({view,setView})=>(
   <div style={{display:"flex",gap:4,marginBottom:10}}>
     {["연간","분기"].map(v=>(<button key={v} onClick={()=>setView(v)}
