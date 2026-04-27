@@ -113,7 +113,7 @@ const calc3LineSignal=(monthly, fin={})=>{
   };
   const zm=toZone(gapM),zw=toZone(gapW),zd=toZone(gapD);
 
-// ── 1. 이격도 점수 (60QMA 통합 및 에러 방지 로직)
+// ── 1. 이격도 점수 (QMA 통합 및 에러 방지 로직)
   const pQ = zm != null ? zm.zScore * 3 : 0; // 통합 퀀텀 스코어 (최대 ±9점)
   
   // [에러 해결 핵심] 기존 변수명을 유지하여 하단 합산 로직과의 충돌을 방지합니다.
@@ -127,24 +127,24 @@ const calc3LineSignal=(monthly, fin={})=>{
   const priceMaxPos = zm != null ? 9 : 0;
   const priceMaxNeg = zm != null ? 9 : 0;
 
-  // ── 2. 배열 및 추세 분석 (60QMA 기준 상회/하회 판정)
+  // ── 2. 배열 및 추세 분석 (QMA 기준 상회/하회 판정)
   let arrangement = "데이터 부족";
   let arrangementColor = DARK.muted;
   let arrangementEn = "none";
   let arrScore = 0;
 
   if (zm != null) {
-    // 60QMA(기준선) 대비 현재 주가 위치 판정
+    // QMA(기준선) 대비 현재 주가 위치 판정
     const currentPrice = monthly[monthly.length - 1]?.price;
     const baseValue = zm.base;
 
     if (currentPrice > baseValue) {
-      arrangement = "60QMA 상회";
+      arrangement = "QMA 상회";
       arrangementColor = DARK.green;
       arrangementEn = "bull";
       arrScore = +3;
     } else {
-      arrangement = "60QMA 하회";
+      arrangement = "QMA 하회";
       arrangementColor = DARK.red;
       arrangementEn = "bear";
       arrScore = -3;
@@ -153,7 +153,7 @@ const calc3LineSignal=(monthly, fin={})=>{
 
   // ── 3. 결손 데이터 알림
   const hasAll = zm !== null;
-  const missingLines = zm === null ? ["60QMA 데이터 부족"] : [];
+  const missingLines = zm === null ? ["QMA 데이터 부족"] : [];
 
   // ── 3. 실적 점수 (재무제표 있을 때만)
   const {
@@ -366,7 +366,7 @@ const calcPositionBands = (monthly) => {
       ...d,
       bFloor: Math.round(ma * 0.6),
       bKnee: Math.round(ma * 0.8),
-      bBase: Math.round(ma * 1.0),    // 이것이 움직이는 기준선(60QMA)
+      bBase: Math.round(ma * 1.0),    // 이것이 움직이는 기준선(QMA)
       bShoulder: Math.round(ma * 1.5),
       bTop: Math.round(ma * 2.0),
       bPeak: Math.round(ma * 2.5),
@@ -1374,7 +1374,7 @@ export default function App(){
   const displayMonthly=useMemo(()=>monthly.slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
 
   const withMA60  =useMemo(()=>calcMA60(displayMonthly),[displayMonthly]);
-  // 이격도 차트용: 전체 monthly 기반 계산 후 슬라이스 (60QMA 누락 방지)
+  // 이격도 차트용: 전체 monthly 기반 계산 후 슬라이스 (QMA 누락 방지)
   const withMA60Slice=useMemo(()=>calcMA60(monthly).slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
@@ -1660,13 +1660,13 @@ export default function App(){
       }
     } else if(priceZoneEn==="peak"){
       verdict="극단 과열 주의";verdictColor=C.red;verdictIcon="🔴";
-      reason="60QMA 대비 +300% 초과 — 역사적 극단 과열";
+      reason="QMA 대비 +300% 초과 — 역사적 극단 과열";
       interpretation="어떤 실적에도 리스크 극단적으로 높음";
     } else {
       // gap이 있지만 priceZone 미산출 (매우 드문 케이스)
       if(gap!==null){
         verdict="분석 대기";verdictColor=C.gold;verdictIcon="🟡";
-        reason=`60QMA 산출 중 (현재 이격: ${gap>0?"+":""}${gap}%)`;
+        reason=`QMA 산출 중 (현재 이격: ${gap>0?"+":""}${gap}%)`;
         interpretation="데이터 축적 중 — 이격도 참고만 하세요";
       } else {
         verdict="주가 로딩 중";verdictColor=C.muted;verdictIcon="⚪";
@@ -1913,7 +1913,7 @@ export default function App(){
           {[
             {k:"PER",v:per?`${per}배`:"—",c:C.gold},
             {k:"PBR",v:pbr?`${pbr}배`:"—",c:C.gold},
-            {k:"60QA 이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
+            {k:"QMA 이격도",v:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"—",c:gs.color},
             {k:"신호",v:gs.label,c:gs.color},
             {k:"내재가치",v:dcfResults.avg?`${dcfResults.avg.toLocaleString()}원`:"—",c:C.blueL,
               sub:(()=>{if(!dcfResults.avg||!price)return null;const pct=Math.round((price/dcfResults.avg-1)*100);return{v:`${pct>0?"+":""}${pct}%`,c:pct>0?C.red:C.green,label:pct>0?"고평가":"저평가"};})()},
@@ -2010,7 +2010,7 @@ export default function App(){
                         <div style={{color:re.priceZoneColor,fontSize:10,fontFamily:"monospace",marginTop:1,opacity:0.85}}>
                           {re.gap!=null?`${re.gap>0?"+":""}${re.gap}%`:"—"}
                         </div>
-                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>60QMA 이격도</div>
+                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>QMA 이격도</div>
                       </div>
                     )}
                   </div>
@@ -2195,18 +2195,18 @@ export default function App(){
           </div>
         )}
 
-        {/* ════ 주가·60QMA ════ */}
+        {/* ════ 주가·QMA ════ */}
         {tab==="price60"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
             {lastGap!==null&&(
               <div style={{background:`${gs.color}15`,border:`1px solid ${gs.color}44`,borderRadius:9,
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
-                <div style={{color:gs.color,fontWeight:700,fontSize:12}}>60QMA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
+                <div style={{color:gs.color,fontWeight:700,fontSize:12}}>QMA 이격도: {lastGap>0?"+":""}{lastGap}%</div>
                 <Tag color={gs.color} size={11}>{gs.label}</Tag>
                 <div style={{color:C.muted,fontSize:9}}>≤-20%:적극매수 / +100%:매도 / +200%:적극매도 / +300%:극단매도</div>
               </div>
             )}
-            <ST accent={C.blue} right="▲매수 ▼매도">주가 & 60QMA 위치밴드</ST>
+            <ST accent={C.blue} right="▲매수 ▼매도">주가 & QMA 위치밴드</ST>
             <CW h={310}>
               <ComposedChart data={withPositionBands} margin={{top:20,right:40,left:0,bottom:8}}>
                 <defs>
@@ -2224,7 +2224,7 @@ export default function App(){
                 <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}        dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={1.5} strokeDasharray="6 3" fill="url(#floorShadeP)" dot={false} legendType="line"/>
-                <Line dataKey="bBase"     name="60QMA" stroke={C.goldL} strokeWidth={2} dot={false}/>
+                <Line dataKey="bBase"     name="QMA" stroke={C.goldL} strokeWidth={2} dot={false}/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                 <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1}   strokeDasharray="3 4" fill="url(#peakShadeP)" dot={false} legendType="line"/>
@@ -2236,7 +2236,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple,  label:"EH"},
                     {key:"bTop",     color:C.red,     label:"VH"},
                     {key:"bShoulder",color:C.orange,  label:"H"},
-                    {key:"bBase",    color:C.goldL,   label:"60QMA"},
+                    {key:"bBase",    color:C.goldL,   label:"QMA"},
                     {key:"bFloor",   color:"#3B7DD8", label:"VL"},
                     {key:"bKnee",    color:C.blue,    label:"L"},
                   ].map(b=>(
@@ -2250,7 +2250,7 @@ export default function App(){
                 ))}
               </ComposedChart>
             </CW>
-            <ST accent={C.teal}>60QMA 이격도 (%)</ST>
+            <ST accent={C.teal}>QMA 이격도 (%)</ST>
             <CW h={180}>
               <ComposedChart data={withMA60Slice} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2482,12 +2482,12 @@ export default function App(){
 
             {/* 위치 판독 안내 뱃지 */}
             <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
-              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📐 60QMA 가격 위치 밴드 기준</div>
+              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📐 QMA 가격 위치 밴드 기준</div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {[
                   {label:"VL",  sub:"×0.6↓",color:"#3B7DD8"},
                   {label:"L",   sub:"×0.8",  color:C.blue},
-                  {label:"60QMA",sub:"×1.0",  color:C.goldL},
+                  {label:"QMA",sub:"×1.0",  color:C.goldL},
                   {label:"H",   sub:"×1.5",  color:C.orange},
                   {label:"VH",  sub:"×2.0",  color:C.red},
                   {label:"EH", sub:"×2.0↑", color:C.purple},
@@ -2503,7 +2503,7 @@ export default function App(){
               </div>
             </div>
 
-            <ST accent={C.gold} right="60QMA 배수 기준 위치 밴드">가격 위치 밴드</ST>
+            <ST accent={C.gold} right="QMA 배수 기준 위치 밴드">가격 위치 밴드</ST>
             <CW h={310}>
               <ComposedChart data={withPositionBands} margin={{top:8,right:40,left:0,bottom:8}}>
                 <defs>
@@ -2523,7 +2523,7 @@ export default function App(){
                 <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                 <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"   strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}    dot={false} legendType="line"/>
                 <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}    strokeWidth={2}   strokeDasharray="6 3" fill="url(#floorShade)" dot={false} legendType="line"/>
-                <Line dataKey="bBase"     name="60QMA" stroke={C.goldL} strokeWidth={2.5} dot={false} legendType="line"/>
+                <Line dataKey="bBase"     name="QMA" stroke={C.goldL} strokeWidth={2.5} dot={false} legendType="line"/>
                 <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange}  strokeWidth={2}   strokeDasharray="8 3" dot={false}/>
                 <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}     strokeWidth={2}   strokeDasharray="5 3" dot={false}/>
                 <Area dataKey="bPeak"     name="EH ×2.5" stroke={C.purple}  strokeWidth={1.5} strokeDasharray="3 4" fill="url(#peakShade)"  dot={false} legendType="line"/>
@@ -2535,7 +2535,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple, label:"EH"},
                     {key:"bTop",     color:C.red,    label:"VH"},
                     {key:"bShoulder",color:C.orange, label:"H"},
-                    {key:"bBase",    color:C.goldL,  label:"60QMA"},
+                    {key:"bBase",    color:C.goldL,  label:"QMA"},
                     {key:"bFloor",   color:"#3B7DD8",label:"VL"},
                     {key:"bKnee",    color:C.blue,   label:"L"},
                   ].map(b=>(
@@ -2568,7 +2568,7 @@ export default function App(){
                     <div style={{color:priceZoneColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{priceZone}</div>
                   </div>
                   <div style={{textAlign:"center"}}>
-                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>60QMA 이격도</div>
+                    <div style={{color:C.muted,fontSize:9,marginBottom:2}}>QMA 이격도</div>
                     <div style={{color:priceZoneColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>
                       {gap>0?"+":""}{gap}%
                     </div>
@@ -2576,13 +2576,13 @@ export default function App(){
                   <div style={{flex:1,minWidth:120}}>
                     <div style={{color:C.muted,fontSize:8,marginBottom:4}}>구간 기준</div>
                     <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-                      {/* 60QMA 종류 뱃지 */}
+                      {/* QMA 종류 뱃지 */}
                       <span style={{
                         fontSize:9,color:C.goldL,fontWeight:700,
                         background:`${C.goldL}18`,border:`1px solid ${C.goldL}44`,
                         borderRadius:4,padding:"2px 8px",display:"inline-block",marginBottom:4,
                       }}>
-                        기준선: 60QMA
+                        기준선: QMA
                       </span>
                       {[
                         {z:"VL",  r:"-40%↓", c:"#3B7DD8"},
@@ -3276,11 +3276,11 @@ export default function App(){
             const lastValid=bandData.filter(d=>d.bBase!=null).slice(-1)[0];
             const lastGap=lastValid?.gap60??null;
             const gapColor=lastGap==null?"#888":lastGap>100?C.red:lastGap>50?C.orange:lastGap>0?C.gold:lastGap>-20?C.teal:C.green;
-            const gapLabel=lastGap==null?"":lastGap>100?"VH이상":lastGap>50?"H이상":lastGap>0?"60QMA위":lastGap>-20?"L위":"VL근접";
+            const gapLabel=lastGap==null?"":lastGap>100?"VH이상":lastGap>50?"H이상":lastGap>0?"QMA위":lastGap>-20?"L위":"VL근접";
             return(
             <>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                <ST accent={color}>{title} — 60QMA 위치밴드</ST>
+                <ST accent={color}>{title} — QMA 위치밴드</ST>
                 {lastGap!=null&&(
                   <div style={{background:`${gapColor}20`,border:`1px solid ${gapColor}66`,
                     borderRadius:6,padding:"3px 9px",fontSize:10,fontWeight:700,color:gapColor,fontFamily:"monospace"}}>
@@ -3308,7 +3308,7 @@ export default function App(){
                   <Legend wrapperStyle={{fontSize:9}} iconSize={10}/>
                   <Area dataKey="bFloor"    name="VL ×0.6"  stroke="#3B7DD8"  strokeWidth={1}   strokeDasharray="3 4" fill={`${C.blue}00`}                    dot={false} legendType="line"/>
                   <Area dataKey="bKnee"     name="L ×0.8"   stroke={C.blue}   strokeWidth={1.5} strokeDasharray="6 3" fill={`url(#floorShade_${title})`}       dot={false} legendType="line"/>
-                  <Line dataKey="bBase"     name="60QMA"    stroke={C.goldL}  strokeWidth={2}                         dot={false}/>
+                  <Line dataKey="bBase"     name="QMA"    stroke={C.goldL}  strokeWidth={2}                         dot={false}/>
                   <Line dataKey="bShoulder" name="H ×1.5"   stroke={C.orange} strokeWidth={1.5} strokeDasharray="8 3" dot={false}/>
                   <Line dataKey="bTop"      name="VH ×2.0"  stroke={C.red}    strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                   <Area dataKey="bPeak"     name="EH ×2.5"  stroke={C.purple} strokeWidth={1}   strokeDasharray="3 4" fill={`url(#peakShade_${title})`}        dot={false} legendType="line"/>
@@ -3317,7 +3317,7 @@ export default function App(){
                     {key:"bPeak",    color:C.purple,  label:"EH"},
                     {key:"bTop",     color:C.red,     label:"VH"},
                     {key:"bShoulder",color:C.orange,  label:"H"},
-                    {key:"bBase",    color:C.goldL,   label:"60QMA"},
+                    {key:"bBase",    color:C.goldL,   label:"QMA"},
                     {key:"bKnee",    color:C.blue,    label:"L"},
                     {key:"bFloor",   color:"#3B7DD8", label:"VL"},
                   ].map(b=>(
@@ -3327,7 +3327,7 @@ export default function App(){
                 </ComposedChart>
               </CW>
               {/* 이격도 바 차트 */}
-              <ST accent={C.teal}>60QMA 이격도 (%)</ST>
+              <ST accent={C.teal}>QMA 이격도 (%)</ST>
               <CW h={170}>
                 <ComposedChart data={bandData.filter(d=>d.gap60!=null)} margin={{top:4,right:20,left:0,bottom:8}}>
                   <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
