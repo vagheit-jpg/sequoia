@@ -2,38 +2,122 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+
+  <!-- 상태바 색 -->
+  <meta name="theme-color" content="#f2f4f8" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#040710" media="(prefers-color-scheme: dark)" />
+
   <title>SEQUOIA QUANTUM™</title>
+
   <style>
-    /* 전체 레이아웃 고정 및 튕김 방지 */
-    html, body {
+    :root {
+      --bg-light: #f2f4f8;
+      --bg-dark: #040710;
+      --text-light: #0f172a;
+      --text-dark: #f8fafc;
+    }
+
+    /* 기본 초기화 */
+    html, body, #root {
       margin: 0;
       padding: 0;
       width: 100%;
-      height: 100%;
-      /* 모바일 드래그 시 검은 바닥 노출을 원천적으로 막는 핵심 설정 */
-      overscroll-behavior-y: none !important;
+    }
+
+    /* 🔥 핵심: 전체 배경 통일 */
+    html {
+      background: var(--bg-light);
+      overscroll-behavior-y: none;
+    }
+
+    body {
+      min-height: 100dvh;
+      background: var(--bg-light);
+      color: var(--text-light);
+      overscroll-behavior-y: none;
       -webkit-overflow-scrolling: touch;
     }
 
-    /* 1. 시스템 설정이 라이트 모드일 때 (배경: #f2f4f8) */
-    @media (prefers-color-scheme: light) {
-      html, body {
-        background-color: #f2f4f8 !important;
+    #root {
+      min-height: 100dvh;
+      background: inherit;
+    }
+
+    /* 다크모드 자동 */
+    @media (prefers-color-scheme: dark) {
+      html, body, #root {
+        background: var(--bg-dark);
+        color: var(--text-dark);
       }
     }
 
-    /* 2. 시스템 설정이 다크 모드일 때 (배경: #040710) */
-    @media (prefers-color-scheme: dark) {
+    /* 수동 테마 */
+    body.light-theme, body.light-theme #root {
+      background: var(--bg-light) !important;
+      color: var(--text-light) !important;
+    }
+
+    body.dark-theme, body.dark-theme #root {
+      background: var(--bg-dark) !important;
+      color: var(--text-dark) !important;
+    }
+
+    /* =========================
+       📱 모바일 전용 (핵심 해결)
+       ========================= */
+    @media (max-width: 768px) {
+
       html, body {
-        background-color: #040710 !important;
+        height: 100%;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        overscroll-behavior: none;
+      }
+
+      /* 🔥 스크롤바 제거 */
+      body::-webkit-scrollbar {
+        display: none;
+      }
+
+      /* 🔥 하단 튐 방지 */
+      body {
+        position: fixed;
+        width: 100%;
+      }
+
+      #root {
+        overflow-y: auto;
+        height: 100dvh;
+        -webkit-overflow-scrolling: touch;
       }
     }
-    /* 추가: 만약 사용자가 수동으로 테마를 바꿀 때 클래스를 사용한다면 대비책 */
-    body.light-theme { background-color: #f2f4f8 !important; }
-    body.dark-theme { background-color: #040710 !important; }
+
+    /* =========================
+       🖥 PC 전용
+       ========================= */
+    @media (min-width: 769px) {
+
+      html, body {
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      body {
+        min-height: 100vh;
+      }
+
+      #root {
+        min-height: 100vh;
+      }
+    }
+
   </style>
 </head>
+
 <body>
   <div id="root"></div>
   <script type="module" src="/src/main.jsx"></script>
