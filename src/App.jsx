@@ -25,6 +25,14 @@ const LIGHT={
 };
 let C=DARK;
 
+export default function App() {
+  const [darkMode, setDarkMode] = useState(true);
+
+  C = darkMode ? DARK : LIGHT;
+
+  ...
+}
+
 // ══════════════════════════════════════════════════════════════
 // 1. Supabase
 // ══════════════════════════════════════════════════════════════
