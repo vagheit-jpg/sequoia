@@ -1,42 +1,16 @@
 <!DOCTYPE html>
 <html lang="ko">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>SEQUOIA QUANTUM™</title>
-<style>
-    /* 전체 레이아웃 고정 및 튕김 방지 */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      /* 모바일 드래그 시 검은 바닥 노출을 원천적으로 막는 핵심 설정 */
-      overscroll-behavior-y: none !important;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    /* 1. 시스템 설정이 라이트 모드일 때 (배경: #f2f4f8) */
-    @media (prefers-color-scheme: light) {
-      html, body {
-        background-color: #f2f4f8 !important;
-      }
-    }
-
-    /* 2. 시스템 설정이 다크 모드일 때 (배경: #040710) */
-    @media (prefers-color-scheme: dark) {
-      html, body {
-        background-color: #040710 !important;
-      }
-    }
-
-    /* 추가: 만약 사용자가 수동으로 테마를 바꿀 때 클래스를 사용한다면 대비책 */
-    body.light-theme { background-color: #f2f4f8 !important; }
-    body.dark-theme { background-color: #040710 !important; }
-  </style>
-</head>
-<body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SEQUOIA QUANTUM™</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
