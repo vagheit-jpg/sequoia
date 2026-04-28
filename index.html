@@ -4,46 +4,46 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>SEQUOIA QUANTUM™</title>
-  <style>
-    /* 1. 최상위 레이어에서 바운스 현상만 정밀 차단 */
-    html {
-      overflow: hidden; /* html은 고정하여 캔버스 이탈 방지 */
-      height: 100%;
-      overscroll-behavior: none;
-    }
+<style>
+  /* 1. html 레벨에서 바운스(블랙박스 노출)를 원천 차단 */
+  html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden; /* html이 들썩거리는 것을 막음 */
+    /* [핵심] 여기서만 none을 줍니다. body에는 주지 마세요. */
+    overscroll-behavior-y: none; 
+  }
 
-    /* 2. body를 실제 스크롤 주체로 설정 (PC 휠 스크롤 복구 핵심) */
-    body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%;
-      /* [중요] 여기서 스크롤을 허용해야 PC 마우스 휠이 작동합니다 */
-      overflow-y: auto; 
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-    }
+  /* 2. body는 순수하게 '스크롤'만 담당하게 하여 PC 휠을 살립니다 */
+  body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    /* PC 마우스 휠이 인식되는 유일한 통로 */
+    overflow-y: auto; 
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    
+    /* [주의] 여기에 overscroll-behavior-y: none이 들어가면 PC 휠이 멈춥니다. */
+  }
 
-    /* 3. root 영역: 콘텐츠 길이에 맞춰 시원하게 확장 */
-    #root {
-      width: 100%;
-      min-height: 100vh; /* 화면 높이만큼 최소 확보 (압축 방지) */
-      display: flex;
-      flex-direction: column;
-    }
+  /* 3. root 영역: 콘텐츠를 시원하게 펼침 */
+  #root {
+    width: 100%;
+    min-height: 100vh; /* 화면 높이 압축 방지 */
+    display: flex;
+    flex-direction: column;
+  }
 
-    /* 4. 테마별 배경색 (튕길 틈이 없어도 잔상 방어를 위해 필수) */
-    @media (prefers-color-scheme: dark) {
-      html, body { background-color: #040710 !important; }
-    }
-    @media (prefers-color-scheme: light) {
-      html, body { background-color: #f2f4f8 !important; }
-    }
-
-    /* PC 스크롤바 디자인 (세콰이어 시스템의 세련미 유지) */
-    body::-webkit-scrollbar { width: 8px; }
-    body::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.4); border-radius: 10px; }
-  </style>
+  /* 테마별 배경색 (튕길 틈이 없어도 잔상 방어를 위해 필수) */
+  @media (prefers-color-scheme: dark) {
+    html, body, #root { background-color: #040710 !important; }
+  }
+  @media (prefers-color-scheme: light) {
+    html, body, #root { background-color: #f2f4f8 !important; }
+  }
+</style>
 </head>
 <body>
   <div id="root"></div>
