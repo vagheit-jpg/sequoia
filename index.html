@@ -5,38 +5,44 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>SEQUOIA QUANTUM™</title>
   <style>
-    /* 1. 브라우저 기본 캔버스를 고정 (튕김의 근원지 차단) */
-    html, body {
-      margin: 0;
-      padding: 0;
-      width: 100%;
-      height: 100%; /* 화면에 딱 맞게 고정 */
-      overflow: hidden; /* body 자체 스크롤은 꺼서 바운스 방지 */
+    /* 1. 최상위 레이어에서 바운스 현상만 정밀 차단 */
+    html {
+      overflow: hidden; /* html은 고정하여 캔버스 이탈 방지 */
+      height: 100%;
       overscroll-behavior: none;
     }
 
-    /* 2. 실제 앱 영역: 여기서 모든 스크롤이 시원하게 일어남 */
-    #root {
+    /* 2. body를 실제 스크롤 주체로 설정 (PC 휠 스크롤 복구 핵심) */
+    body {
+      margin: 0;
+      padding: 0;
       width: 100%;
-      height: 100%; /* 부모로부터 100% 상속 */
-      /* [중요] PC/모바일 모두 여기서 스크롤이 일어나도록 강제 설정 */
+      height: 100%;
+      /* [중요] 여기서 스크롤을 허용해야 PC 마우스 휠이 작동합니다 */
       overflow-y: auto; 
       overflow-x: hidden;
-      -webkit-overflow-scrolling: touch; /* 모바일 관성 스크롤 */
+      -webkit-overflow-scrolling: touch;
     }
 
-    /* 3. 테마별 배경색 (튕길 틈이 없지만, 보험으로 색상 일치) */
+    /* 3. root 영역: 콘텐츠 길이에 맞춰 시원하게 확장 */
+    #root {
+      width: 100%;
+      min-height: 100vh; /* 화면 높이만큼 최소 확보 (압축 방지) */
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* 4. 테마별 배경색 (튕길 틈이 없어도 잔상 방어를 위해 필수) */
     @media (prefers-color-scheme: dark) {
-      html, body, #root { background-color: #040710 !important; }
+      html, body { background-color: #040710 !important; }
     }
     @media (prefers-color-scheme: light) {
-      html, body, #root { background-color: #f2f4f8 !important; }
+      html, body { background-color: #f2f4f8 !important; }
     }
 
-    /* PC 스크롤바 커스텀 (스크롤이 살아있음을 보여주는 지표) */
-    #root::-webkit-scrollbar { width: 8px; }
-    #root::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.4); border-radius: 10px; }
-    #root::-webkit-scrollbar-track { background: transparent; }
+    /* PC 스크롤바 디자인 (세콰이어 시스템의 세련미 유지) */
+    body::-webkit-scrollbar { width: 8px; }
+    body::-webkit-scrollbar-thumb { background: rgba(128, 128, 128, 0.4); border-radius: 10px; }
   </style>
 </head>
 <body>
