@@ -5,35 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>SEQUOIA QUANTUM™</title>
     <style>
-      /* 1. 모든 요소의 튕김 및 바운스 원천 차단 */
+      /* 1. 기본 초기화 */
       * { 
         margin: 0; 
         padding: 0; 
         box-sizing: border-box; 
-        -webkit-overflow-scrolling: touch; /* 부드러운 스크롤 유지 */
       }
       
-      /* 2. html과 body의 배경색을 투명하게 하거나 시스템 기본에 맡김 */
+      /* 2. html, body 설정: 튕김 방지와 배경색 결정 */
       html, body { 
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         width: 100%;
-        height: 100%;
-        /* [중요] 스크롤 바운스 효과를 완전히 제거하여 바닥 노출 자체를 금지 */
-        position: fixed; 
-        overflow: hidden;
-        overscroll-behavior: none !important;
+        /* [수정] position: fixed를 제거하고 최소 높이만 확보합니다 */
+        min-height: 100%; 
+        /* 스크롤 바운스 효과 제거 (블랙박스 방어의 핵심) */
+        overscroll-behavior-y: none !important;
+        /* 스크롤 허용 */
+        overflow-x: hidden;
+        overflow-y: auto;
       }
 
-      /* 3. 실제 스크롤이 일어나는 root 영역만 스크롤 허용 */
+      /* 3. root 영역: 콘텐츠 길이에 따라 무한히 늘어나게 설정 */
       #root {
         width: 100%;
-        height: 100%;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
-        /* 여기서 테마별 배경색을 지정 (App.jsx에서 칠하는 색과 일치) */
+        min-height: 100vh; /* 화면 높이만큼 최소 확보 */
+        display: flex;
+        flex-direction: column;
+        /* 콘텐츠가 길어지면 자연스럽게 늘어나며 스크롤 생성 */
       }
 
-      /* 시스템 다크모드 강제 대응 */
+      /* 시스템 테마에 따른 배경색 강제 대응 (잔상 제거) */
       @media (prefers-color-scheme: dark) {
         html, body { background-color: #040710 !important; }
       }
