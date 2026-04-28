@@ -2,12 +2,9 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-  <!-- 상태바 색 -->
+  <!-- 상태바 색 (모바일 상단/하단 바) -->
   <meta name="theme-color" content="#f2f4f8" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#040710" media="(prefers-color-scheme: dark)" />
 
@@ -21,14 +18,15 @@
       --text-dark: #f8fafc;
     }
 
-    /* 기본 초기화 */
+    /* =========================
+       기본 초기화
+       ========================= */
     html, body, #root {
       margin: 0;
       padding: 0;
       width: 100%;
     }
 
-    /* 🔥 핵심: 전체 배경 통일 */
     html {
       background: var(--bg-light);
       overscroll-behavior-y: none;
@@ -47,7 +45,9 @@
       background: inherit;
     }
 
-    /* 다크모드 자동 */
+    /* =========================
+       다크모드 자동
+       ========================= */
     @media (prefers-color-scheme: dark) {
       html, body, #root {
         background: var(--bg-dark);
@@ -55,7 +55,9 @@
       }
     }
 
-    /* 수동 테마 */
+    /* =========================
+       수동 테마 (React에서 사용 가능)
+       ========================= */
     body.light-theme, body.light-theme #root {
       background: var(--bg-light) !important;
       color: var(--text-light) !important;
@@ -67,37 +69,29 @@
     }
 
     /* =========================
-       📱 모바일 전용 (핵심 해결)
+       📱 모바일 전용
        ========================= */
     @media (max-width: 768px) {
 
       html, body {
-        height: 100%;
         min-height: 100dvh;
         overflow-x: hidden;
-        overscroll-behavior: none;
+        overscroll-behavior-y: none;
+        scrollbar-width: none;
       }
 
-      /* 🔥 스크롤바 제거 */
       body::-webkit-scrollbar {
         display: none;
       }
 
-      /* 🔥 하단 튐 방지 */
-      body {
-        position: fixed;
-        width: 100%;
-      }
-
       #root {
-        overflow-y: auto;
-        height: 100dvh;
-        -webkit-overflow-scrolling: touch;
+        min-height: 100dvh;
+        overflow-x: hidden;
       }
     }
 
     /* =========================
-       🖥 PC 전용
+       🖥 PC 전용 (스크롤 정상)
        ========================= */
     @media (min-width: 769px) {
 
