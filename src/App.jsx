@@ -30,8 +30,9 @@ export default function App() {
 
   C = darkMode ? DARK : LIGHT;
 
-  ...
-}
+  const [stocks, setStocks] = useState([]);
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [dbLoading, setDbLoading] = useState(true);
 
 // ══════════════════════════════════════════════════════════════
 // 1. Supabase
