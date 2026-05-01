@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import * as XLSX from "xlsx";
 import {
   ComposedChart, AreaChart, Area, Bar, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -376,30 +375,68 @@ const calcPositionBands = (monthly) => {
 const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   if(!monthly.length)return monthly;
   const epsMap={},bpsMap={};
-  // 연간 데이터만 사용 — 분기 EPS는 미완성값이 밴드를 왜곡시킴
-  (annData||[]).forEach(r=>{
-    if(r.eps!=null)epsMap[`${r.year}.12`]=r.eps;
-    if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;
-  });
+  const htsQtr=(qtrData||[]).filter(r=>r.eps!=null&&r.year>0);
+
+  if(htsQtr.length>=4){
+    // TTM EPS: 직전 4분기 합산
+    const qEnd={1:3,2:6,3:9,4:12};
+    htsQtr.forEach((r,i,arr)=>{
+      const ttm4=arr.slice(Math.max(0,i-3),i+1);
+      const ttmEps=ttm4.reduce((s,x)=>s+(x.eps||0),0);
+      const lbl=`${r.year}.${String(qEnd[r.quarter]||12).padStart(2,"0")}`;
+      epsMap[lbl]=ttmEps;
+      // BPS 역산: price≈per×eps, bps=price/pbr
+      if(r.per&&r.pbr&&r.eps&&r.per>0&&r.pbr>0){
+        bpsMap[lbl]=Math.round((r.per*r.eps)/r.pbr);
+      }
+    });
+  } else {
+    (annData||[]).forEach(r=>{
+      if(r.eps!=null)epsMap[`${r.year}.12`]=r.eps;
+      if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;
+    });
+  }
+
+  // BPS 폴백
+  if(!Object.keys(bpsMap).length){
+    (annData||[]).forEach(r=>{if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;});
+  }
+
+  // 반응형 배수: 실제 분기 PER/PBR 분포 기반 자동계산
+  const adaptiveBands=(()=>{
+    if(bandCfg)return bandCfg; // 수동 설정 우선
+    const vPer=htsQtr.filter(r=>r.per>0&&r.per<200).map(r=>r.per).sort((a,b)=>a-b);
+    const vPbr=htsQtr.filter(r=>r.pbr>0&&r.pbr<30).map(r=>r.pbr).sort((a,b)=>a-b);
+    const pct=(arr,p)=>arr.length?arr[Math.max(0,Math.floor((arr.length-1)*p/100))]:0;
+    return{
+      perLo: vPer.length?+pct(vPer,15).toFixed(1):7,
+      perMid:vPer.length?+pct(vPer,50).toFixed(1):13,
+      perHi: vPer.length?+pct(vPer,85).toFixed(1):20,
+      pbrLo: vPbr.length?+pct(vPbr,15).toFixed(2):1.0,
+      pbrMid:vPbr.length?+pct(vPbr,50).toFixed(2):2.0,
+      pbrHi: vPbr.length?+pct(vPbr,85).toFixed(2):3.5,
+    };
+  })();
+
   const interp=(label,map)=>{
     const keys=Object.keys(map).sort();if(!keys.length)return 0;
     const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
     let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
     let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
     if(!k0)k0=keys[0];
-    // k1 없으면 마지막 값 그대로 유지 (최신 연도 이후 구간)
     if(!k1)return map[k0]||0;
     const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
     const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
-    return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
+    return(map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
   return monthly.map(d=>({...d,
-    perLo :Math.round(interp(d.label,epsMap)*(bandCfg?.perLo||7)),
-    perMid:Math.round(interp(d.label,epsMap)*(bandCfg?.perMid||13)),
-    perHi :Math.round(interp(d.label,epsMap)*(bandCfg?.perHi||20)),
-    pbrLo :Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrLo||1.0)),
-    pbrMid:Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrMid||2.0)),
-    pbrHi :Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrHi||3.5)),
+    perLo :Math.round(interp(d.label,epsMap)*adaptiveBands.perLo),
+    perMid:Math.round(interp(d.label,epsMap)*adaptiveBands.perMid),
+    perHi :Math.round(interp(d.label,epsMap)*adaptiveBands.perHi),
+    pbrLo :Math.round(interp(d.label,bpsMap)*adaptiveBands.pbrLo),
+    pbrMid:Math.round(interp(d.label,bpsMap)*adaptiveBands.pbrMid),
+    pbrHi :Math.round(interp(d.label,bpsMap)*adaptiveBands.pbrHi),
+    _adaptive:adaptiveBands,
   }));
 };
 
@@ -420,127 +457,165 @@ const calcSignalPoints=(data)=>{
 };
 
 // ══════════════════════════════════════════════════════════════
-// 4. DCF 3가지
+// 4. 내재가치 밴드 (그레이엄 멀티플 + ROE 멀티플)
 // ══════════════════════════════════════════════════════════════
-const calcDCF_rate=({fcf,gr,dr,shares})=>{
-  if(!fcf||!shares||shares<=0)return 0;
-  let pv=0,cf=fcf;
-  for(let y=1;y<=10;y++){cf*=(1+gr);pv+=cf/Math.pow(1+dr,y);}
-  const tv=(cf*(1+0.03)/(dr-0.03))/Math.pow(1+dr,10);
-  return Math.round((pv+tv)/shares);
+
+// 그레이엄 멀티플: V = EPS × (8.5 + 2g) × (4.4 / 채권수익률)
+const calcGrahamBand=({eps,bondYield=3.5})=>{
+  if(!eps||eps<=0||bondYield<=0)return{lo:0,mid:0,hi:0};
+  // 보수적(g=5%) / 기준(g=10%) / 낙관적(g=15%)
+  const lo =Math.round(eps*(8.5+2*5) *(4.4/bondYield));
+  const mid=Math.round(eps*(8.5+2*10)*(4.4/bondYield));
+  const hi =Math.round(eps*(8.5+2*15)*(4.4/bondYield));
+  return{lo,mid,hi};
 };
-const calcDCF_graham=({eps,gr,bondYield})=>{
-  if(!eps||bondYield<=0)return 0;
-  return Math.round(eps*(8.5+2*gr*100)*(4.4/bondYield));
+
+// ROE 멀티플: 적정PER=ROE, 적정주가=ROE×EPS
+// 밴드: ×0.7(저평가) / ×1.0(적정) / ×1.4(고평가)
+const calcRoeBand=({roe,eps})=>{
+  if(!roe||!eps||roe<=0||eps<=0)return{lo:0,mid:0,hi:0};
+  const mid=Math.round(roe*eps);
+  return{lo:Math.round(mid*0.7),mid,hi:Math.round(mid*1.4)};
 };
-// 수정 4: ROE 멀티플 — 적정PER=ROE, 적정주가=ROE×EPS
-const calcDCF_roe=({roe,eps})=>{
-  if(!roe||!eps||roe<=0)return 0;
-  return Math.round(roe*eps);
-};
-const buildDCFHistory=(annData,gr,dr,bondYield,capexRatio)=>{
+
+// 연도별 내재가치 밴드 히스토리 빌드
+const buildIvHistory=(annData,bondYield)=>{
   if(!annData?.length)return[];
-  return annData.filter(r=>r.shares&&r.year).map(r=>{
-    const sh=r.shares/1e8;
-    const owner=calcDCF_owner({net:r.net,cfo:r.cfo,cfi:r.cfi,capex:r.capex,capexRatio,gr,dr,shares:sh});
-    const rate=r.fcf?calcDCF_rate({fcf:r.fcf,gr,dr,shares:sh}):0;
-    const graham=calcDCF_graham({eps:r.eps,gr,bondYield});
-    const roe=calcDCF_roe({roe:r.roe,eps:r.eps});
-    return{year:r.year,fcf:r.fcf||null,owner:owner||null,rate:rate||null,graham:graham||null,roe:roe||null};
+  return annData.filter(r=>r.eps&&r.year).map(r=>{
+    const g=calcGrahamBand({eps:r.eps,bondYield});
+    const rv=calcRoeBand({roe:r.roe,eps:r.eps});
+    // 두 방식 평균 밴드
+    const avgLo =Math.round((g.lo +rv.lo) /2);
+    const avgMid=Math.round((g.mid+rv.mid)/2);
+    const avgHi =Math.round((g.hi +rv.hi) /2);
+    return{
+      year:r.year,eps:r.eps,roe:r.roe,
+      gLo:g.lo,gMid:g.mid,gHi:g.hi,
+      rLo:rv.lo,rMid:rv.mid,rHi:rv.hi,
+      avgLo,avgMid,avgHi,
+    };
   });
 };
 
-// ── 오너이익 DCF (버핏 방식)
-// 오너이익 = 순이익 + 추정감가상각(영업CF - 순이익) - CAPEX(투자CF 음수부분 근사)
-const calcOwnerEarnings=({net,cfo,cfi,capex,capexRatio=50})=>{
-  if(!net||!cfo)return null;
-  const depEst=cfo-net;                                            // 감가상각 근사
-  const totalCapex=capex?Math.abs(capex):cfi<0?Math.abs(cfi)*0.7:0; // 실제CAPEX 우선
-  const maintCapex=totalCapex*(capexRatio/100);                    // 유지CAPEX = 전체 × 비율
-  return net+depEst-maintCapex;
-};
-const calcDCF_owner=({net,cfo,cfi,capex,capexRatio,gr,dr,shares})=>{
-  const oe=calcOwnerEarnings({net,cfo,cfi,capex,capexRatio});
-  if(!oe||oe<=0||!shares||shares<=0)return 0;
-  let pv=0,cf=oe;
-  for(let y=1;y<=10;y++){cf*=(1+gr);pv+=cf/Math.pow(1+dr,y);}
-  const tv=(cf*(1+0.03)/(dr-0.03))/Math.pow(1+dr,10);
-  return Math.round((pv+tv)/shares);
+// ══════════════════════════════════════════════════════════════
+// 5. 영웅문 HTS CSV 파서 (EUC-KR, 분기 재무제표)
+// ══════════════════════════════════════════════════════════════
+const HTS_COL_MAP={
+  "결과도":"period","자산총계":"assets","자본총계":"equity","매출액":"rev",
+  "영업이익":"op","당기순이익":"net","영업활동현금흐름":"cfo","투자활동현금흐름":"cfi",
+  "재무활동현금흐름":"cff","순현금흐름":"fcf","PER":"per","PBR":"pbr","EPS":"eps",
+  "부채비율":"debt","유보율":"retained","영업이익률":"opm","지배ROE":"roe","부채총계":"liab",
 };
 
-// ── 역DCF: 현재 주가에 내재된 성장률 역산
-const calcReverseDCF=({price,eps,dr})=>{
-  if(!price||!eps||eps<=0||dr<=0)return null;
-  // 현재주가 = EPS × (1+g)/(dr-g) × (1-Math.pow((1+g)/(1+dr),10)) + TV
-  // 수치적으로 이분탐색으로 역산
-  let lo=-0.5,hi=1.0;
-  for(let i=0;i<60;i++){
-    const g=(lo+hi)/2;
-    if(dr-g<=0.001){hi=g;continue;}
-    let pv=0,cf=eps;
-    for(let y=1;y<=10;y++){cf*=(1+g);pv+=cf/Math.pow(1+dr,y);}
-    const tv=(cf*(1+0.02)/(dr-0.02))/Math.pow(1+dr,10);
-    if(pv+tv>price)hi=g;else lo=g;
-  }
-  return +((lo+hi)/2*100).toFixed(1);
+const decodeEucKr=(buffer)=>{
+  try{return new TextDecoder("euc-kr").decode(buffer);}
+  catch{return new TextDecoder("latin1").decode(buffer);}
 };
 
-// ══════════════════════════════════════════════════════════════
-// 5. 엑셀 파서
-// ══════════════════════════════════════════════════════════════
-const FIELD_MAP={
-  "매출액":"rev","영업이익":"op","당기순이익":"net","영업이익률":"opm","순이익률":"npm",
-  "자산총계":"assets","부채총계":"liab","자본총계":"equity","부채비율":"debt","자본유보율":"retained",
-  "영업활동현금흐름":"cfo","투자활동현금흐름":"cfi","재무활동현금흐름":"cff","FCF":"fcf",
-  "ROE(%)":"roe","ROA(%)":"roa","EPS(원)":"eps","BPS(원)":"bps",
-  "PER(배)":"per","PBR(배)":"pbr","발행주식수(보통주)":"shares",
-  "설비투자(CAPEX)":"capex","현금DPS(원)":"dps","현금배당수익률":"divYield","현금배당성향(%)":"divPayout",
+// "25년12월(4Q)" 또는 "2025년12월(4Q)" 파싱
+const parseHtsPeriod=(raw)=>{
+  const s=String(raw||"").trim();
+  const m=s.match(/^(\d{2,4})년(\d{1,2})월(?:\((\d)Q\))?/);
+  if(!m)return null;
+  const yr=parseInt(m[1]);
+  const year=yr<100?(yr>=18?2000+yr:1900+yr):yr;
+  const month=parseInt(m[2]);
+  const quarter=m[3]?parseInt(m[3]):Math.ceil(month/3);
+  return{year,month,quarter,label:`${year}Q${quarter}`};
 };
-const parseSheet=(sheet)=>{
-  const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:""});
-  if(!rows.length)return[];
-  const isYear=v=>/^20[0-9]{2}/.test(String(v||"").trim());
-  let hIdx=-1;
-  for(let i=0;i<Math.min(rows.length,8);i++){if(rows[i].slice(1).filter(isYear).length>=1){hIdx=i;break;}}
-  if(hIdx===-1)return[];
-  const periods=rows[hIdx].slice(1).map(h=>String(h||"").replace(/\n/g," ").trim()).filter(Boolean);
-  if(!periods.length)return[];
-  const result=periods.map(p=>({period:p}));
-  rows.slice(hIdx+1).forEach(row=>{
-    const label=String(row[0]||"").trim(),field=FIELD_MAP[label];
-    if(!field)return;
-    periods.forEach((p,i)=>{
-      const raw=String(row[i+1]||"").replace(/,/g,"").trim();
-      result[i][field]=raw===""||raw==="-"||raw==="N/A"?null:parseFloat(raw);
+
+const parseHtsCsv=(text)=>{
+  const lines=text.split(/\r?\n/).filter(l=>l.trim());
+  if(!lines.length)return[];
+  // 헤더
+  const headers=lines[0].split(",").map(h=>h.replace(/^"|"$/g,"").trim());
+  const colIdx={};
+  headers.forEach((h,i)=>{const mapped=HTS_COL_MAP[h];if(mapped)colIdx[mapped]=i;});
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const cells=lines[i].split(",").map(c=>c.replace(/^"|"$/g,"").trim());
+    const periodRaw=cells[colIdx.period??0]||"";
+    const parsed=parseHtsPeriod(periodRaw);
+    if(!parsed)continue;
+    const row={...parsed};
+    Object.entries(colIdx).forEach(([field,ci])=>{
+      if(field==="period")return;
+      const clean=(cells[ci]||"").replace(/,/g,"").trim();
+      row[field]=clean===""||clean==="-"||clean==="N/A"?null:parseFloat(clean);
     });
-  });
-  return result;
+    // shares 자동 역산: net / eps × 1억
+    if(row.shares==null&&row.net!=null&&row.eps!=null&&row.eps!==0){
+      row.shares=Math.round(Math.abs(row.net/row.eps)*1e8);
+    }
+    rows.push(row);
+  }
+  // 오래된 순 정렬
+  rows.sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month);
+  return rows;
 };
-const exYear=p=>{const m=String(p||"").match(/^(20[0-9]{2})/);return m?parseInt(m[1]):0;};
-const exMonth=p=>{const m=String(p||"").match(/[\/\.]([0-9]{1,2})/);return m?parseInt(m[1]):12;};
-const parseAnn=sheet=>parseSheet(sheet).map(r=>({...r,year:exYear(r.period)})).filter(r=>r.year>0);
-const parseQtr=sheet=>parseSheet(sheet).map(r=>{
-  const year=exYear(r.period),month=exMonth(r.period),quarter=Math.ceil(month/3);
-  return{...r,year,month,quarter,label:`${year}Q${quarter}`};
-}).filter(r=>r.year>0);
-const parseDiv=sheet=>parseSheet(sheet).map(r=>({...r,year:exYear(r.period)})).filter(r=>r.year>0&&r.dps!=null);
-const parseExcel=(file)=>new Promise((resolve,reject)=>{
+
+// 분기 Q4 데이터로 연간 데이터 역산
+const buildAnnFromQtr=(qtrData)=>{
+  const byYear={};
+  qtrData.forEach(r=>{
+    if(!byYear[r.year])byYear[r.year]={year:r.year,q4:null,all:[]};
+    byYear[r.year].all.push(r);
+    if(r.quarter===4)byYear[r.year].q4=r;
+  });
+  return Object.values(byYear)
+    .filter(g=>g.q4||g.all.length>0)
+    .map(g=>{
+      const src=g.q4||g.all[g.all.length-1];
+      // 손익계산서: Q4 누적이 연간값 — 영웅문은 분기별 단순값이므로 합산
+      const sum=(key)=>g.all.reduce((s,r)=>s+(r[key]||0),0);
+      return{
+        year:g.year,
+        rev:+sum("rev").toFixed(1)||src.rev,
+        op:+sum("op").toFixed(1)||src.op,
+        net:+sum("net").toFixed(1)||src.net,
+        cfo:+sum("cfo").toFixed(1)||src.cfo,
+        cfi:+sum("cfi").toFixed(1)||src.cfi,
+        cff:+sum("cff").toFixed(1)||src.cff,
+        fcf:+sum("fcf").toFixed(1)||src.fcf,
+        // 스톡 항목(재무상태표)은 Q4 값 사용
+        assets:src.assets,liab:src.liab,equity:src.equity,
+        debt:src.debt,retained:src.retained,
+        // 비율/주가지표는 Q4 기준
+        opm:src.opm,roe:src.roe,eps:src.eps,per:src.per,pbr:src.pbr,
+        shares:src.shares,
+      };
+    })
+    .sort((a,b)=>a.year-b.year);
+};
+
+const parseHtsFile=(file)=>new Promise((resolve,reject)=>{
   const reader=new FileReader();
   reader.onload=e=>{
     try{
-      const wb=XLSX.read(e.target.result,{type:"binary"});
-      const find=kws=>wb.SheetNames.find(n=>kws.some(k=>n.includes(k)));
+      const text=decodeEucKr(e.target.result);
+      const qtrData=parseHtsCsv(text);
+      if(!qtrData.length)throw new Error("데이터를 찾을 수 없습니다. 영웅문 분기 재무추이 CSV인지 확인하세요.");
+      const annData=buildAnnFromQtr(qtrData);
+      // 파일명에서 종목명/티커 추출
+      const tickerMatch=file.name.match(/(?:^|_)(\d{6})(?:_|\.)/);
+      const nameRaw=file.name
+        .replace(/\.csv$/i,"")
+        .replace(/_분기_?$/,"")
+        .replace(/_연간_?$/,"")
+        .replace(/(?:^|_)\d{6}(?:_|$)/,"")
+        .replace(/^_|_$/g,"")
+        .trim();
       resolve({
-        ticker:file.name.match(/^(\d{6})/)?.[1]||"",
-        name:file.name.replace(/\.xlsx?$/,"").replace(/^\d{6}_/,""),
-        annData:parseAnn(wb.Sheets[find(["연간","①"])]||{}),
-        qtrData:parseQtr(wb.Sheets[find(["분기","②"])]||{}),
-        divData:parseDiv(wb.Sheets[find(["배당","③"])]||{}),
+        ticker:tickerMatch?.[1]||"",
+        name:nameRaw,
+        qtrData,
+        annData,
+        divData:[],
       });
     }catch(err){reject(err);}
   };
   reader.onerror=reject;
-  reader.readAsBinaryString(file);
+  reader.readAsArrayBuffer(file);
 });
 
 // ══════════════════════════════════════════════════════════════
@@ -1260,8 +1335,8 @@ export default function App(){
   const [searchQuery,setSearchQuery]=useState("");
   const [searchResults,setSearchResults]=useState([]);
   const [showSearch,setShowSearch]=useState(false);
-  const [dcfDraft,setDcfDraft]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
-  const [dcfApplied,setDcfApplied]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
+  const [dcfDraft,setDcfDraft]=useState({bondYield:3.5});
+  const [dcfApplied,setDcfApplied]=useState({bondYield:3.5});
   const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
   const [bandDraft,setBandDraft]=useState(BAND_DEFAULT);
   const [bandApplied,setBandApplied]=useState(BAND_DEFAULT);
@@ -1416,22 +1491,23 @@ export default function App(){
   },[withMA60Full,monthly]);
   const lastAnn   =co?.annData?.slice(-1)?.[0]||{};
 
-  const dcfResults=useMemo(()=>{
-    const dr=(dcfApplied.bondYield+dcfApplied.riskPrem)/100,gr=dcfApplied.gr/100;
-    const shares=lastAnn.shares?lastAnn.shares/1e8:null;
-    const a=shares?calcDCF_rate({fcf:lastAnn.fcf,gr,dr,shares}):0;
-    const b=calcDCF_graham({eps:lastAnn.eps,gr,bondYield:dcfApplied.bondYield});
-    const c=calcDCF_roe({roe:lastAnn.roe,eps:lastAnn.eps});
-    const d=shares?calcDCF_owner({net:lastAnn.net,cfo:lastAnn.cfo,cfi:lastAnn.cfi,capex:lastAnn.capex,capexRatio:dcfApplied.capexRatio,gr,dr,shares}):0;
-    const valid=[a,b,c,d].filter(v=>v>0);
-    const avg=valid.length?Math.round(valid.reduce((s,v)=>s+v,0)/valid.length):0;
-    // 역DCF — 현재 주가에 내재된 성장률 (priceInfo에서 직접 읽기)
-    const curPrice=priceInfo?.currentPrice||0;
-    const impliedGr=curPrice>0?calcReverseDCF({price:curPrice,eps:lastAnn.eps,dr}):null;
-    return{a,b,c,d,avg,impliedGr};
-  },[lastAnn,dcfApplied,priceInfo]);
+  const ivBand=useMemo(()=>{
+    const bondYield=dcfApplied.bondYield||3.5;
+    const eps=lastAnn.eps||0;
+    const roe=lastAnn.roe||0;
+    const g=calcGrahamBand({eps,bondYield});
+    const rv=calcRoeBand({roe,eps});
+    const avgLo =eps>0?Math.round((g.lo+rv.lo)/2):0;
+    const avgMid=eps>0?Math.round((g.mid+rv.mid)/2):0;
+    const avgHi =eps>0?Math.round((g.hi+rv.hi)/2):0;
+    return{g,rv,avgLo,avgMid,avgHi,bondYield};
+  },[lastAnn,dcfApplied]);
 
-  const dcfHistory=useMemo(()=>buildDCFHistory(co?.annData,dcfApplied.gr/100,(dcfApplied.bondYield+dcfApplied.riskPrem)/100,dcfApplied.bondYield,dcfApplied.capexRatio),[co?.annData,dcfApplied]);
+  const ivHistory=useMemo(()=>buildIvHistory(co?.annData,dcfApplied.bondYield||3.5),[co?.annData,dcfApplied]);
+
+  // 하위호환: dcfResults 참조 코드가 있으면 빈 객체로 대체
+  const dcfResults={a:0,b:0,c:0,d:0,avg:0,impliedGr:null};
+  const dcfHistory=[];
 
   const annTimeline=useMemo(()=>(co?.annData||[]).map(r=>({...r,period:`${r.year}년`})),[co?.annData]);
   const qtrTimeline=useMemo(()=>(co?.qtrData||[]).map(r=>({...r,period:r.label})),[co?.qtrData]);
@@ -1505,16 +1581,48 @@ export default function App(){
   const yp=(unit="",w=44)=>({tick:{fill:C.muted,fontSize:11},tickLine:false,axisLine:false,unit,width:w});
 
   const handleUpload=async(e)=>{
-    const files=Array.from(e.target.files);if(!files.length)return;
+    const files=Array.from(e.target.files).filter(f=>f.name.toLowerCase().endsWith(".csv"));
+    if(!files.length){alert("영웅문 CSV 파일(.csv)을 선택해주세요.");return;}
     setUploading(true);
     try{
-      const results=await Promise.all(files.map(parseExcel));
-      for(const res of results)await sbUpsertStock(res).catch(()=>{});
+      const results=await Promise.all(files.map(parseHtsFile));
+      // Supabase 저장
+      for(const res of results){
+        await sbUpsertStock(res).catch(err=>console.warn("Supabase 저장 실패:",err));
+      }
+      // 최신 DB 불러오기
       const rows=await sbGetStocks().catch(()=>null);
-      if(rows?.length)setStocks(rows.map(rowToStock));
-      else setStocks(prev=>{const m=[...prev];results.forEach(res=>{const i=m.findIndex(s=>s.ticker===res.ticker);if(i>=0)m[i]=res;else m.push(res);});return m;});
-    }catch(err){alert("업로드 실패: "+err.message);}
-    setUploading(false);e.target.value="";
+      if(rows?.length){
+        const mapped=rows.map(rowToStock);
+        setStocks(mapped);
+        try{localStorage.setItem("sequoia_v3",JSON.stringify(mapped));}catch{}
+      } else {
+        setStocks(prev=>{
+          const m=[...prev];
+          results.forEach(res=>{
+            const i=m.findIndex(s=>s.ticker===res.ticker||s.name===res.name);
+            if(i>=0)m[i]=res; else m.push(res);
+          });
+          try{localStorage.setItem("sequoia_v3",JSON.stringify(m));}catch{}
+          return m;
+        });
+      }
+      // 업로드 종목 활성화 후 재무탭으로 이동
+      if(results.length){
+        const res=results[0];
+        setStocks(prev=>{
+          const idx=prev.findIndex(s=>s.ticker===res.ticker||s.name===res.name);
+          if(idx>=0)setTimeout(()=>{setActiveIdx(idx);setTab("financial");},100);
+          return prev;
+        });
+      }
+      setUploadToast(`✅ ${results.length}개 종목 업로드 완료`);
+      setTimeout(()=>setUploadToast(null),2500);
+    }catch(err){
+      alert("업로드 실패: "+err.message);
+    }
+    setUploading(false);
+    e.target.value="";
   };
 
   const removeStock=async(idx)=>{
@@ -1722,8 +1830,8 @@ export default function App(){
     {id:"moat",label:"🛡 경제적 해자"},
     {id:"price60",label:"📈 주가"},
     {id:"perbpr",label:"💹 PER/PBR"},{id:"financial",label:"💰 재무"},
-    {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
-    {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
+    {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 내재가치"},
+    {id:"stability",label:"🛡 안정성"},
     {id:"buffett",label:"📚 투자거장의 말"},
   ];
 
@@ -1753,7 +1861,7 @@ export default function App(){
       <div style={{maxWidth:440,margin:"60px auto",padding:24,textAlign:"center"}}>
         <div style={{color:C.gold,fontSize:24,fontWeight:900,letterSpacing:"0.06em",fontFamily:"monospace",marginBottom:8}}>🌲 SEQUOIA</div>
         <div style={{color:C.muted,fontSize:13,lineHeight:1.8,marginBottom:28}}>
-          종목코드 또는 종목명으로 바로 검색하거나<br/>엑셀 파일을 업로드하세요.
+          종목코드 또는 종목명으로 바로 검색하거나<br/>영웅문 HTS 분기 CSV를 업로드하세요.
         </div>
         {/* 검색창 */}
         <div style={{position:"relative",marginBottom:16}}>
@@ -1782,10 +1890,10 @@ export default function App(){
         <button onClick={()=>fileRef.current?.click()} style={{
           background:`linear-gradient(135deg,${C.blue},${C.blueL})`,
           color:"#fff",border:"none",borderRadius:12,padding:"13px 28px",fontSize:14,fontWeight:700,cursor:"pointer"}}>
-          📂 엑셀 파일 업로드
+          📂 영웅문 CSV 업로드
         </button>
-        <div style={{color:C.muted,fontSize:10,marginTop:10}}>파일명: 179290_엠아이텍.xlsx</div>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" multiple style={{display:"none"}} onChange={handleUpload}/>
+        <div style={{color:C.muted,fontSize:10,marginTop:10}}>영웅문 HTS → 재무추이 → 분기 → CSV 저장</div>
+        <input ref={fileRef} type="file" accept=".csv" multiple style={{display:"none"}} onChange={handleUpload}/>
       </div>
     </div>
   );
@@ -1860,7 +1968,7 @@ export default function App(){
         </button>
         <button onClick={()=>setConfirmDelete(true)}
           style={{background:"transparent",color:C.red,border:`1px solid ${C.red}44`,borderRadius:7,padding:"6px 8px",fontSize:11,cursor:"pointer",flexShrink:0}}>🗑</button>
-        <input ref={fileRef} type="file" accept=".xlsx,.xls" multiple style={{display:"none"}} onChange={handleUpload}/>
+        <input ref={fileRef} type="file" accept=".csv" multiple style={{display:"none"}} onChange={handleUpload}/>
       </div>
 
       {/* ── 업로드 토스트 */}
@@ -2357,7 +2465,7 @@ export default function App(){
                 </CW>
               </>
             ):(
-              <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 엑셀 업로드 후 표시됩니다.</div></Box>
+              <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 CSV 업로드 후 표시됩니다.</div></Box>
             )}
           </div>
         )}
@@ -2366,113 +2474,224 @@ export default function App(){
         {tab==="financial"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
             {hasFinData?(()=>{
-              const data=finView==="연간"?annTimeline:qtrTimeline;
-              return(
-                <>
-                  <ViewToggle view={finView} setView={setFinView}/>
-                  {(()=>{const {unit:u1,scale:s1}=autoUnit(data,["rev","op","net"]);const d1=scaleData(data,["rev","op","net"],s1);return(<>
-                  <ST accent={C.green} right={u1+"원"}>매출·영업이익·순이익</ST>
-                  <CW h={240}>
-                    <ComposedChart data={d1} margin={{top:4,right:20,left:0,bottom:8}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                      <YAxis {...yp(u1)}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <Bar dataKey="rev" name="매출액"   fill={C.blue}   opacity={0.7} maxBarSize={24}/>
-                      <Bar dataKey="op"  name="영업이익" fill={C.green}  opacity={0.8} maxBarSize={24}/>
-                      <Bar dataKey="net" name="순이익"   fill={C.purple} opacity={0.7} maxBarSize={24}/>
-                    </ComposedChart>
-                  </CW></>);})()}
-                  {/* 영업이익률·순이익률(막대·좌축) + 성장률 YoY(꺾은선·우축) */}
-                  <ST accent={C.gold}>이익률 & 성장률</ST>
+              // 분기 데이터 (최대 40분기 = 10년)
+              const qtrSlice=(co?.qtrData||[]).filter(r=>r.year>0).slice(-40);
+              const data=finView==="연간"?annTimeline:qtrSlice.map(r=>({...r,period:r.label}));
+              const isQtr=finView==="분기";
+              const maxBar=isQtr?10:22;
+
+              // 분기 레이블 tick
+              const QTk=({x,y,payload})=>{
+                if(!payload?.value)return null;
+                const v=String(payload.value);
+                const isQ1=v.endsWith("Q1");
+                return(<g transform={`translate(${x},${y+2})`}>
+                  {isQ1&&<text y={0} textAnchor="middle" fill={C.text} fontSize={10} fontWeight={700} fontFamily="monospace">{v.slice(0,4)}</text>}
+                  <text y={isQ1?13:0} textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{v.slice(4)}</text>
+                </g>);
+              };
+              const xTk=isQtr?<QTk/>:<FinTick/>;
+              const xH=isQtr?32:24;
+
+              // EPS·주가 동행 데이터 빌드 (분기별 주가 매핑)
+              const epsPriceQtr=(()=>{
+                if(!qtrSlice.length||!monthly.length)return[];
+                const qEnd={1:3,2:6,3:9,4:12};
+                return qtrSlice.filter(r=>r.eps!=null).map(r=>{
+                  const mo=String(qEnd[r.quarter]||3).padStart(2,"0");
+                  const lbl=`${r.year}.${mo}`;
+                  // 해당 분기말 월 또는 인근 월 주가 찾기
+                  const match=monthly.find(m=>m.label===lbl)
+                    ||monthly.find(m=>m.year===r.year&&m.month===(qEnd[r.quarter]||3))
+                    ||monthly.filter(m=>m.year===r.year).slice(-1)[0];
+                  return{period:r.label,eps:r.eps,roe:r.roe,price:match?.price||null};
+                }).filter(r=>r.price);
+              })();
+
+              // YoY 성장률
+              const qtrWithYoy=data.map((r,i,arr)=>{
+                const prev=arr.find(p=>p.year===r.year-1&&p.quarter===r.quarter);
+                return{...r,
+                  revYoy:prev?.rev&&r.rev?+((r.rev-prev.rev)/Math.abs(prev.rev)*100).toFixed(1):null,
+                  opYoy:prev?.op&&r.op?+((r.op-prev.op)/Math.abs(prev.op)*100).toFixed(1):null,
+                };
+              });
+
+              return(<>
+                <ViewToggle view={finView} setView={setFinView}/>
+
+                {/* ★ 핵심1: EPS · 주가 동행 (감귤색 점선 EPS + 블루라이트 주가) */}
+                {epsPriceQtr.length>=2&&(
+                  <Box>
+                    <ST accent="#F97316">📌 EPS · 주가 동행 추이 — 분기별</ST>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:8,lineHeight:1.6}}>
+                      EPS 방향과 주가가 함께 움직이는지 확인하세요. EPS가 먼저 꺾이면 주가 하락 선행신호입니다.
+                    </div>
+                    <CW h={260}>
+                      <ComposedChart data={epsPriceQtr} margin={{top:8,right:12,left:0,bottom:28}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="period" tick={<QTk/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={32}/>
+                        <YAxis yAxisId="eps" orientation="left"
+                          tick={{fill:"#F97316",fontSize:10}} width={52}
+                          tickFormatter={v=>v.toLocaleString()} stroke="#F97316" tickCount={5}
+                          domain={([mn,mx])=>{const p=(mx-mn)*0.3||Math.abs(mx)*0.2||50;return[Math.floor(mn-p),Math.ceil(mx+p)];}}/>
+                        <YAxis yAxisId="price" orientation="right"
+                          tick={{fill:"#5BA0FF",fontSize:10}} width={56}
+                          tickFormatter={v=>v.toLocaleString()} stroke="#5BA0FF" tickCount={5}
+                          domain={([mn,mx])=>{const p=(mx-mn)*0.3||Math.abs(mx)*0.2||500;return[Math.floor(mn-p),Math.ceil(mx+p)];}}/>
+                        <Tooltip content={<MTip/>} cursor={false}/>
+                        <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
+                        {/* EPS: 감귤색(#F97316) 점선 + 원형 점 */}
+                        <Line yAxisId="eps" dataKey="eps" name="분기EPS(원)"
+                          stroke="#F97316" strokeWidth={2} strokeDasharray="7 3"
+                          dot={{r:4,fill:"#F97316",stroke:"#F97316",strokeWidth:0}}
+                          activeDot={{r:6,fill:"#F97316"}} connectNulls/>
+                        {/* 주가: 블루라이트(#5BA0FF) 실선 */}
+                        <Line yAxisId="price" dataKey="price" name="주가(원)"
+                          stroke="#5BA0FF" strokeWidth={2.5}
+                          dot={{r:3,fill:"#5BA0FF",stroke:"#5BA0FF",strokeWidth:0}}
+                          activeDot={{r:6,fill:"#5BA0FF"}} connectNulls/>
+                      </ComposedChart>
+                    </CW>
+                  </Box>
+                )}
+
+                {/* ★ 핵심2: ROE 추이 (감귤색 점선 ROE + 블루라이트 주가) */}
+                {epsPriceQtr.filter(r=>r.roe!=null).length>=2&&(
+                  <Box>
+                    <ST accent="#F97316">📌 ROE · 주가 동행 추이 — 분기별</ST>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:8,lineHeight:1.6}}>
+                      ROE 15% 이상 유지 기업이 장기 복리 수익의 핵심입니다. ROE 하락 전환 시 주의하세요.
+                    </div>
+                    <CW h={250}>
+                      <ComposedChart data={epsPriceQtr.filter(r=>r.roe!=null)} margin={{top:8,right:12,left:0,bottom:28}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="period" tick={<QTk/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={32}/>
+                        <YAxis yAxisId="roe" orientation="left"
+                          tick={{fill:"#F97316",fontSize:10}} width={40}
+                          tickFormatter={v=>`${v}%`} stroke="#F97316" tickCount={5}
+                          domain={([mn,mx])=>{const p=(mx-mn)*0.3||5;return[Math.max(0,Math.floor(mn-p)),Math.ceil(mx+p)];}}/>
+                        <YAxis yAxisId="price" orientation="right"
+                          tick={{fill:"#5BA0FF",fontSize:10}} width={56}
+                          tickFormatter={v=>v.toLocaleString()} stroke="#5BA0FF" tickCount={5}
+                          domain={([mn,mx])=>{const p=(mx-mn)*0.3||500;return[Math.floor(mn-p),Math.ceil(mx+p)];}}/>
+                        <Tooltip content={<MTip/>} cursor={false}/>
+                        <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
+                        <ReferenceLine yAxisId="roe" y={15} stroke={`${C.gold}88`} strokeDasharray="4 2"
+                          label={{value:"ROE 15%",fill:C.gold,fontSize:8,position:"insideTopRight"}}/>
+                        <ReferenceLine yAxisId="roe" y={10} stroke={`${C.muted}55`} strokeDasharray="3 3"
+                          label={{value:"10%",fill:C.muted,fontSize:8,position:"insideTopRight"}}/>
+                        {/* ROE: 감귤색 점선 */}
+                        <Line yAxisId="roe" dataKey="roe" name="지배ROE(%)"
+                          stroke="#F97316" strokeWidth={2} strokeDasharray="7 3"
+                          dot={{r:4,fill:"#F97316",strokeWidth:0}}
+                          activeDot={{r:6}} connectNulls/>
+                        {/* 주가: 블루라이트 실선 */}
+                        <Line yAxisId="price" dataKey="price" name="주가(원)"
+                          stroke="#5BA0FF" strokeWidth={2.5}
+                          dot={{r:3,fill:"#5BA0FF",strokeWidth:0}}
+                          activeDot={{r:6}} connectNulls/>
+                      </ComposedChart>
+                    </CW>
+                  </Box>
+                )}
+
+                {/* ★ 핵심3: FCF · 현금흐름 (FCF 막대 + 3개 CF 꺾은선) */}
+                {(()=>{
+                  const {unit:uc,scale:sc}=autoUnit(data,["fcf","cfo","cfi","cff"]);
+                  const dc=scaleData(data,["fcf","cfo","cfi","cff"],sc);
+                  return(
+                  <Box>
+                    <ST accent={C.cyan} right={uc+"원"}>📌 FCF · 현금흐름 추이</ST>
+                    <div style={{fontSize:10,color:C.muted,marginBottom:8,lineHeight:1.6}}>
+                      FCF(순현금) 막대가 꾸준히 양수인 기업이 진정한 현금창출 기업입니다.
+                    </div>
+                    <CW h={260}>
+                      <ComposedChart data={dc} margin={{top:8,right:12,left:0,bottom:xH}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="period" tick={xTk} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xH}/>
+                        <YAxis {...yp(uc,52)}/>
+                        <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                        <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3" strokeWidth={1.5}/>
+                        {/* FCF: 골드 막대 */}
+                        <Bar dataKey="fcf" name={`순현금FCF(${uc})`} fill={C.gold} opacity={0.85} maxBarSize={maxBar} radius={[3,3,0,0]}/>
+                        {/* 영업CF: teal 실선 */}
+                        <Line dataKey="cfo" name="영업CF" stroke={C.teal} strokeWidth={2} dot={{r:isQtr?2:3}} connectNulls/>
+                        {/* 투자CF: red 점선 */}
+                        <Line dataKey="cfi" name="투자CF" stroke={C.red} strokeWidth={1.5} dot={{r:isQtr?2:3}} connectNulls strokeDasharray="5 3"/>
+                        {/* 재무CF: purple 점선 */}
+                        <Line dataKey="cff" name="재무CF" stroke={C.purple} strokeWidth={1.5} dot={{r:isQtr?2:3}} connectNulls strokeDasharray="3 3"/>
+                      </ComposedChart>
+                    </CW>
+                  </Box>
+                  );
+                })()}
+
+                {/* 매출·영업이익·순이익 */}
+                {(()=>{const {unit:u1,scale:s1}=autoUnit(data,["rev","op","net"]);const d1=scaleData(data,["rev","op","net"],s1);return(
+                  <Box>
+                    <ST accent={C.green} right={u1+"원"}>매출 · 영업이익 · 순이익</ST>
+                    <CW h={230}>
+                      <ComposedChart data={d1} margin={{top:4,right:12,left:0,bottom:xH}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="period" tick={xTk} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xH}/>
+                        <YAxis {...yp(u1)}/><Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                        <Bar dataKey="rev" name="매출액"   fill={C.blue}   opacity={0.6} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                        <Bar dataKey="op"  name="영업이익" fill={C.green}  opacity={0.85} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                        <Line dataKey="net" name="순이익" stroke={C.purple} strokeWidth={2.5} dot={{r:isQtr?2:3}} connectNulls/>
+                      </ComposedChart>
+                    </CW>
+                  </Box>
+                );})()}
+
+                {/* 영업이익률 · ROE + YoY (분기뷰) */}
+                <Box>
+                  <ST accent={C.gold} right="%">영업이익률 · ROE{isQtr?" (전년동기비 포함)":""}</ST>
                   <CW h={220}>
-                    {(()=>{
-                      const merged=growthData.map(r=>{
-                        const base=finView==="연간"?annTimeline:qtrTimeline;
-                        const match=base.find(b=>b.period===r.period);
-                        return{...r,opm:match?.opm??null,npm:match?.npm??null};
-                      });
-                      return(
-                        <ComposedChart data={merged} margin={{top:4,right:4,left:0,bottom:8}}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                          <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left"  {...yp("%",44)} domain={["auto","auto"]}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp("%",44)} domain={["auto","auto"]}/>
-                          <Tooltip content={<MTip/>} cursor={false}/>
-                          <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
-                          <ReferenceLine yAxisId="right" y={0} stroke={C.muted} strokeDasharray="4 3"/>
-                          <Bar yAxisId="left" dataKey="opm" name="OPM%" fill={C.gold}   opacity={0.75} maxBarSize={22} radius={[3,3,0,0]}/>
-                          <Bar yAxisId="left" dataKey="npm" name="NPM%" fill={C.purple} opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
-                          <Line yAxisId="right" dataKey="revGrowth" name="매출YoY%" stroke={C.blue}  strokeWidth={2} dot={{r:3}} connectNulls/>
-                          <Line yAxisId="right" dataKey="opGrowth"  name="영업YoY%" stroke={C.green} strokeWidth={2} dot={{r:3}} connectNulls/>
-                        </ComposedChart>
-                      );
-                    })()}
-                  </CW>
-                  <ST accent={C.gold} right="%">OPM · ROE · ROA</ST>
-                  <CW h={190}>
-                    <ComposedChart data={data} margin={{top:4,right:20,left:0,bottom:8}}>
+                    <ComposedChart data={isQtr?qtrWithYoy:data} margin={{top:4,right:12,left:0,bottom:xH}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                      <YAxis {...yp("%")}/>
+                      <XAxis dataKey="period" tick={xTk} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xH}/>
+                      <YAxis yAxisId="l" {...yp("%",44)} domain={[0,"auto"]}/>
+                      {isQtr&&<YAxis yAxisId="r" orientation="right" {...yp("%",44)} domain={["auto","auto"]}/>}
                       <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <Line dataKey="opm" name="OPM%" stroke={C.gold}  strokeWidth={2} dot={{r:3}}/>
-                      <Line dataKey="roe" name="ROE%" stroke={C.green} strokeWidth={2} dot={{r:3}}/>
-                      <Line dataKey="roa" name="ROA%" stroke={C.blueL} strokeWidth={2} dot={{r:3}}/>
+                      {isQtr&&<ReferenceLine yAxisId="r" y={0} stroke={C.muted} strokeDasharray="4 3"/>}
+                      <ReferenceLine yAxisId="l" y={15} stroke={`${C.gold}66`} strokeDasharray="4 2" label={{value:"15%",fill:C.gold,fontSize:8,position:"insideTopRight"}}/>
+                      <Bar yAxisId="l" dataKey="opm" name="영업이익률%" fill={C.gold} opacity={0.7} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                      <Line yAxisId="l" dataKey="roe" name="ROE%" stroke={C.green} strokeWidth={2.5} dot={{r:isQtr?2:3}} connectNulls/>
+                      {isQtr&&<Line yAxisId="r" dataKey="opYoy" name="영업YoY%" stroke={C.cyan} strokeWidth={1.5} dot={{r:2}} connectNulls strokeDasharray="4 2"/>}
                     </ComposedChart>
                   </CW>
-                  {/* 수정 3: 현금흐름 — 막대 4개 + 0선 점선 */}
-                  {(()=>{const {unit:uc,scale:sc}=autoUnit(data,["fcf","cfo","cfi","cff"]);const dc=scaleData(data,["fcf","cfo","cfi","cff"],sc);return(<>
-                  <ST accent={C.cyan} right={uc+"원"}>현금흐름</ST>
-                  <CW h={230}>
-                    <ComposedChart data={dc} margin={{top:4,right:8,left:0,bottom:8}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                      <YAxis {...yp(uc,52)}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
-                      <Bar  dataKey="fcf" name={`FCF(${uc})`} fill={C.gold}   opacity={0.9} maxBarSize={20} radius={[3,3,0,0]}/>
-                      <Line dataKey="cfo" name="영업CF" stroke={C.teal}   strokeWidth={2} dot={{r:3}} connectNulls/>
-                      <Line dataKey="cfi" name="투자CF" stroke={C.red}    strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="4 2"/>
-                      <Line dataKey="cff" name="재무CF" stroke={C.purple} strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="2 2"/>
-                    </ComposedChart>
-                  </CW></>);})()}
-                  {/* EPS · FCF · 주가 동행 */}
-                  {epsPriceData.length>=2&&(
-                    <>
-                      <ST accent={C.purple}>EPS · 주가 동행 추이</ST>
-                      <CW h={240}>
-                        <ComposedChart data={epsPriceData} margin={{top:8,right:8,left:0,bottom:8}}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                          <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="eps" orientation="left"
-                            tick={{fill:"#F97316",fontSize:10}} width={48}
-                            tickFormatter={v=>v.toLocaleString()}
-                            stroke="#F97316" tickCount={5}
-                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||100;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
-                          <YAxis yAxisId="price" orientation="right"
-                            tick={{fill:"#38BDF8",fontSize:10}} width={48}
-                            tickFormatter={v=>v.toLocaleString()}
-                            stroke="#38BDF8" tickCount={5}
-                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
-                          <Tooltip content={<MTip/>} cursor={false}/>
-                          <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
-                          <Line yAxisId="eps" dataKey="eps" name="EPS(원)"
-                            stroke="#F97316" strokeWidth={2} strokeDasharray="6 3"
-                            dot={{r:4,fill:"#F97316",strokeWidth:0}}
-                            activeDot={{r:6}}/>
-                          <Line yAxisId="price" dataKey="price" name="주가(원)"
-                            stroke="#38BDF8" strokeWidth={2.5}
-                            dot={{r:4,fill:"#38BDF8",strokeWidth:0}}
-                            activeDot={{r:6}}/>
-                        </ComposedChart>
-                      </CW>
-                    </>
-                  )}
-                </>
-              );
+                </Box>
+
+                {/* 자산·부채·자본 */}
+                {(()=>{const {unit:ua,scale:sa}=autoUnit(data,["assets","liab","equity"]);const da=scaleData(data,["assets","liab","equity"],sa);return(
+                  <Box>
+                    <ST accent={C.blue} right={ua+"원"}>자산 · 부채 · 자본</ST>
+                    <CW h={220}>
+                      <ComposedChart data={da} margin={{top:4,right:12,left:0,bottom:xH}}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="period" tick={xTk} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xH}/>
+                        <YAxis {...yp(ua)}/><Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                        <Bar dataKey="assets" name="자산총계" fill={C.blue}  opacity={0.5} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                        <Bar dataKey="liab"   name="부채총계" fill={C.red}   opacity={0.55} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                        <Line dataKey="equity" name="자본총계" stroke={C.green} strokeWidth={2.5} dot={{r:isQtr?2:3}} connectNulls/>
+                      </ComposedChart>
+                    </CW>
+                  </Box>
+                );})()}
+              </>);
             })():(
-              <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 엑셀 업로드 후 표시됩니다.</div></Box>
+              <Box>
+                <div style={{textAlign:"center",padding:28}}>
+                  <div style={{fontSize:32,marginBottom:10}}>📂</div>
+                  <div style={{color:C.gold,fontSize:14,fontWeight:700,marginBottom:8}}>재무 데이터 없음</div>
+                  <div style={{color:C.muted,fontSize:11,lineHeight:1.8}}>
+                    영웅문 HTS → 재무추이 → 분기 선택 → CSV 저장<br/>
+                    저장된 파일을 우측 상단 <span style={{color:C.blue}}>📂</span> 버튼으로 업로드하세요.<br/>
+                    <span style={{color:C.cyan,fontSize:10}}>파일형식: 종목명_분기_.csv (EUC-KR)</span>
+                  </div>
+                </div>
+              </Box>
             )}
           </div>
         )}
@@ -2660,152 +2879,180 @@ export default function App(){
         {/* ════ 가치평가 ════ */}
         {tab==="valuation"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            {/* 국고채 금리 설정 */}
             <Box>
-              <ST accent={C.gold}>📐 DCF 파라미터 설정</ST>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
-                {[
-                  {key:"bondYield",label:"국고채 금리(%)",min:0,max:10,step:0.1,def:3.5},
-                  {key:"riskPrem", label:"리스크 프리미엄(%)",min:0,max:10,step:0.5,def:2},
-                  {key:"gr",       label:"기업 성장률(%)",min:0,max:30,step:0.5,def:8},
-                  {key:"reqReturn",label:"요구수익률(%)",min:1,max:20,step:0.5,def:10},
-                  {key:"capexRatio",label:"유지CAPEX 비율(%)",min:0,max:100,step:5,def:50},
-                ].map(f=>(
-                  <div key={f.key}>
-                    <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
-                    <input type="number" min={f.min} max={f.max} step={f.step}
-                      value={dcfDraft[f.key]===0?"":dcfDraft[f.key]}
-                      placeholder={String(f.def)}
-                      onChange={e=>setDcfDraft(p=>({...p,[f.key]:e.target.value===""?0:+e.target.value}))}
-                      onFocus={e=>e.target.select()}
-                      style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
-                        borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                <div style={{color:C.muted,fontSize:11}}>
-                  할인율: <span style={{color:C.gold,fontWeight:700}}>{(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}%</span>
+              <ST accent={C.gold}>📐 내재가치 파라미터</ST>
+              <div style={{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                <div style={{flex:1,minWidth:140}}>
+                  <div style={{color:C.muted,fontSize:10,marginBottom:4}}>국고채 금리 (%)</div>
+                  <input type="number" min={0.5} max={10} step={0.1}
+                    value={dcfDraft.bondYield||3.5}
+                    onChange={e=>setDcfDraft(p=>({...p,bondYield:+e.target.value||3.5}))}
+                    onFocus={e=>e.target.select()}
+                    style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
+                      borderRadius:6,padding:"6px 10px",fontSize:13,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
+                  <div style={{color:C.muted,fontSize:9,marginTop:3}}>그레이엄 멀티플 할인율 기준</div>
                 </div>
                 <button onClick={()=>setDcfApplied({...dcfDraft})}
                   style={{background:`linear-gradient(135deg,${C.blue},${C.blueL})`,color:"#fff",
-                    border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700,marginLeft:"auto"}}>
-                  ⚡ DCF 재계산 적용
+                    border:"none",borderRadius:8,padding:"8px 20px",fontSize:12,cursor:"pointer",fontWeight:700,flexShrink:0}}>
+                  ⚡ 재계산
                 </button>
               </div>
             </Box>
-            <Box style={{border:`2px solid ${C.gold}33`}}>
-              <ST accent={C.gold}>내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
-              {hasFinData?(
-                <>
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(140px,1fr))",gap:8,marginBottom:12}}>
-                    {[
-                      {label:"A. DCF(오너이익)",sub:`버핏 방식 · 유지CAPEX ${dcfApplied.capexRatio}% 적용`,val:dcfResults.d,color:C.orange},
-                      {label:"B. DCF(금리기반)",sub:`할인율 ${(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% · 성장률 ${dcfApplied.gr}%`,val:dcfResults.a,color:C.blue},
-                      {label:"C. 그레이엄멀티플",sub:"V=EPS×(8.5+2g)×4.4/Y",val:dcfResults.b,color:C.purple},
-                      {label:"D. ROE멀티플",sub:"적정가=ROE×EPS (적정PER=ROE)",val:dcfResults.c,color:C.teal},
-                      {label:"내재가치 평균",sub:"4가지 방식 교차검증 종합",val:dcfResults.avg,color:C.gold},
-                    ].map(item=>{
-                      const diff=price&&item.val?Math.round((item.val/price-1)*100):null;
-                      return(
-                        <div key={item.label} style={{background:C.card2,borderRadius:10,padding:"10px 12px",border:`1px solid ${item.color}33`}}>
-                          <div style={{color:item.color,fontSize:10,fontWeight:700,marginBottom:2}}>{item.label}</div>
-                          <div style={{color:C.muted,fontSize:8,marginBottom:6,lineHeight:1.4}}>{item.sub}</div>
-                          <div style={{fontSize:16,fontWeight:900,color:item.color,fontFamily:"monospace"}}>{item.val?item.val.toLocaleString()+"원":"—"}</div>
-                          {diff!==null&&<div style={{marginTop:4}}><Tag color={diff>=0?C.green:C.red} size={9}>{diff>=0?"저평가":"고평가"} {Math.abs(diff)}%</Tag></div>}
-                        </div>
-                      );
-                    })}
-                  </div>
 
-                  {/* 역DCF 박스 */}
-                  {dcfResults.impliedGr!==null&&price>0&&(
-                    <div style={{background:`linear-gradient(135deg,${C.cyan}10,${C.card2})`,border:`1.5px solid ${C.cyan}44`,borderRadius:12,padding:"12px 14px",marginBottom:12}}>
-                      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                        <div>
-                          <div style={{color:C.cyan,fontSize:11,fontWeight:800,marginBottom:3}}>🔍 역DCF — 버핏의 질문</div>
-                          <div style={{color:C.muted,fontSize:9,lineHeight:1.6}}>
-                            현재 주가 <span style={{color:C.text,fontWeight:700}}>{price.toLocaleString()}원</span>이 정당하려면<br/>
-                            앞으로 <span style={{color:C.cyan,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>{dcfResults.impliedGr}%</span> 연간 성장이 필요합니다.
-                          </div>
-                        </div>
-                        <div style={{textAlign:"center",background:C.bg,borderRadius:10,padding:"8px 14px"}}>
-                          <div style={{color:C.muted,fontSize:8,marginBottom:2}}>내재 성장률</div>
-                          <div style={{color:dcfResults.impliedGr<=dcfApplied.gr?C.green:dcfResults.impliedGr<=dcfApplied.gr*1.5?C.gold:C.red,
-                            fontSize:22,fontWeight:900,fontFamily:"monospace"}}>{dcfResults.impliedGr}%</div>
-                          <div style={{marginTop:4}}>
-                            <Tag color={dcfResults.impliedGr<=dcfApplied.gr?C.green:dcfResults.impliedGr<=dcfApplied.gr*1.5?C.gold:C.red} size={8}>
-                              {dcfResults.impliedGr<=dcfApplied.gr?"달성가능":dcfResults.impliedGr<=dcfApplied.gr*1.5?"도전적":"매우높음"}
-                            </Tag>
-                          </div>
-                        </div>
+            {hasFinData?(()=>{
+              const eps=lastAnn.eps||0;
+              const roe=lastAnn.roe||0;
+              const bondYield=dcfApplied.bondYield||3.5;
+
+              // 현재 내재가치 밴드 카드
+              const gBand=ivBand.g;
+              const rBand=ivBand.rv;
+
+              return(<>
+                {/* 현재 내재가치 요약 */}
+                <Box style={{border:`2px solid ${C.gold}44`}}>
+                  <ST accent={C.gold}>💎 내재가치 밴드 — {lastAnn.year||"최근"}년 기준</ST>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+                    {/* 그레이엄 멀티플 */}
+                    <div style={{background:C.card2,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.purple}33`}}>
+                      <div style={{color:C.purple,fontSize:10,fontWeight:700,marginBottom:4}}>📐 그레이엄 멀티플</div>
+                      <div style={{color:C.muted,fontSize:8,marginBottom:8,lineHeight:1.5}}>
+                        V = EPS × (8.5 + 2g) × 4.4 / {bondYield}%<br/>
+                        g: 보수5% / 기준10% / 낙관15%
                       </div>
-                      <div style={{marginTop:10,padding:"8px 10px",background:C.bg,borderRadius:8,fontSize:9,color:C.muted,lineHeight:1.7}}>
-                        💡 설정 성장률 <span style={{color:C.gold,fontWeight:700}}>{dcfApplied.gr}%</span> 대비 내재 성장률이
-                        <span style={{color:dcfResults.impliedGr<=dcfApplied.gr?C.green:C.red,fontWeight:700}}>
-                          {dcfResults.impliedGr<=dcfApplied.gr?" 낮으면 저평가":" 높으면 고평가"}
-                        </span> 가능성 — 할인율 {(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}% 기준
+                      {[
+                        {label:"저평가(g=5%)",val:gBand.lo,color:C.green},
+                        {label:"적정(g=10%)",val:gBand.mid,color:C.gold},
+                        {label:"고평가(g=15%)",val:gBand.hi,color:C.red},
+                      ].map(item=>{
+                        const diff=price&&item.val?Math.round((item.val/price-1)*100):null;
+                        return(
+                          <div key={item.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5,padding:"4px 6px",background:C.bg,borderRadius:6}}>
+                            <span style={{color:C.muted,fontSize:9}}>{item.label}</span>
+                            <div style={{textAlign:"right"}}>
+                              <span style={{color:item.color,fontWeight:700,fontSize:12,fontFamily:"monospace"}}>{item.val?item.val.toLocaleString():"—"}원</span>
+                              {diff!==null&&<span style={{color:diff>=0?C.green:C.red,fontSize:9,marginLeft:5}}>{diff>=0?"↑":"↓"}{Math.abs(diff)}%</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {/* ROE 멀티플 */}
+                    <div style={{background:C.card2,borderRadius:10,padding:"12px 14px",border:`1px solid ${C.teal}33`}}>
+                      <div style={{color:C.teal,fontSize:10,fontWeight:700,marginBottom:4}}>📊 ROE 멀티플</div>
+                      <div style={{color:C.muted,fontSize:8,marginBottom:8,lineHeight:1.5}}>
+                        적정PER = ROE({roe?.toFixed(1)||"—"}배)<br/>
+                        적정가 = ROE × EPS, 밴드 ×0.7~×1.4
+                      </div>
+                      {[
+                        {label:"저평가(×0.7)",val:rBand.lo,color:C.green},
+                        {label:"적정(×1.0)",val:rBand.mid,color:C.gold},
+                        {label:"고평가(×1.4)",val:rBand.hi,color:C.red},
+                      ].map(item=>{
+                        const diff=price&&item.val?Math.round((item.val/price-1)*100):null;
+                        return(
+                          <div key={item.label} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5,padding:"4px 6px",background:C.bg,borderRadius:6}}>
+                            <span style={{color:C.muted,fontSize:9}}>{item.label}</span>
+                            <div style={{textAlign:"right"}}>
+                              <span style={{color:item.color,fontWeight:700,fontSize:12,fontFamily:"monospace"}}>{item.val?item.val.toLocaleString():"—"}원</span>
+                              {diff!==null&&<span style={{color:diff>=0?C.green:C.red,fontSize:9,marginLeft:5}}>{diff>=0?"↑":"↓"}{Math.abs(diff)}%</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {/* 종합 밴드 요약 */}
+                  {price>0&&ivBand.avgMid>0&&(
+                    <div style={{background:`linear-gradient(135deg,${C.gold}12,${C.card2})`,border:`1.5px solid ${C.gold}44`,borderRadius:10,padding:"12px 14px"}}>
+                      <div style={{color:C.gold,fontSize:11,fontWeight:800,marginBottom:8}}>⚖️ 종합 내재가치 밴드 (두 방식 평균)</div>
+                      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+                        {[
+                          {label:"저평가선",val:ivBand.avgLo,color:C.green},
+                          {label:"적정가",val:ivBand.avgMid,color:C.gold},
+                          {label:"고평가선",val:ivBand.avgHi,color:C.red},
+                        ].map(item=>(
+                          <div key={item.label} style={{flex:1,minWidth:80,textAlign:"center",background:C.bg,borderRadius:8,padding:"8px 6px"}}>
+                            <div style={{color:C.muted,fontSize:8,marginBottom:2}}>{item.label}</div>
+                            <div style={{color:item.color,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>{item.val.toLocaleString()}원</div>
+                            <div style={{color:item.val>price?C.green:C.red,fontSize:9,marginTop:2}}>
+                              {item.val>price?"저평가":"고평가"} {Math.abs(Math.round((item.val/price-1)*100))}%
+                            </div>
+                          </div>
+                        ))}
+                        <div style={{flex:1,minWidth:80,textAlign:"center",background:`${C.blueL}15`,borderRadius:8,padding:"8px 6px",border:`1px solid ${C.blueL}44`}}>
+                          <div style={{color:C.muted,fontSize:8,marginBottom:2}}>현재주가</div>
+                          <div style={{color:C.blueL,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>{price.toLocaleString()}원</div>
+                          <div style={{color:C.muted,fontSize:9,marginTop:2}}>기준점</div>
+                        </div>
                       </div>
                     </div>
                   )}
-                  {dcfHistory.length>=2&&(()=>{
-                    const {unit:du,scale:ds}=autoUnit(dcfHistory,["fcf"]);
-                    const dcfScaled=scaleData(dcfHistory,["fcf"],ds);
-                    return(
-                    <>
-                      <ST accent={C.gold}>연도별 적정주가 추이 (4가지 방식)</ST>
-                      <CW h={260}>
-                        <ComposedChart data={dcfScaled} margin={{top:4,right:12,left:0,bottom:8}}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                          <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp(du,44)} tickFormatter={v=>v.toLocaleString()}/>
-                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                          <Bar  yAxisId="right" dataKey="fcf"    name={`FCF(${du})`}   fill={C.teal}   opacity={0.4} maxBarSize={28}/>
-                          <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
-                          <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
-                          <Line yAxisId="left"  dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
-                          <Line yAxisId="left"  dataKey="roe"    name="ROE멀티플"      stroke={C.pink}   strokeWidth={2}   dot={{r:3,fill:C.pink}}   connectNulls strokeDasharray="2 2"/>
-                          {price>0&&<ReferenceLine yAxisId="left" y={price} stroke={C.blueL} strokeDasharray="4 2"
-                            label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
-                        </ComposedChart>
-                      </CW>
-                    </>
-                    );
-                  })()}
+                </Box>
 
-                      {/* 유지CAPEX 비율 업종 참조표 */}
-                      <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
-                        <div style={{color:C.gold,fontSize:10,fontWeight:700,marginBottom:8}}>📋 유지CAPEX 비율 업종별 참조</div>
-                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
-                          {[
-                            ["🏭 중공업·조선·철강","80~90%"],
-                            ["⚙️ 자동차·부품 제조","70~80%"],
-                            ["🔬 의료기기·정밀기계","50~65%"],
-                            ["💊 제약·바이오","40~55%"],
-                            ["🏗 건설·건자재","60~75%"],
-                            ["🛒 유통·소비재","40~55%"],
-                            ["💻 IT·소프트웨어","20~35%"],
-                            ["📱 플랫폼·인터넷","15~30%"],
-                            ["🏦 금융·보험","10~20%"],
-                            ["⚡ 전기·에너지·유틸리티","75~85%"],
-                          ].map(([sector,ratio])=>(
-                            <div key={sector} style={{display:"flex",justifyContent:"space-between",
-                              padding:"5px 8px",background:C.bg,borderRadius:6,alignItems:"center"}}>
-                              <span style={{color:C.muted,fontSize:sector==="⚡ 전기·에너지·유틸리티"?9:10}}>{sector}</span>
-                              <span style={{color:C.gold,fontSize:10,fontWeight:700,fontFamily:"monospace"}}>{ratio}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{color:C.dim,fontSize:8,marginTop:8,lineHeight:1.5}}>
-                          ※ 유지CAPEX = 사업 현상유지에 필요한 최소 설비투자. 높을수록 보수적 평가. DCF 파라미터에서 조정 가능.
-                        </div>
+                {/* 연도별 내재가치 밴드 히스토리 차트 */}
+                {ivHistory.length>=2&&(
+                  <Box>
+                    <ST accent={C.purple}>📈 연도별 내재가치 밴드 추이 (그레이엄 + ROE 평균)</ST>
+                    <CW h={290}>
+                      <ComposedChart data={ivHistory} margin={{top:8,right:12,left:0,bottom:8}}>
+                        <defs>
+                          <linearGradient id="ivBandGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={C.gold} stopOpacity={0.15}/>
+                            <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                        <YAxis {...yp("원",60)} tickFormatter={v=>v.toLocaleString()}/>
+                        <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
+                        {/* 밴드 영역 */}
+                        <Area dataKey="avgHi"  name="고평가선" stroke={C.red}    fill={`${C.red}08`}       strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                        <Area dataKey="avgMid" name="적정가"   stroke={C.gold}   fill="url(#ivBandGrad)"   strokeWidth={2}   dot={{r:4,fill:C.gold}}/>
+                        <Area dataKey="avgLo"  name="저평가선" stroke={C.green}  fill={`${C.green}08`}     strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                        {/* 그레이엄 vs ROE 개별선 (참고용, 얇게) */}
+                        <Line dataKey="gMid"   name="그레이엄 적정" stroke={C.purple} strokeWidth={1} dot={false} strokeDasharray="3 3" legendType="none"/>
+                        <Line dataKey="rMid"   name="ROE 적정"      stroke={C.teal}   strokeWidth={1} dot={false} strokeDasharray="3 3" legendType="none"/>
+                        {/* 실제 주가 매핑 (monthly에서 연말 가격) */}
+                        {ivHistory.map((r,i)=>{
+                          const dec=monthly.filter(m=>m.year===r.year&&m.month===12);
+                          const p=dec.length?dec[dec.length-1].price:null;
+                          return p?<ReferenceDot key={i} x={r.year} y={p} r={4} fill={C.blueL} stroke={C.blueL}/>:null;
+                        })}
+                        {price>0&&<ReferenceLine y={price} stroke={C.blueL} strokeDasharray="4 2"
+                          label={{value:`현재 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
+                      </ComposedChart>
+                    </CW>
+                    <div style={{color:C.muted,fontSize:9,textAlign:"center",marginTop:4}}>
+                      ● 파란 점: 연말 실제 주가 | 실선: 종합 적정가 | 점선: 저/고평가 경계
+                    </div>
+                  </Box>
+                )}
+
+                {/* 방법론 안내 */}
+                <Box>
+                  <ST accent={C.muted}>📋 내재가치 산출 방법론</ST>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                    {[
+                      {title:"그레이엄 멀티플",color:C.purple,desc:"벤저민 그레이엄의 공식. EPS와 기대성장률, 국채금리를 이용해 적정가를 산출합니다. 보수적(g=5%), 기준(g=10%), 낙관(g=15%) 세 시나리오로 밴드를 만듭니다."},
+                      {title:"ROE 멀티플",color:C.teal,desc:"버핏이 선호하는 방식. 적정PER=ROE, 적정주가=ROE×EPS. 자본 효율성이 높을수록 높은 밸류를 받는 구조입니다. ×0.7~×1.4 범위로 밴드를 구성합니다."},
+                    ].map(m=>(
+                      <div key={m.title} style={{background:C.card2,borderRadius:8,padding:"10px 12px",border:`1px solid ${m.color}22`}}>
+                        <div style={{color:m.color,fontSize:10,fontWeight:700,marginBottom:5}}>{m.title}</div>
+                        <div style={{color:C.muted,fontSize:9,lineHeight:1.6}}>{m.desc}</div>
                       </div>
-            
-                </>
-              ):(
-                <div style={{color:C.muted,textAlign:"center",padding:20,fontSize:12}}>📂 엑셀 업로드 후 DCF 계산이 표시됩니다.</div>
-              )}
-            </Box>
+                    ))}
+                  </div>
+                  <div style={{color:C.dim,fontSize:8,marginTop:10,lineHeight:1.6,padding:"8px 10px",background:C.bg,borderRadius:6}}>
+                    ⚠️ 내재가치는 참고용입니다. 두 방식의 평균이 실제 기업가치를 보장하지 않으며, 산업 특성과 성장성에 따라 크게 달라질 수 있습니다.
+                  </div>
+                </Box>
+              </>);
+            })():(
+              <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 CSV 업로드 후 내재가치 분석이 표시됩니다.</div></Box>
+            )}
           </div>
         )}
 
@@ -2860,47 +3107,12 @@ export default function App(){
                 </>
               );
             })():(
-              <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 엑셀 업로드 후 표시됩니다.</div></Box>
+              <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 CSV 업로드 후 표시됩니다.</div></Box>
             )}
           </div>
         )}
 
         {/* ════ 배당 ════ */}
-        {tab==="dividend"&&(
-          <div style={{animation:"fadeIn 0.3s ease"}}>
-            {co?.divData?.length?(
-              <>
-                <ST accent={C.gold}>배당금 (DPS) 추이</ST>
-                <CW h={200}>
-                  <ComposedChart data={co.divData} margin={{top:4,right:20,left:0,bottom:8}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
-                    <YAxis {...yp("원")}/><Tooltip content={<MTip/>} cursor={false}/>
-                    <Bar dataKey="dps" name="DPS(원)" fill={C.gold} opacity={0.8} maxBarSize={40} radius={[4,4,0,0]}/>
-                  </ComposedChart>
-                </CW>
-                <ST accent={C.green}>배당수익률(막대·우축) · 배당성향(꺾은선·좌축)</ST>
-                <CW h={200}>
-                  <ComposedChart data={co.divData} margin={{top:4,right:12,left:0,bottom:8}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="year" tick={{fill:C.muted,fontSize:11}} tickLine={false} axisLine={{stroke:C.border}}/>
-                    <YAxis yAxisId="left"  {...yp("%",48)} domain={[0,"auto"]}/>
-                    <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                    <Bar  yAxisId="right" dataKey="divYield"  name="배당수익률%" fill={C.green}  opacity={0.8} maxBarSize={36} radius={[4,4,0,0]}/>
-                    <Line yAxisId="left"  dataKey="divPayout" name="배당성향%"   stroke={C.purple} strokeWidth={2.5} dot={{r:4}}/>
-                  </ComposedChart>
-                </CW>
-              </>
-            ):(
-              <Box><div style={{color:C.muted,textAlign:"center",padding:20,fontSize:12}}>
-                💸 배당 데이터 없음<br/><span style={{fontSize:10}}>③배당 시트에 네이버 배당 탭을 붙여넣으세요.</span>
-              </div></Box>
-            )}
-          </div>
-        )}
-
-
         {/* ════ 투자거장의 말 ════ */}
         {tab==="buffett"&&(()=>{
           const CATS=["전체","시장심리","기업분석","장기투자","리스크","경영진","가치평가","인생"];
@@ -3728,12 +3940,12 @@ export default function App(){
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.3</div>
+          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.4</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-            <Tag color={C.blue}  size={8}>주가:한투API</Tag>
-            <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
+            <Tag color={C.blue}   size={8}>주가:한투API</Tag>
+            <Tag color={C.green}  size={8}>재무:영웅문CSV</Tag>
             <Tag color={C.purple} size={8}>DB:Supabase</Tag>
-            <Tag color={C.gold}  size={8}>투자참고용</Tag>
+            <Tag color={C.gold}   size={8}>투자참고용</Tag>
           </div>
         </div>
       </div>
