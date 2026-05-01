@@ -3547,100 +3547,302 @@ export default function App(){
 
             {/* ══ E-CON 섹션 ══ */}
             {marketSub==="econ"&&<>
-            {/* ══ ECON DEFCON ══ */}
-            {dc&&(
-            <div style={{background:C.card,border:`2px solid ${dc.defconColor}55`,
-              borderRadius:14,padding:"14px 14px 12px",marginBottom:10,
-              boxShadow:`0 0 24px ${dc.defconColor}22`}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                <div>
-                  <div style={{color:C.muted,fontSize:8,letterSpacing:"0.1em",marginBottom:2}}>ECONOMIC DEFCON — RAY DALIO 빅사이클 기반</div>
-                  <div style={{color:dc.defconColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{dc.defconLabel}</div>
-                  <div style={{color:`${C.muted}99`,fontSize:7,marginTop:2}}>
-                    데이터 기준: {macroData?.updatedAt ? new Date(macroData.updatedAt).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}) : "-"}
-                  </div>
-                </div>
-                <div style={{display:"flex",gap:5,alignItems:"flex-end"}}>
-                  {DL.map(l=>(
-                    <div key={l.n} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-                      <div style={{width:22,height:20+(6-l.n)*2,borderRadius:4,
-                        background:dc.defcon===l.n?l.color:`${l.color}28`,
-                        border:`1.5px solid ${dc.defcon===l.n?l.color:l.color+"44"}`,
-                        boxShadow:dc.defcon===l.n?`0 0 10px ${l.color}88`:"none"}}/>
-                      <div style={{color:dc.defcon===l.n?l.color:C.muted,fontSize:7,fontWeight:700}}>{l.n}</div>
+            {/* ══ DEFCON 2.0 메인 카드 ══ */}
+            {dc&&(()=>{
+              const catCfg=[
+                {cat:"신용위험",icon:"🔗",color:C.cyan},
+                {cat:"유동성",  icon:"💧",color:C.blue},
+                {cat:"시장공포",icon:"😱",color:C.purple},
+                {cat:"실물경기",icon:"🏭",color:C.teal},
+                {cat:"물가",    icon:"🔥",color:C.orange},
+              ];
+              const catColor=s=>s>=70?C.green:s>=50?C.gold:s>=35?C.orange:C.red;
+              const catLabel=s=>s>=70?"양호":s>=50?"중립":s>=35?"경계":"위험";
+              return(
+              <div style={{background:C.card,border:`2px solid ${dc.defconColor}44`,
+                borderRadius:16,padding:"16px 14px",marginBottom:10,
+                boxShadow:`0 0 32px ${dc.defconColor}18`}}>
+
+                {/* ── 헤더: 레벨 + 바 지시등 */}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                  <div>
+                    <div style={{color:C.muted,fontSize:7,letterSpacing:"0.12em",marginBottom:3}}>
+                      SEQUOIA DEFCON 2.0 — 금융위기 조기경보
                     </div>
-                  ))}
-                </div>
-              </div>
-              <div style={{marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                  <span style={{color:C.muted,fontSize:8}}>위기 ← 종합점수 → 안정</span>
-                  <span style={{color:dc.defconColor,fontSize:9,fontWeight:700,fontFamily:"monospace"}}>
-                    {dc.totalScore>0?"+":""}{dc.totalScore} / {dc.maxScore}
-                  </span>
-                </div>
-                <div style={{background:C.dim,borderRadius:6,height:7,overflow:"hidden"}}>
-                  <div style={{width:`${Math.max(2,Math.round((dc.totalScore+dc.maxScore)/(dc.maxScore*2)*100))}%`,
-                    height:"100%",borderRadius:6,
-                    background:"linear-gradient(90deg,#FF1A1A,#FF6B00,#F0C800,#38BDF8,#00C878)",
-                    transition:"width 0.6s ease"}}/>
-                </div>
-              </div>
-              <div style={{color:C.muted,fontSize:9,marginBottom:8,lineHeight:1.5,
-                background:C.card2,borderRadius:7,padding:"5px 8px",
-                borderLeft:`3px solid ${dc.defconColor}`}}>{dc.defconDesc}</div>
-              {/* ── ECON 판정 상세 해설 */}
-              <div style={{background:C.card2,borderRadius:8,padding:"8px 10px",marginBottom:8,fontSize:8,color:C.muted,lineHeight:1.7}}>
-                <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontSize:8}}>📋 판정 근거</div>
-                {dc.indicators.map(ind=>{
-                  const sc=ind.score;
-                  const bc=sc>=1?C.green:sc<=-1?C.red:C.gold;
-                  const arrow=sc>=2?"▲▲":sc===1?"▲":sc===-1?"▼":"▼▼";
-                  const vStr=ind.val!=null?(ind.unit==="원"?Math.round(ind.val).toLocaleString():ind.val)+ind.unit:"—";
-                  const reason=sc>=2?`${vStr} — ${ind.good} 구간으로 경제에 우호적`
-                    :sc===1?`${vStr} — 양호하나 추가 관찰 필요`
-                    :sc===-1?`${vStr} — 경계 구간 진입, 주의 필요`
-                    :sc<=-2?`${vStr} — ${ind.bad} 상태로 투자 위험 신호`
-                    :`${vStr} — 중립`;
-                  return(
-                  <div key={ind.key} style={{display:"flex",gap:6,alignItems:"baseline",marginBottom:2}}>
-                    <span style={{color:bc,fontWeight:700,width:14,flexShrink:0}}>{sc!==0?arrow:"—"}</span>
-                    <span style={{color:"#aaa",width:62,flexShrink:0}}>{ind.label}</span>
-                    <span style={{color:C.muted}}>{reason}</span>
-                  </div>
-                  );
-                })}
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 8px"}}>
-                {dc.indicators.map(ind=>{
-                  const sc=ind.score;
-                  const bc=sc>=1?C.green:sc<=-1?C.red:C.gold;
-                  const st=sc>=2?ind.good:sc<=-2?ind.bad:ind.warn;
-                  const vStr=ind.val!=null
-                    ?(ind.unit==="원"?Math.round(ind.val).toLocaleString()
-                      :ind.unit==="%"?(ind.val>0?"+":"")+ind.val:ind.val)+ind.unit:"—";
-                  return(
-                  <div key={ind.key} style={{display:"flex",alignItems:"center",gap:5,
-                    background:C.card2,borderRadius:6,padding:"4px 7px"}}>
-                    <div style={{flex:"0 0 60px"}}>
-                      <div style={{color:C.muted,fontSize:7,marginBottom:1}}>{ind.label}</div>
-                      <div style={{color:bc,fontSize:9,fontWeight:700,fontFamily:"monospace"}}>{vStr}</div>
+                    <div style={{color:dc.defconColor,fontSize:22,fontWeight:900,fontFamily:"monospace",
+                      letterSpacing:"0.05em",textShadow:`0 0 20px ${dc.defconColor}88`}}>
+                      {dc.defconLabel}
                     </div>
-                    <div style={{flex:1,display:"flex",alignItems:"center",gap:3}}>
-                      <div style={{flex:1,background:C.dim,borderRadius:3,height:5,position:"relative"}}>
-                        <div style={{position:"absolute",left:sc<0?`${50+sc*25}%`:"50%",
-                          width:`${Math.abs(sc)*25}%`,height:"100%",background:bc,borderRadius:3}}/>
+                    <div style={{color:`${C.muted}88`,fontSize:7,marginTop:3}}>
+                      데이터 기준: {macroData?.updatedAt?new Date(macroData.updatedAt).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"-"}
+                    </div>
+                  </div>
+                  <div style={{display:"flex",gap:4,alignItems:"flex-end"}}>
+                    {DL.map(l=>(
+                      <div key={l.n} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+                        <div style={{width:24,height:18+(6-l.n)*3,borderRadius:5,
+                          background:dc.defcon===l.n?l.color:`${l.color}20`,
+                          border:`1.5px solid ${dc.defcon===l.n?l.color:l.color+"33"}`,
+                          boxShadow:dc.defcon===l.n?`0 0 12px ${l.color}99`:"none",
+                          transition:"all 0.3s ease"}}/>
+                        <div style={{color:dc.defcon===l.n?l.color:C.muted,fontSize:7,fontWeight:700}}>{l.n}</div>
                       </div>
-                      <div style={{color:bc,fontSize:7,width:28,textAlign:"right",flexShrink:0}}>{st}</div>
-                    </div>
+                    ))}
                   </div>
-                  );
-                })}
+                </div>
+
+                {/* ── 종합 점수 게이지 */}
+                <div style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{color:C.muted,fontSize:8}}>위기 ←————————————→ 안정</span>
+                    <span style={{color:dc.defconColor,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>
+                      {dc.totalScore}/100
+                    </span>
+                  </div>
+                  <div style={{background:C.dim,borderRadius:8,height:10,overflow:"hidden",position:"relative"}}>
+                    <div style={{position:"absolute",inset:0,
+                      background:"linear-gradient(90deg,#FF1A1A 0%,#FF6B00 25%,#F0C800 45%,#38BDF8 70%,#00C878 100%)",
+                      opacity:0.25}}/>
+                    <div style={{position:"absolute",top:0,left:0,height:"100%",
+                      width:`${dc.totalScore}%`,
+                      background:`linear-gradient(90deg,${dc.defconColor}88,${dc.defconColor})`,
+                      borderRadius:8,transition:"width 0.8s ease",
+                      boxShadow:`0 0 8px ${dc.defconColor}66`}}/>
+                    <div style={{position:"absolute",top:"50%",left:`${dc.totalScore}%`,
+                      transform:"translate(-50%,-50%)",
+                      width:3,height:14,background:dc.defconColor,borderRadius:2,
+                      boxShadow:`0 0 6px ${dc.defconColor}`}}/>
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+                    {[0,25,50,75,100].map(v=>(
+                      <span key={v} style={{color:`${C.muted}66`,fontSize:7}}>{v}</span>
+                    ))}
+                  </div>
+                </div>
+
+                {/* ── 설명 */}
+                <div style={{color:C.muted,fontSize:9,marginBottom:12,lineHeight:1.6,
+                  background:C.card2,borderRadius:8,padding:"7px 10px",
+                  borderLeft:`3px solid ${dc.defconColor}`}}>
+                  {dc.defconDesc}
+                </div>
+
+                {/* ── 카테고리 5개 게이지 */}
+                <div style={{marginBottom:12}}>
+                  <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
+                    📊 카테고리별 위험도
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    {(dc.catScores||[]).map(cs=>{
+                      const cfg=catCfg.find(c=>c.cat===cs.cat)||{icon:"•",color:C.muted};
+                      const cc=catColor(cs.score);
+                      const cl=catLabel(cs.score);
+                      return(
+                      <div key={cs.cat}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:2}}>
+                          <span style={{color:C.muted,fontSize:8}}>{cfg.icon} {cs.cat}</span>
+                          <span style={{color:cc,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
+                            {cs.score}점 {cl}
+                          </span>
+                        </div>
+                        <div style={{background:C.dim,borderRadius:4,height:6,overflow:"hidden"}}>
+                          <div style={{width:`${cs.score}%`,height:"100%",borderRadius:4,
+                            background:`linear-gradient(90deg,${cc}88,${cc})`,
+                            transition:"width 0.6s ease"}}/>
+                        </div>
+                      </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* ── 지표 상세 그리드 */}
+                <div style={{marginBottom:8}}>
+                  <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
+                    📋 지표별 상세 (13개)
+                  </div>
+                  {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
+                    const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
+                    const inds=dc.indicators.filter(i=>i.cat===cat);
+                    return(
+                    <div key={cat} style={{marginBottom:8}}>
+                      <div style={{color:cfg.color,fontSize:7,fontWeight:700,
+                        marginBottom:4,paddingBottom:3,
+                        borderBottom:`1px solid ${cfg.color}33`}}>
+                        {cfg.icon} {cat}
+                      </div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4}}>
+                        {inds.map(ind=>{
+                          const sc=ind.score;
+                          const bc=sc>=2?C.green:sc===1?C.teal:sc===-1?C.orange:sc<=-2?C.red:C.muted;
+                          const st=sc>=2?"▲▲ "+ind.good:sc===1?"▲ 양호":sc===-1?"▼ 경계":sc<=-2?"▼▼ "+ind.bad:"— 중립";
+                          const vStr=ind.val!=null
+                            ?(ind.unit==="원"?Math.round(ind.val).toLocaleString()
+                              :ind.unit==="%"||ind.unit==="%p"?(typeof ind.val==="number"&&ind.val>0?"+":"")+ind.val
+                              :ind.val)+(ind.unit||""):"—";
+                          return(
+                          <div key={ind.key} style={{background:C.card2,borderRadius:7,
+                            padding:"6px 8px",border:`1px solid ${bc}22`}}>
+                            <div style={{color:`${C.muted}99`,fontSize:7,marginBottom:2}}>{ind.label}</div>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <span style={{color:bc,fontSize:10,fontWeight:800,fontFamily:"monospace"}}>{vStr}</span>
+                              <span style={{color:bc,fontSize:7,fontWeight:700}}>{st}</span>
+                            </div>
+                            <div style={{background:C.dim,borderRadius:3,height:3,marginTop:4,overflow:"hidden"}}>
+                              <div style={{
+                                marginLeft:sc<0?`${50+Math.max(sc,-2)*25}%`:"50%",
+                                width:`${Math.min(Math.abs(sc)*25,50)}%`,
+                                height:"100%",background:bc,borderRadius:3}}/>
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right"}}>
+                  FRED · ECOS · Yahoo Finance 실시간 / 투자 참고용
+                </div>
               </div>
-              <div style={{color:`${C.muted}66`,fontSize:7,marginTop:6,textAlign:"right"}}>
-                Ray Dalio 빅사이클 · 단기부채사이클 기반 / 투자 참고용
-              </div>
-            </div>
+              );
+            })()}
+
+            {/* ── 신규: 미국 장단기 금리차 (T10Y2Y) + 한국 비교 */}
+            {(macroData?.fredT10Y2Y||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>🇺🇸 미국 T10Y2Y — 금융위기 최강 선행지표</ST>
+              {(()=>{
+                const usData=(macroData.fredT10Y2Y||[]).slice(-36);
+                const krData=(macroData.yieldSpread||[]).slice(-36);
+                const krMap={};krData.forEach(r=>{krMap[r.date]=r.value;});
+                const merged=usData.map(r=>({
+                  date:r.date,
+                  미국T10Y2Y:r.value,
+                  한국10Y3Y:krMap[r.date]??null,
+                }));
+                const lastUS=usData.slice(-1)[0]?.value??null;
+                const ucol=lastUS==null?"#888":lastUS<-0.5?C.red:lastUS<0?C.orange:lastUS<0.5?C.gold:C.green;
+                const ulbl=lastUS==null?"":lastUS<-0.5?"역전 위험":lastUS<0?"역전중":lastUS<0.5?"평탄":"정상";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>역전 → 평균 12~18개월 후 경기침체 · 2008/2020 모두 선행</span>
+                  {lastUS!=null&&<span style={{fontSize:11,fontWeight:700,color:ucol,fontFamily:"monospace"}}>{lastUS>0?"+":""}{lastUS}% {ulbl}</span>}
+                </div>
+                <CW h={220}>
+                  <ComposedChart data={merged} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="t10GradPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.teal} stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="t10GradNeg" x1="0" y1="1" x2="0" y2="0">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0} stroke={C.red} strokeWidth={2} strokeDasharray="4 2"
+                      label={{value:"역전선",fill:C.red,fontSize:8,position:"insideTopRight"}}/>
+                    <ReferenceLine y={0.5} stroke={`${C.gold}66`} strokeDasharray="3 3"
+                      label={{value:"+0.5%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={-0.5} stroke={`${C.red}55`} strokeDasharray="3 3"
+                      label={{value:"-0.5%",fill:C.red,fontSize:7,position:"insideBottomRight"}}/>
+                    <Area dataKey="미국T10Y2Y" name="미국T10Y2Y" stroke={C.cyan} strokeWidth={2.5}
+                      fill="url(#t10GradPos)" dot={false} connectNulls/>
+                    <Line dataKey="한국10Y3Y" name="한국10Y-3Y" stroke={C.gold} strokeWidth={1.5}
+                      dot={false} connectNulls strokeDasharray="4 2"/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 신규: VIX 공포지수 */}
+            {(macroData?.fredVIX||[]).length>0&&(
+            <Box>
+              <ST accent={C.purple}>😱 VIX 공포지수 — 즉각 충격 감지</ST>
+              {(()=>{
+                const data=(macroData.fredVIX||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=35?C.red:last>=25?C.orange:last>=18?C.gold:C.green;
+                const vl=last==null?"":last>=35?"극단공포":last>=25?"공포":last>=18?"경계":"안정";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>VIX 20이상 주의 · 30이상 위기 · 40이상 패닉</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="vixGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.purple} stopOpacity={0.4}/>
+                        <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={32} domain={[0,"auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceArea y1={40} y2={100} fill={`${C.red}10`}/>
+                    <ReferenceArea y1={30} y2={40}  fill={`${C.orange}08`}/>
+                    <ReferenceLine y={40} stroke={C.red}    strokeDasharray="3 3" label={{value:"패닉 40",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={30} stroke={C.orange} strokeDasharray="3 3" label={{value:"위기 30",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={20} stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 20",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="VIX" stroke={C.purple} strokeWidth={2.5}
+                      fill="url(#vixGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 신규: 하이일드 스프레드 */}
+            {(macroData?.fredHY||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>💀 미국 하이일드 스프레드 — 신용위험 선행</ST>
+              {(()=>{
+                const data=(macroData.fredHY||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=8?C.red:last>=5?C.orange:last>=3.5?C.gold:C.green;
+                const vl=last==null?"":last>=8?"위기":last>=5?"경계":last>=3.5?"주의":"안정";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>스프레드 급등 = 기업 부도위험↑ · 5% 이상 시 위험신호</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
+                </div>
+                <CW h={190}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="hyGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%`} domain={[0,"auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={8}   stroke={C.red}    strokeDasharray="3 3" label={{value:"위기 8%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={5}   stroke={C.orange} strokeDasharray="3 3" label={{value:"경계 5%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={3.5} stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 3.5%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="HY스프레드" stroke={C.red} strokeWidth={2.5}
+                      fill="url(#hyGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
             )}
 
             {/* ── 거시 신호등 */}
