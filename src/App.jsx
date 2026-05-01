@@ -386,20 +386,40 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
     const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
     let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
     let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
-    if(!k0)k0=keys[0];
-    // k1 없으면 마지막 값 그대로 유지 (최신 연도 이후 구간)
+    // k0 없음 = 가장 오래된 연도보다 이전 → 첫 번째 키 값 그대로 외삽
+    if(!k0)return map[keys[0]]||0;
+    // k1 없음 = 가장 최신 연도 이후 → 마지막 키 값 그대로 유지
     if(!k1)return map[k0]||0;
     const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
     const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
     return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
+  // 종목별 자동 PER/PBR: annData 실제 분포(15%/50%/85%ile) 사용
+  // bandCfg가 BAND_DEFAULT와 같으면 자동계산, 수동 변경시 그대로 적용
+  const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
+  const isDefault=bandCfg&&JSON.stringify(bandCfg)===JSON.stringify(BAND_DEFAULT);
+  const adaptive=(()=>{
+    if(bandCfg&&!isDefault)return bandCfg; // 수동 변경값 우선
+    const vPer=(annData||[]).filter(r=>r.per>0&&r.per<300).map(r=>r.per).sort((a,b)=>a-b);
+    const vPbr=(annData||[]).filter(r=>r.pbr>0&&r.pbr<50).map(r=>r.pbr).sort((a,b)=>a-b);
+    const pct=(arr,p)=>arr.length?arr[Math.max(0,Math.floor((arr.length-1)*p/100))]:null;
+    return{
+      perLo: vPer.length>=2?+pct(vPer,15).toFixed(1):BAND_DEFAULT.perLo,
+      perMid:vPer.length>=2?+pct(vPer,50).toFixed(1):BAND_DEFAULT.perMid,
+      perHi: vPer.length>=2?+pct(vPer,85).toFixed(1):BAND_DEFAULT.perHi,
+      pbrLo: vPbr.length>=2?+pct(vPbr,15).toFixed(2):BAND_DEFAULT.pbrLo,
+      pbrMid:vPbr.length>=2?+pct(vPbr,50).toFixed(2):BAND_DEFAULT.pbrMid,
+      pbrHi: vPbr.length>=2?+pct(vPbr,85).toFixed(2):BAND_DEFAULT.pbrHi,
+    };
+  })();
   return monthly.map(d=>({...d,
-    perLo :Math.round(interp(d.label,epsMap)*(bandCfg?.perLo||7)),
-    perMid:Math.round(interp(d.label,epsMap)*(bandCfg?.perMid||13)),
-    perHi :Math.round(interp(d.label,epsMap)*(bandCfg?.perHi||20)),
-    pbrLo :Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrLo||1.0)),
-    pbrMid:Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrMid||2.0)),
-    pbrHi :Math.round(interp(d.label,bpsMap)*(bandCfg?.pbrHi||3.5)),
+    perLo :Math.round(interp(d.label,epsMap)*adaptive.perLo),
+    perMid:Math.round(interp(d.label,epsMap)*adaptive.perMid),
+    perHi :Math.round(interp(d.label,epsMap)*adaptive.perHi),
+    pbrLo :Math.round(interp(d.label,bpsMap)*adaptive.pbrLo),
+    pbrMid:Math.round(interp(d.label,bpsMap)*adaptive.pbrMid),
+    pbrHi :Math.round(interp(d.label,bpsMap)*adaptive.pbrHi),
+    _adaptive:adaptive, // 디버그용 (차트 UI에서 실제 배수 표시에 활용 가능)
   }));
 };
 
@@ -2308,12 +2328,15 @@ export default function App(){
               </div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
                 <div style={{color:C.muted,fontSize:11}}>
-                  PER <span style={{color:C.green,fontWeight:700}}>{bandApplied.perLo}</span>배 ·
-                  <span style={{color:C.gold,fontWeight:700}}> {bandApplied.perMid}</span>배 ·
-                  <span style={{color:C.red,fontWeight:700}}> {bandApplied.perHi}</span>배 &nbsp;|&nbsp;
-                  PBR <span style={{color:C.green,fontWeight:700}}>{bandApplied.pbrLo}</span>배 ·
-                  <span style={{color:C.gold,fontWeight:700}}> {bandApplied.pbrMid}</span>배 ·
-                  <span style={{color:C.red,fontWeight:700}}> {bandApplied.pbrHi}</span>배
+                  {(()=>{const a=withBands[0]?._adaptive||bandApplied;return(<>
+                  PER <span style={{color:C.green,fontWeight:700}}>{a.perLo}</span>배 ·
+                  <span style={{color:C.gold,fontWeight:700}}> {a.perMid}</span>배 ·
+                  <span style={{color:C.red,fontWeight:700}}> {a.perHi}</span>배 &nbsp;|&nbsp;
+                  PBR <span style={{color:C.green,fontWeight:700}}>{a.pbrLo}</span>배 ·
+                  <span style={{color:C.gold,fontWeight:700}}> {a.pbrMid}</span>배 ·
+                  <span style={{color:C.red,fontWeight:700}}> {a.pbrHi}</span>배
+                  {JSON.stringify(bandApplied)===JSON.stringify(BAND_DEFAULT)&&<span style={{color:C.teal,fontSize:9,marginLeft:6}}>[종목 자동]</span>}
+                  </>);})()}
                 </div>
                 <div style={{display:"flex",gap:8}}>
                   <button onClick={()=>setBandDraft(BAND_DEFAULT)}
@@ -2331,30 +2354,32 @@ export default function App(){
             </Box>
             {co?.annData?.length||co?.qtrData?.length?(
               <>
-                <ST accent={C.purple}>PER 밴드 ({bandApplied.perLo}배·{bandApplied.perMid}배·{bandApplied.perHi}배)</ST>
+                {(()=>{const a=withBands[0]?._adaptive||bandApplied;return(<>
+                <ST accent={C.purple}>PER 밴드 ({a.perLo}배·{a.perMid}배·{a.perHi}배)</ST>
                 <CW h={270}>
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <Area dataKey="perHi"  name={`PER ${bandApplied.perHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
-                    <Area dataKey="perMid" name={`PER ${bandApplied.perMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
-                    <Area dataKey="perLo"  name={`PER ${bandApplied.perLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="perHi"  name={`PER ${a.perHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="perMid" name={`PER ${a.perMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="perLo"  name={`PER ${a.perLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Line dataKey="price" name="주가"      stroke={C.blueL}  strokeWidth={2.5}    dot={false}/>
                   </ComposedChart>
                 </CW>
-                <ST accent={C.cyan}>PBR 밴드 ({bandApplied.pbrLo}배·{bandApplied.pbrMid}배·{bandApplied.pbrHi}배)</ST>
+                <ST accent={C.cyan}>PBR 밴드 ({a.pbrLo}배·{a.pbrMid}배·{a.pbrHi}배)</ST>
                 <CW h={240}>
                   <ComposedChart data={withBands} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis {...xp(rangeIdx===0)}/><YAxis {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <Area dataKey="pbrHi"  name={`PBR ${bandApplied.pbrHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
-                    <Area dataKey="pbrMid" name={`PBR ${bandApplied.pbrMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
-                    <Area dataKey="pbrLo"  name={`PBR ${bandApplied.pbrLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="pbrHi"  name={`PBR ${a.pbrHi}배`}  stroke={C.red}   fill={`${C.red}10`}   strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="pbrMid" name={`PBR ${a.pbrMid}배`} stroke={C.gold}  fill={`${C.gold}08`}  strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
+                    <Area dataKey="pbrLo"  name={`PBR ${a.pbrLo}배`}  stroke={C.green} fill={`${C.green}10`} strokeWidth={1.5} strokeDasharray="5 3" dot={false}/>
                     <Line dataKey="price"  name="주가"       stroke={C.blueL}  strokeWidth={2.5}     dot={false}/>
                   </ComposedChart>
                 </CW>
+                </>);})()}
               </>
             ):(
               <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 엑셀 업로드 후 표시됩니다.</div></Box>
