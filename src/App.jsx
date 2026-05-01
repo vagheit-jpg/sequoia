@@ -1418,6 +1418,12 @@ export default function App(){
 
   const co=stocks[activeIdx]||null;
 
+  // 종목 변경 시 밴드 수동설정 초기화 → 자동모드로 복귀
+  useEffect(()=>{
+    setBandDraft(null);
+    setBandApplied(null);
+  },[activeIdx,co?.ticker]);
+
   // 종목 주가 로드 (Yahoo Finance)
   useEffect(()=>{
     if(!co?.ticker)return;
@@ -2375,20 +2381,30 @@ export default function App(){
                   {key:"pbrHi", label:"PBR 고평가(배)", step:0.1},
                 ];
                 const isAuto=bandApplied===null;
+                // 입력창 실제 표시값: 수동입력값 있으면 그것, 없으면 자동값
+                const displayVal=(key)=>bandDraft?.[key]!=null?bandDraft[key]:autoVal[key];
                 return(<>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
-                  {fields.map(f=>(
+                  {fields.map(f=>{
+                    const hasCustom=bandDraft?.[f.key]!=null;
+                    return(
                     <div key={f.key}>
                       <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
                       <input type="number" step={f.step} min={0.1}
-                        value={bandDraft?.[f.key]??""} 
+                        value={displayVal(f.key)}
                         placeholder={String(autoVal[f.key])}
-                        onChange={e=>setBandDraft(p=>({...(p||autoVal),[f.key]:e.target.value===""?undefined:+e.target.value}))}
+                        onChange={e=>{
+                          const v=e.target.value===""?null:+e.target.value;
+                          setBandDraft(p=>({...(p||{}),[f.key]:v}));
+                        }}
                         onFocus={e=>e.target.select()}
-                        style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${isAuto?C.border:C.purple}`,
+                        style={{width:"100%",background:C.card2,color:C.text,
+                          border:`1px solid ${hasCustom?C.purple:C.border}`,
+                          fontWeight:hasCustom?400:700,
                           borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
                   <div style={{color:C.muted,fontSize:11}}>
@@ -2407,8 +2423,9 @@ export default function App(){
                       기본값
                     </button>
                     <button onClick={()=>{
-                      if(!bandDraft)return;
-                      const merged={...autoVal,...Object.fromEntries(Object.entries(bandDraft).filter(([,v])=>v!=null&&v!==undefined))};
+                      // 수동입력값과 자동값을 합쳐서 적용
+                      const merged={...autoVal};
+                      if(bandDraft){Object.entries(bandDraft).forEach(([k,v])=>{if(v!=null)merged[k]=v;});}
                       setBandApplied(merged);
                     }}
                       style={{background:`linear-gradient(135deg,${C.purple},${C.pink})`,color:"#fff",
