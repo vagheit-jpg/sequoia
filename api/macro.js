@@ -68,6 +68,32 @@ async function fetchIndexMonthly(yahooTicker) {
   }).filter(r => r.price != null);
 }
 
+// ── Yahoo Finance VIX 월봉
+async function fetchVIXMonthly() {
+  const now = Math.floor(Date.now() / 1000);
+  const threeYearsAgo = now - 3 * 365 * 24 * 60 * 60;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX` +
+    `?interval=1mo&period1=${threeYearsAgo}&period2=${now}&includePrePost=false`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Accept": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`Yahoo VIX ${res.status}`);
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error("No VIX data");
+  const timestamps = result.timestamps || result.timestamp || [];
+  const closes = result.indicators?.quote?.[0]?.close || [];
+  return timestamps.map((ts, i) => {
+    const d = new Date(ts * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return { date: `${y}${m}`, value: closes[i] ? +closes[i].toFixed(2) : null };
+  }).filter(r => r.value != null);
+}
+
 // ── 일별 → 월별 변환 (말일 값 사용)
 function dailyToMonthly(arr) {
   const map = {};
@@ -187,8 +213,8 @@ export default async function handler(req, res) {
         fetchECOS("721Y001", "5050000", startDate,  endDate,     "M"),  // 국고채 10Y 수익률
         fetchECOS("721Y001", "5020000", startDate,  endDate,     "M"),  // 국고채 3Y 수익률
         fetchFRED("T10Y2Y",        `${endY - 3}-01-01`),                // 미국 장단기 금리차
-        fetchFRED("BAMLH0A0HYM2", `${endY - 3}-01-01`),                // 하이일드 스프레드
-        fetchFRED("VIXCLS",        `${endY - 3}-01-01`),                // VIX
+        fetchFRED("DBAA",         `${endY - 3}-01-01`),                // 무디스 Baa 회사채(신용위험 대체)
+        fetchVIXMonthly(),                                               // VIX (Yahoo)
         fetchFRED("UNRATE",        `${endY - 5}-01-01`),                // 미국 실업률
       ]);
 
@@ -239,7 +265,7 @@ export default async function handler(req, res) {
     // ── FRED 일별 → 월별 변환
     const fredT10Y2Y = dailyToMonthly(fredT10Y2YRaw);
     const fredHY     = dailyToMonthly(fredHYRaw);
-    const fredVIX    = dailyToMonthly(fredVIXRaw);
+    const fredVIX    = fredVIXRaw;  // Yahoo에서 이미 월별로 옴
     const lastFRED   = arr => arr?.slice(-1)[0]?.value ?? null;
 
     // ── DEFCON 지표
@@ -260,9 +286,9 @@ export default async function handler(req, res) {
       { cat:"신용위험", key:"미국금리역전", label:"미국 장단기금리차(T10Y2Y)", val:lastFRED(fredT10Y2Y), unit:"%",
         good:"정상", warn:"평탄", bad:"역전",
         score: scoreV(lastFRED(fredT10Y2Y), [-1.0, -0.5, 0.5,  1.0], -1) * 2 }, // 가중 2배
-      { cat:"신용위험", key:"하이일드",     label:"미국 하이일드 스프레드",    val:lastFRED(fredHY),     unit:"%",
+      { cat:"신용위험", key:"하이일드",     label:"미국 Baa 회사채 수익률",    val:lastFRED(fredHY),     unit:"%",
         good:"안정", warn:"경계", bad:"급등",
-        score: scoreV(lastFRED(fredHY),     [ 8.0,  5.0, 3.5,  2.5],  1) },
+        score: scoreV(lastFRED(fredHY),     [10.0,  8.0, 6.5,  5.5],  1) },
       { cat:"신용위험", key:"금리차KR",     label:"한국 10Y-3Y 금리차",       val:last(yieldSpread),    unit:"%p",
         good:"정상화", warn:"평탄", bad:"역전",
         score: scoreV(last(yieldSpread),    [-0.5,  0.0, 0.5,  1.0], -1) },
