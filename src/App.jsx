@@ -752,53 +752,6 @@ const ViewToggle=({view,setView})=>(
         border:`1px solid ${view===v?C.blue:C.border}`,borderRadius:6,padding:"4px 14px",fontSize:11,cursor:"pointer",fontWeight:view===v?700:400}}>{v}</button>))}
   </div>
 );
-const MTip = ({ active, payload, label }) => {
-  if (!active || !payload?.length) return null;
-  return (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 11px", fontSize: 11, minWidth: 120 }}>
-      <div style={{ color: C.gold, fontWeight: 700, marginBottom: 4, fontFamily: "monospace" }}>{label}</div>
-      {payload.map((p, i) => (
-        <div key={i} style={{ display: "flex", justifyBetween: "space-between", gap: 10, marginBottom: 2 }}>
-          <span style={{ color: C.muted }}>{p.name}</span>
-          <span style={{ color: p.color || C.text, fontFamily: "monospace", fontWeight: 700 }}>
-            {/* [수정] PER 밴드 등 금액/배수 표시 시 소수점을 반올림하여 정수로 표시 */}
-            {typeof p.value === "number" ? Math.round(p.value).toLocaleString() : p.value}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-// ══════════════════════════════════════════════════════════════
-// 7-1. PER/PBR 밴드 수동 모드 설정 부분 수정
-// ══════════════════════════════════════════════════════════════
-
-function BandSettingModal({ bandDraft, setBandDraft, onApply, onClose }) {
-  // 수동 모드에서도 동일한 로직 적용
-  const renderBandInput = (label, key, step = 0.1) => (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ fontSize: 11, color: C.muted, marginBottom: 4 }}>{label}</div>
-      <input
-        type="number"
-        step={step}
-        value={bandDraft[key] === 0 ? "" : bandDraft[key]}
-        placeholder="입력..."
-        onChange={(e) => {
-          const val = e.target.value === "" ? 0 : parseFloat(e.target.value);
-          setBandDraft({ ...bandDraft, [key]: val });
-        }}
-        style={{
-          width: "100%",
-          background: C.bg,
-          border: `1px solid ${C.border}`,
-          borderRadius: 6,
-          padding: "8px",
-          color: C.text,
-          fontSize: 13,
-          fontWeight: 700
-        }}
-      />
-    </div>
-  );
 
 // ══════════════════════════════════════════════════════════════
 // 8. 메인 앱
