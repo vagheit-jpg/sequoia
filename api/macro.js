@@ -198,7 +198,7 @@ export default async function handler(req, res) {
 
     // ── 병렬 호출: ECOS 12개 + Yahoo 지수 2개 + FRED 4개
     const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR,
-           fredT10Y2YR, fredHYR, fredVIXR, fredUNRATER] =
+           fredT10Y2YR, fredHYR, fredDGS10R, fredVIXR, fredUNRATER] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -213,7 +213,8 @@ export default async function handler(req, res) {
         fetchECOS("721Y001", "5050000", startDate,  endDate,     "M"),  // 국고채 10Y 수익률
         fetchECOS("721Y001", "5020000", startDate,  endDate,     "M"),  // 국고채 3Y 수익률
         fetchFRED("T10Y2Y",        `${endY - 3}-01-01`),                // 미국 장단기 금리차
-        fetchFRED("DBAA",         `${endY - 3}-01-01`),                // 무디스 Baa 회사채(신용위험 대체)
+        fetchFRED("DBAA",         `${endY - 3}-01-01`),                // 무디스 Baa 회사채
+        fetchFRED("DGS10",        `${endY - 3}-01-01`),                // 미국 10년 국채 수익률
         fetchVIXMonthly(),                                               // VIX (Yahoo)
         fetchFRED("UNRATE",        `${endY - 5}-01-01`),                // 미국 실업률
       ]);
@@ -234,6 +235,7 @@ export default async function handler(req, res) {
     const bond3YArr     = ok(bond3YR);
     const fredT10Y2YRaw = ok(fredT10Y2YR);
     const fredHYRaw     = ok(fredHYR);
+    const fredDGS10Raw  = ok(fredDGS10R);
     const fredVIXRaw    = ok(fredVIXR);
     const fredUNRATE    = ok(fredUNRATER);
 
@@ -264,7 +266,14 @@ export default async function handler(req, res) {
 
     // ── FRED 일별 → 월별 변환
     const fredT10Y2Y = dailyToMonthly(fredT10Y2YRaw);
-    const fredHY     = dailyToMonthly(fredHYRaw);
+    // Baa-국채 신용스프레드 = DBAA - DGS10 (기준금리 영향 제거)
+    const fredDGS10M  = dailyToMonthly(fredDGS10Raw);
+    const dgs10Map    = {};
+    fredDGS10M.forEach(r => { dgs10Map[r.date] = r.value; });
+    const fredHY = dailyToMonthly(fredHYRaw).map(r => {
+      const t10 = dgs10Map[r.date];
+      return t10 != null ? { date: r.date, value: +(r.value - t10).toFixed(2) } : null;
+    }).filter(Boolean);
     const fredVIX    = fredVIXRaw;  // Yahoo에서 이미 월별로 옴
     const lastFRED   = arr => arr?.slice(-1)[0]?.value ?? null;
 
@@ -286,9 +295,9 @@ export default async function handler(req, res) {
       { cat:"신용위험", key:"미국금리역전", label:"미국 장단기금리차(T10Y2Y)", val:lastFRED(fredT10Y2Y), unit:"%",
         good:"정상", warn:"평탄", bad:"역전",
         score: scoreV(lastFRED(fredT10Y2Y), [-1.0, -0.5, 0.5,  1.0], -1) * 2 }, // 가중 2배
-      { cat:"신용위험", key:"하이일드",     label:"미국 Baa 회사채 수익률",    val:lastFRED(fredHY),     unit:"%",
+      { cat:"신용위험", key:"하이일드",     label:"미국 Baa 신용스프레드",     val:lastFRED(fredHY),     unit:"%p",
         good:"안정", warn:"경계", bad:"급등",
-        score: scoreV(lastFRED(fredHY),     [10.0,  8.0, 6.5,  5.5],  1) },
+        score: scoreV(lastFRED(fredHY),     [ 4.0,  3.0, 2.0,  1.5],  1) },
       { cat:"신용위험", key:"금리차KR",     label:"한국 10Y-3Y 금리차",       val:last(yieldSpread),    unit:"%p",
         good:"정상화", warn:"평탄", bad:"역전",
         score: scoreV(last(yieldSpread),    [-0.5,  0.0, 0.5,  1.0], -1) },
@@ -347,7 +356,7 @@ export default async function handler(req, res) {
         fx:fxArr.length, ppi:ppiArr.length, bsi:bsiArr.length, cpi:cpiArr.length,
         kospi:kospiMonthly.length, kosdaq:kosdaqMonthly.length,
         hhCredit:hhCreditArr.length, bond10Y:bond10YArr.length, bond3Y:bond3YArr.length,
-        fredT10Y2Y:fredT10Y2YRaw.length, fredHY:fredHYRaw.length,
+        fredT10Y2Y:fredT10Y2YRaw.length, fredHY:fredHYRaw.length, fredDGS10:fredDGS10Raw.length,
         fredVIX:fredVIXRaw.length, fredUNRATE:fredUNRATE.length,
       }
     };
