@@ -1367,7 +1367,7 @@ export default function App(){
   const [kosdaqMonthly,setKosdaqMonthly]=useState([]);
   const [marketLoading,setMarketLoading]=useState(false);
   const [marketLoaded,setMarketLoaded]=useState(false);
-  const [marketSub,setMarketSub]=useState("econ"); // econ | kospi | kosdaq
+  const [marketSub,setMarketSub]=useState("defcon"); // defcon | macro | kospi | kosdaq
 
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
@@ -3535,18 +3535,20 @@ export default function App(){
 
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {[["econ","E-CON"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
+              {[["defcon","DEFCON"],["macro","매크로"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
                 <button key={k} onClick={()=>setMarketSub(k)}
-                  style={{flex:1,padding:"7px 0",borderRadius:8,border:`1.5px solid ${marketSub===k?C.teal:C.border}`,
-                    background:marketSub===k?`${C.teal}22`:C.card2,
-                    color:marketSub===k?C.teal:C.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  style={{flex:1,padding:"7px 0",borderRadius:8,
+                    border:`1.5px solid ${marketSub===k?(k==="defcon"?C.red:C.teal):C.border}`,
+                    background:marketSub===k?`${k==="defcon"?C.red:C.teal}18`:C.card2,
+                    color:marketSub===k?(k==="defcon"?C.red:C.teal):C.muted,
+                    fontSize:10,fontWeight:700,cursor:"pointer"}}>
                   {label}
                 </button>
               ))}
             </div>
 
-            {/* ══ E-CON 섹션 ══ */}
-            {marketSub==="econ"&&<>
+            {/* ══ DEFCON 탭 ══ */}
+            {marketSub==="defcon"&&<>
             {/* ══ DEFCON 2.0 메인 카드 ══ */}
             {dc&&(()=>{
               const catCfg=[
@@ -3710,7 +3712,108 @@ export default function App(){
               );
             })()}
 
-            {/* ── 신규: 미국 장단기 금리차 (T10Y2Y) + 한국 비교 */}
+            {/* ══ 역사적 위기 유사도 분석 ══ */}
+            {macroData?.crisisAnalysis&&(()=>{
+              const ca=macroData.crisisAnalysis;
+              const simColor=s=>s>=70?C.red:s>=50?C.orange:s>=30?C.gold:C.green;
+              const simLabel=s=>s>=70?"⚠️ 매우 유사":s>=50?"주의":s>=30?"참고":"낮음";
+              return(
+              <Box>
+                <ST accent={C.red}>🏛 역사적 금융위기 유사도 분석</ST>
+
+                {/* ── 최고 유사 위기 경보 */}
+                {ca.top&&ca.top.similarity>=40&&(
+                <div style={{background:`${ca.top.color}15`,border:`1.5px solid ${ca.top.color}66`,
+                  borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                    <span style={{color:ca.top.color,fontSize:10,fontWeight:800}}>
+                      ⚠️ {ca.top.label} ({ca.top.date}) 와 가장 유사
+                    </span>
+                    <span style={{color:ca.top.color,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>
+                      {ca.top.similarity}%
+                    </span>
+                  </div>
+                  <div style={{color:`${C.muted}cc`,fontSize:8,lineHeight:1.6,marginBottom:6}}>
+                    {ca.top.desc}
+                  </div>
+                  {ca.warnings?.length>0&&(
+                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                    {ca.warnings.map(w=>(
+                      <span key={w} style={{background:`${C.red}22`,border:`1px solid ${C.red}44`,
+                        borderRadius:4,padding:"2px 6px",color:C.red,fontSize:7,fontWeight:700}}>
+                        {w}
+                      </span>
+                    ))}
+                  </div>
+                  )}
+                </div>
+                )}
+
+                {/* ── 전체 유사도 바 */}
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
+                  {ca.results.map((cr,idx)=>{
+                    const sc=simColor(cr.similarity);
+                    const isTop=idx===0;
+                    return(
+                    <div key={cr.id} style={{background:isTop?`${cr.color}12`:C.card2,
+                      border:`1px solid ${isTop?cr.color+"44":C.border}`,
+                      borderRadius:8,padding:"8px 10px"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                          <div style={{width:8,height:8,borderRadius:"50%",background:cr.color,flexShrink:0}}/>
+                          <span style={{color:isTop?cr.color:C.text,fontSize:9,fontWeight:isTop?800:600}}>
+                            {cr.label}
+                          </span>
+                          <span style={{color:`${C.muted}88`,fontSize:7}}>{cr.date}</span>
+                          {isTop&&<span style={{color:cr.color,fontSize:7,fontWeight:700}}>▶ 최근접</span>}
+                        </div>
+                        <div style={{display:"flex",alignItems:"center",gap:5}}>
+                          <span style={{color:sc,fontSize:7}}>{simLabel(cr.similarity)}</span>
+                          <span style={{color:sc,fontSize:11,fontWeight:800,fontFamily:"monospace",
+                            minWidth:36,textAlign:"right"}}>{cr.similarity}%</span>
+                        </div>
+                      </div>
+                      <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
+                        <div style={{width:`${cr.similarity}%`,height:"100%",borderRadius:4,
+                          background:`linear-gradient(90deg,${cr.color}66,${cr.color})`,
+                          transition:"width 0.6s ease"}}/>
+                      </div>
+                      {/* 카테고리별 비교 미니바 */}
+                      <div style={{display:"flex",gap:3,marginTop:5}}>
+                        {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
+                          const curScore=(macroData.defconData?.catScores||[]).find(c=>c.cat===cat)?.score??50;
+                          const criScore=cr.cat[cat]??50;
+                          const diff=curScore-criScore;
+                          const dc=diff>15?C.green:diff<-15?C.red:C.gold;
+                          return(
+                          <div key={cat} style={{flex:1,textAlign:"center"}}>
+                            <div style={{color:`${C.muted}88`,fontSize:6,marginBottom:1}}>
+                              {cat==="신용위험"?"신용":cat==="시장공포"?"공포":cat==="실물경기"?"실물":cat}
+                            </div>
+                            <div style={{color:dc,fontSize:7,fontWeight:700,fontFamily:"monospace"}}>
+                              {diff>0?"+":""}{diff}
+                            </div>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+
+                <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right"}}>
+                  유사도 = 5개 카테고리 유클리드 거리 기반 / 참고용
+                </div>
+              </Box>
+              );
+            })()}
+
+            </> /* defcon 탭 끝 */}
+
+            {/* ══ 매크로 탭 ══ */}
+            {marketSub==="macro"&&<>
+            {/* ── 미국 장단기 금리차 (T10Y2Y) + 한국 비교 */}
             {(macroData?.fredT10Y2Y||[]).length>0&&(
             <Box>
               <ST accent={C.red}>🇺🇸 미국 T10Y2Y — 금융위기 최강 선행지표</ST>
@@ -4049,7 +4152,7 @@ export default function App(){
               })()}
             </Box>
             )}
-            </> /* econ 섹션 끝 */}
+            </> /* macro 탭 끝 */}
 
             {/* ══ 코스피 섹션 ══ */}
             {marketSub==="kospi"&&(
