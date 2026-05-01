@@ -2767,36 +2767,54 @@ export default function App(){
           <div style={{animation:"fadeIn 0.3s ease"}}>
             <Box>
               <ST accent={C.gold}>📐 DCF 파라미터 설정</ST>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
-                {[
-                  {key:"bondYield",label:"국고채 금리(%)",min:0,max:10,step:0.1,def:3.5},
-                  {key:"riskPrem", label:"리스크 프리미엄(%)",min:0,max:10,step:0.5,def:2},
-                  {key:"gr",       label:"기업 성장률(%)",min:0,max:30,step:0.5,def:8},
-                  {key:"reqReturn",label:"요구수익률(%)",min:1,max:20,step:0.5,def:10},
-                  {key:"capexRatio",label:"유지CAPEX 비율(%)",min:0,max:100,step:5,def:50},
-                ].map(f=>(
-                  <div key={f.key}>
-                    <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
-                    <input type="number" min={f.min} max={f.max} step={f.step}
-                      value={dcfDraft[f.key]===0?"":dcfDraft[f.key]}
-                      placeholder={String(f.def)}
-                      onChange={e=>setDcfDraft(p=>({...p,[f.key]:e.target.value===""?0:+e.target.value}))}
-                      onFocus={e=>e.target.select()}
-                      style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
-                        borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
-                  </div>
-                ))}
-              </div>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
-                <div style={{color:C.muted,fontSize:11}}>
-                  할인율: <span style={{color:C.gold,fontWeight:700}}>{(dcfApplied.bondYield+dcfApplied.riskPrem).toFixed(1)}%</span>
+              {(()=>{
+                const DCF_DEFAULT={bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50};
+                const fields=[
+                  {key:"bondYield",label:"국고채 금리(%)",min:0,max:10,step:0.1},
+                  {key:"riskPrem", label:"리스크 프리미엄(%)",min:0,max:10,step:0.5},
+                  {key:"gr",       label:"기업 성장률(%)",min:0,max:30,step:0.5},
+                  {key:"reqReturn",label:"요구수익률(%)",min:1,max:20,step:0.5},
+                  {key:"capexRatio",label:"유지CAPEX 비율(%)",min:0,max:100,step:5},
+                ];
+                return(<>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
+                  {fields.map(f=>{
+                    const isModified=dcfDraft[f.key]!==DCF_DEFAULT[f.key];
+                    return(
+                    <div key={f.key}>
+                      <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
+                      <input type="number" min={f.min} max={f.max} step={f.step}
+                        value={dcfDraft[f.key]??''}
+                        placeholder={String(DCF_DEFAULT[f.key])}
+                        onChange={e=>setDcfDraft(p=>({...p,[f.key]:e.target.value===""?DCF_DEFAULT[f.key]:+e.target.value}))}
+                        onFocus={e=>e.target.select()}
+                        style={{width:"100%",background:C.card2,color:C.text,
+                          border:`1px solid ${isModified?C.purple:C.border}`,
+                          borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",
+                          fontFamily:"monospace",boxSizing:"border-box"}}/>
+                    </div>
+                    );
+                  })}
                 </div>
-                <button onClick={()=>setDcfApplied({...dcfDraft})}
-                  style={{background:`linear-gradient(135deg,${C.blue},${C.blueL})`,color:"#fff",
-                    border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700,marginLeft:"auto"}}>
-                  ⚡ DCF 재계산 적용
-                </button>
-              </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                  <div style={{color:C.muted,fontSize:11}}>
+                    할인율: <span style={{color:C.gold,fontWeight:700}}>{(dcfDraft.bondYield+dcfDraft.riskPrem).toFixed(1)}%</span>
+                  </div>
+                  <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
+                    <button onClick={()=>{setDcfDraft({...DCF_DEFAULT});setDcfApplied({...DCF_DEFAULT});}}
+                      style={{background:C.card2,color:C.muted,border:`1px solid ${C.border}`,
+                        borderRadius:8,padding:"7px 14px",fontSize:11,cursor:"pointer"}}>
+                      기본값
+                    </button>
+                    <button onClick={()=>setDcfApplied({...dcfDraft})}
+                      style={{background:`linear-gradient(135deg,${C.blue},${C.blueL})`,color:"#fff",
+                        border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+                      ⚡ DCF 재계산 적용
+                    </button>
+                  </div>
+                </div>
+                </>);
+              })()}
             </Box>
             <Box style={{border:`2px solid ${C.gold}33`}}>
               <ST accent={C.gold}>내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
