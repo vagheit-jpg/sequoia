@@ -425,27 +425,6 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   const minPbr=validPbr.length?Math.min(...validPbr.map(r=>r.pbr)):null;
   const maxPbr=validPbr.length?Math.max(...validPbr.map(r=>r.pbr)):null;
 
-  // 연도별 실제PER × EPS → 밴드맵 구성
-  ann.forEach(r=>{
-    const key=`${r.year}.12`;
-    if(r.eps!=null){
-      epsMap[key]=r.eps;
-      if(r.per>0&&r.per<300){
-        perMidMap[key]=Math.round(r.eps*r.per); // 실제 주가 근사
-        if(minPer!=null)perLoMap[key]=Math.round(r.eps*minPer);
-        if(maxPer!=null)perHiMap[key]=Math.round(r.eps*maxPer);
-      }
-    }
-    if(r.bps!=null){
-      bpsMap[key]=r.bps;
-      if(r.pbr>0&&r.pbr<50){
-        pbrMidMap[key]=Math.round(r.bps*r.pbr);
-        if(minPbr!=null)pbrLoMap[key]=Math.round(r.bps*minPbr);
-        if(maxPbr!=null)pbrHiMap[key]=Math.round(r.bps*maxPbr);
-      }
-    }
-  });
-
   const interp=(label,map)=>{
     const keys=Object.keys(map).sort();if(!keys.length)return null;
     const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
@@ -741,7 +720,7 @@ const MTip=({active,payload,label})=>{
     <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontFamily:"monospace"}}>{label}</div>
     {payload.map((p,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:2}}>
       <span style={{color:C.muted}}>{p.name}</span>
-      <span style={{color:p.color||C.text,fontFamily:"monospace",fontWeight:700}}>{typeof p.value==="number"?p.value.toLocaleString():p.value}</span>
+      <span style={{color:p.color||C.text,fontFamily:"monospace",fontWeight:700}}>{typeof p.value==="number"?Math.round(p.value).toLocaleString():p.value}</span>
     </div>))}
   </div>);
 };
@@ -2400,8 +2379,6 @@ export default function App(){
                   {key:"pbrHi", label:"PBR 고평가(배)", step:0.1},
                 ];
                 const isAuto=bandApplied===null;
-                // 입력창 실제 표시값: 수동입력값 있으면 그것, 없으면 자동값
-                const displayVal=(key)=>bandDraft?.[key]!=null?bandDraft[key]:autoVal[key];
                 return(<>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
                   {fields.map(f=>{
@@ -2410,7 +2387,7 @@ export default function App(){
                     <div key={f.key}>
                       <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
                       <input type="number" step={f.step} min={0.1}
-                        value={displayVal(f.key)}
+                        value={bandDraft?.[f.key]??''}
                         placeholder={String(autoVal[f.key])}
                         onChange={e=>{
                           const v=e.target.value===""?null:+e.target.value;
@@ -2419,7 +2396,6 @@ export default function App(){
                         onFocus={e=>e.target.select()}
                         style={{width:"100%",background:C.card2,color:C.text,
                           border:`1px solid ${hasCustom?C.purple:C.border}`,
-                          fontWeight:hasCustom?400:700,
                           borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
                     </div>
                     );
