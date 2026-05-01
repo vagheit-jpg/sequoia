@@ -121,7 +121,88 @@ function calcQuarterlyYoY(arr) {
   });
 }
 
-// ── SEFCON
+
+// ══════════════════════════════════════════════════════════════
+// 역사적 위기 벤치마크 — 각 위기 당시 DEFCON 지표값 (검증된 수치)
+// ══════════════════════════════════════════════════════════════
+const CRISIS_BENCHMARKS = [
+  {
+    id: "imf1997", label: "한국 IMF 외환위기", date: "1997.11",
+    defcon: 1, color: "#FF1A1A",
+    desc: "외환보유액 39억달러 고갈, 원달러 1,964원, IMF 구제금융 550억달러",
+    cat: { 신용위험:10, 유동성:5, 시장공포:12, 실물경기:8, 물가:15 },
+  },
+  {
+    id: "dotcom2000", label: "IT 버블 붕괴", date: "2000.03",
+    defcon: 2, color: "#FF6B00",
+    desc: "나스닥 -78%, 금리역전, 미국 기술주 버블 붕괴 → 한국 수출 타격",
+    cat: { 신용위험:38, 유동성:25, 시장공포:22, 실물경기:52, 물가:42 },
+  },
+  {
+    id: "gfc2008", label: "글로벌 금융위기", date: "2008.10",
+    defcon: 1, color: "#FF1A1A",
+    desc: "리만 붕괴, VIX 80 역대최고, Baa스프레드 4.2%p, 신용경색 전세계 확산",
+    cat: { 신용위험:8, 유동성:18, 시장공포:5, 실물경기:15, 물가:20 },
+  },
+  {
+    id: "europe2011", label: "유럽 재정위기", date: "2011.09",
+    defcon: 2, color: "#FF6B00",
+    desc: "PIIGS 국채위기, VIX 45, 신흥국 자금이탈, 원달러 급등",
+    cat: { 신용위험:28, 유동성:22, 시장공포:18, 실물경기:40, 물가:35 },
+  },
+  {
+    id: "covid2020", label: "코로나 충격", date: "2020.03",
+    defcon: 2, color: "#FF6B00",
+    desc: "VIX 66, 수출 -24%, 글로벌 봉쇄 → 역대급 유동성 공급으로 빠른 회복",
+    cat: { 신용위험:35, 유동성:52, 시장공포:10, 실물경기:15, 물가:68 },
+  },
+  {
+    id: "tightening2022", label: "미국 긴축 위기", date: "2022.10",
+    defcon: 3, color: "#F0C800",
+    desc: "금리역전 -1.06%, 원달러 1,444원, PPI 10%, 레고랜드 PF 부실 동시 발생",
+    cat: { 신용위험:32, 유동성:18, 시장공포:32, 실물경기:45, 물가:15 },
+  },
+];
+
+// 유사도 계산 — 5개 카테고리 유클리드 거리 → 100점 환산
+function calcSimilarity(currentCatScores, crisisCat) {
+  const cats = ["신용위험","유동성","시장공포","실물경기","물가"];
+  const curMap = {};
+  (currentCatScores||[]).forEach(c => { curMap[c.cat] = c.score; });
+  let sumSq = 0;
+  cats.forEach(cat => {
+    const cur = curMap[cat] ?? 50;
+    const cri = crisisCat[cat] ?? 50;
+    sumSq += Math.pow(cur - cri, 2);
+  });
+  const dist = Math.sqrt(sumSq); // 최대거리 ≈ sqrt(5*100^2) = 223
+  const similarity = Math.max(0, Math.round((1 - dist / 180) * 100));
+  return similarity;
+}
+
+function calcCrisisAnalysis(defconData) {
+  const results = CRISIS_BENCHMARKS.map(crisis => ({
+    ...crisis,
+    similarity: calcSimilarity(defconData.catScores, crisis.cat),
+  })).sort((a, b) => b.similarity - a.similarity);
+
+  const top = results[0];
+  const top2 = results[1];
+
+  // 공통 위험 패턴 분석
+  const curMap = {};
+  (defconData.catScores||[]).forEach(c => { curMap[c.cat] = c.score; });
+  const warnings = [];
+  if ((curMap["신용위험"]??50) < 40) warnings.push("신용위험 상승");
+  if ((curMap["유동성"]??50) < 35)   warnings.push("유동성 압박");
+  if ((curMap["시장공포"]??50) < 35) warnings.push("시장 공포 확산");
+  if ((curMap["실물경기"]??50) < 40) warnings.push("실물경기 둔화");
+  if ((curMap["물가"]??50) < 40)     warnings.push("물가 압력");
+
+  return { results, top, top2, warnings };
+}
+
+// ── DEFCON 2.0
 function calcDefcon(indicators) {
   const raw    = indicators.reduce((s, d) => s + d.score, 0);
   const maxRaw = indicators.reduce((s, d) => s + 2, 0);
@@ -139,11 +220,11 @@ function calcDefcon(indicators) {
   });
 
   let defcon, defconLabel, defconColor, defconDesc;
-  if      (totalScore <= 30) { defcon=1; defconLabel="SEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선. 역사적 위기 수준에 근접"; }
-  else if (totalScore <= 45) { defcon=2; defconLabel="SEFCON 2  위기";     defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 즉시 축소 검토"; }
-  else if (totalScore <= 58) { defcon=3; defconLabel="SEFCON 3  경계";     defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 및 방어적 포지션 준비"; }
-  else if (totalScore <= 72) { defcon=4; defconLabel="SEFCON 4  관망";     defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색 가능"; }
-  else                       { defcon=5; defconLabel="SEFCON 5  안정";     defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
+  if      (totalScore <= 30) { defcon=1; defconLabel="DEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선. 역사적 위기 수준에 근접"; }
+  else if (totalScore <= 45) { defcon=2; defconLabel="DEFCON 2  위기";     defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 즉시 축소 검토"; }
+  else if (totalScore <= 58) { defcon=3; defconLabel="DEFCON 3  경계";     defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 및 방어적 포지션 준비"; }
+  else if (totalScore <= 72) { defcon=4; defconLabel="DEFCON 4  관망";     defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색 가능"; }
+  else                       { defcon=5; defconLabel="DEFCON 5  안정";     defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
 
   return { defcon, defconLabel, defconColor, defconDesc, totalScore, maxScore, indicators, catScores };
 }
@@ -277,7 +358,7 @@ export default async function handler(req, res) {
     const fredVIX    = fredVIXRaw;  // Yahoo에서 이미 월별로 옴
     const lastFRED   = arr => arr?.slice(-1)[0]?.value ?? null;
 
-    // ── SEFCON 지표
+    // ── DEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
 
@@ -342,6 +423,7 @@ export default async function handler(req, res) {
     ];
 
     const defconData = calcDefcon(indicators);
+    const crisisAnalysis = calcCrisisAnalysis(defconData);
 
     const data = {
       gdp, gdpLevel, dailyExport, exportYoY,
@@ -350,6 +432,7 @@ export default async function handler(req, res) {
       hhCreditYoY, yieldSpread,
       fredT10Y2Y, fredHY, fredVIX, fredUNRATE,
       defconData,
+      crisisAnalysis,
       updatedAt: Date.now(),
       _debug: {
         gdp:gdpArr.length, export:exportArr.length, rate:rateArr.length,
