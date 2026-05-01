@@ -458,16 +458,35 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
     return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
 
-  // UI 표시용 자동배수 (최솟값/중앙/최댓값)
-  const midPer=validPer.length?+(validPer.map(r=>r.per).sort((a,b)=>a-b)[Math.floor((validPer.length-1)/2)]).toFixed(1):null;
-  const midPbr=validPbr.length?+(validPbr.map(r=>r.pbr).sort((a,b)=>a-b)[Math.floor((validPbr.length-1)/2)]).toFixed(2):null;
-  const _adaptive={
-    perLo:minPer!=null?+minPer.toFixed(1):7,
-    perMid:midPer??13,
-    perHi:maxPer!=null?+maxPer.toFixed(1):20,
-    pbrLo:minPbr!=null?+minPbr.toFixed(2):1.0,
-    pbrMid:midPbr??2.0,
-    pbrHi:maxPbr!=null?+maxPbr.toFixed(2):3.5,
+ // UI 표시용 및 계산용 자동배수 확정 (중앙값 산출)
+  const midPer = validPer.length ? +(validPer.map(r => r.per).sort((a, b) => a - b)[Math.floor((validPer.length - 1) / 2)]) : 13;
+  const midPbr = validPbr.length ? +(validPbr.map(r => r.pbr).sort((a, b) => a - b)[Math.floor((validPbr.length - 1) / 2)]) : 2.0;
+
+  // 연도별 밴드맵 구성 로직 수정
+  ann.forEach(r => {
+    const key = `${r.year}.12`;
+    if (r.eps != null) {
+      epsMap[key] = r.eps;
+      // 핵심 수정: r.per(실제값) 대신 midPer(고정값)를 사용하여 밴드의 평행 유지
+      if (minPer != null) perLoMap[key] = Math.round(r.eps * minPer);
+      if (midPer != null) perMidMap[key] = Math.round(r.eps * midPer); 
+      if (maxPer != null) perHiMap[key] = Math.round(r.eps * maxPer);
+    }
+    if (r.bps != null) {
+      bpsMap[key] = r.bps;
+      if (minPbr != null) pbrLoMap[key] = Math.round(r.bps * minPbr);
+      if (midPbr != null) pbrMidMap[key] = Math.round(r.bps * midPbr);
+      if (maxPbr != null) pbrHiMap[key] = Math.round(r.bps * maxPbr);
+    }
+  });
+
+  const _adaptive = {
+    perLo: minPer != null ? +minPer.toFixed(1) : 7,
+    perMid: +midPer.toFixed(1),
+    perHi: maxPer != null ? +maxPer.toFixed(1) : 20,
+    pbrLo: minPbr != null ? +minPbr.toFixed(2) : 1.0,
+    pbrMid: +midPbr.toFixed(2),
+    pbrHi: maxPbr != null ? +maxPbr.toFixed(2) : 3.5,
   };
 
   return monthly.map(d=>({...d,
