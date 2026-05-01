@@ -202,7 +202,7 @@ function calcCrisisAnalysis(defconData) {
   return { results, top, top2, warnings };
 }
 
-// ── DEFCON 2.0
+// ── SEFCON
 function calcDefcon(indicators) {
   const raw    = indicators.reduce((s, d) => s + d.score, 0);
   const maxRaw = indicators.reduce((s, d) => s + 2, 0);
@@ -220,11 +220,11 @@ function calcDefcon(indicators) {
   });
 
   let defcon, defconLabel, defconColor, defconDesc;
-  if      (totalScore <= 30) { defcon=1; defconLabel="DEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선. 역사적 위기 수준에 근접"; }
-  else if (totalScore <= 45) { defcon=2; defconLabel="DEFCON 2  위기";     defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 즉시 축소 검토"; }
-  else if (totalScore <= 58) { defcon=3; defconLabel="DEFCON 3  경계";     defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 및 방어적 포지션 준비"; }
-  else if (totalScore <= 72) { defcon=4; defconLabel="DEFCON 4  관망";     defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색 가능"; }
-  else                       { defcon=5; defconLabel="DEFCON 5  안정";     defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
+  if      (totalScore <= 30) { defcon=1; defconLabel="SEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선. 역사적 위기 수준에 근접"; }
+  else if (totalScore <= 45) { defcon=2; defconLabel="SEFCON 2  위기";     defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 즉시 축소 검토"; }
+  else if (totalScore <= 58) { defcon=3; defconLabel="SEFCON 3  경계";     defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 및 방어적 포지션 준비"; }
+  else if (totalScore <= 72) { defcon=4; defconLabel="SEFCON 4  관망";     defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색 가능"; }
+  else                       { defcon=5; defconLabel="SEFCON 5  안정";     defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
 
   return { defcon, defconLabel, defconColor, defconDesc, totalScore, maxScore, indicators, catScores };
 }
@@ -358,7 +358,7 @@ export default async function handler(req, res) {
     const fredVIX    = fredVIXRaw;  // Yahoo에서 이미 월별로 옴
     const lastFRED   = arr => arr?.slice(-1)[0]?.value ?? null;
 
-    // ── DEFCON 지표
+    // ── SEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
 
