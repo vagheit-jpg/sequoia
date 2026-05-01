@@ -3569,7 +3569,7 @@ export default function App(){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                   <div>
                     <div style={{color:C.muted,fontSize:7,letterSpacing:"0.12em",marginBottom:3}}>
-                      Sequoia Economic & Financial CONdition — 금융위기 조기경보
+                      SEQUOIA SEFCON — 금융위기 조기경보
                     </div>
                     <div style={{color:dc.defconColor,fontSize:22,fontWeight:900,fontFamily:"monospace",
                       letterSpacing:"0.05em",textShadow:`0 0 20px ${dc.defconColor}88`}}>
@@ -4188,7 +4188,7 @@ export default function App(){
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA SEFCON</div>
+          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 Sequoia Economic & Financial CONdition</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             <Tag color={C.blue}  size={8}>주가:한투API</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
