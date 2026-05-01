@@ -418,7 +418,7 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   //   perLo 밴드 = 해당연도EPS × 전체연도중 최소PER
   //   perMid 밴드 = 해당연도EPS × 해당연도PER (실제값)
   //   perHi 밴드 = 해당연도EPS × 전체연도중 최대PER
-  const validPer=ann.filter(r=>r.per>0&&r.per<300&&r.eps!=null);
+  const validPer=ann.filter(r=>r.per>0&&r.per<50&&r.eps!=null);
   const validPbr=ann.filter(r=>r.pbr>0&&r.pbr<50&&r.bps!=null);
   const minPer=validPer.length?Math.min(...validPer.map(r=>r.per)):null;
   const maxPer=validPer.length?Math.max(...validPer.map(r=>r.per)):null;
@@ -1336,8 +1336,9 @@ export default function App(){
   const [searchQuery,setSearchQuery]=useState("");
   const [searchResults,setSearchResults]=useState([]);
   const [showSearch,setShowSearch]=useState(false);
-  const [dcfDraft,setDcfDraft]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
-  const [dcfApplied,setDcfApplied]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
+  const DCF_DEFAULT_INIT={bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50};
+  const [dcfDraft,setDcfDraft]=useState({});
+  const [dcfApplied,setDcfApplied]=useState({...DCF_DEFAULT_INIT});
   const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
   const [bandDraft,setBandDraft]=useState(null); // null=자동모드
   const [bandApplied,setBandApplied]=useState(null); // null=자동모드
@@ -2779,7 +2780,7 @@ export default function App(){
                 return(<>
                 <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:10,marginBottom:12}}>
                   {fields.map(f=>{
-                    const isModified=dcfDraft[f.key]!==DCF_DEFAULT[f.key];
+                    const isModified=dcfDraft[f.key]!=null&&dcfDraft[f.key]!==DCF_DEFAULT[f.key];
                     return(
                     <div key={f.key}>
                       <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
@@ -2798,15 +2799,15 @@ export default function App(){
                 </div>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
                   <div style={{color:C.muted,fontSize:11}}>
-                    할인율: <span style={{color:C.gold,fontWeight:700}}>{(dcfDraft.bondYield+dcfDraft.riskPrem).toFixed(1)}%</span>
+                    할인율: <span style={{color:C.gold,fontWeight:700}}>{((dcfDraft.bondYield??DCF_DEFAULT.bondYield)+(dcfDraft.riskPrem??DCF_DEFAULT.riskPrem)).toFixed(1)}%</span>
                   </div>
                   <div style={{display:"flex",gap:8,marginLeft:"auto"}}>
-                    <button onClick={()=>{setDcfDraft({...DCF_DEFAULT});setDcfApplied({...DCF_DEFAULT});}}
+                    <button onClick={()=>{setDcfDraft({});setDcfApplied({...DCF_DEFAULT});}}
                       style={{background:C.card2,color:C.muted,border:`1px solid ${C.border}`,
                         borderRadius:8,padding:"7px 14px",fontSize:11,cursor:"pointer"}}>
                       기본값
                     </button>
-                    <button onClick={()=>setDcfApplied({...dcfDraft})}
+                    <button onClick={()=>setDcfApplied({...DCF_DEFAULT,...Object.fromEntries(Object.entries(dcfDraft).filter(([,v])=>v!=null&&v!==''))})}
                       style={{background:`linear-gradient(135deg,${C.blue},${C.blueL})`,color:"#fff",
                         border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700}}>
                       ⚡ DCF 재계산 적용
