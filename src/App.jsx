@@ -3806,20 +3806,20 @@ export default function App(){
             </Box>
             )}
 
-            {/* ── 신규: 무디스 Baa 회사채 수익률 (신용위험) */}
+            {/* ── 신규: Baa 신용스프레드 (DBAA - DGS10) */}
             {(macroData?.fredHY||[]).length>0&&(
             <Box>
-              <ST accent={C.red}>💀 무디스 Baa 회사채 수익률 — 신용위험 선행</ST>
+              <ST accent={C.red}>💀 Baa 신용스프레드 (DBAA−10Y) — 기업 신용위험 선행</ST>
               {(()=>{
                 const data=(macroData.fredHY||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=10?C.red:last>=8?C.orange:last>=6.5?C.gold:C.green;
-                const vl=last==null?"":last>=10?"위기":last>=8?"경계":last>=6.5?"주의":"안정";
+                const vc=last==null?"#888":last>=4?C.red:last>=3?C.orange:last>=2?C.gold:C.green;
+                const vl=last==null?"":last>=4?"위기":last>=3?"경계":last>=2?"주의":"안정";
                 return(<>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>Baa 수익률 급등 = 기업 신용위험↑ · 8% 이상 시 위험신호 (2008년 9%↑)</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
+                  <span style={{fontSize:8,color:C.muted}}>Baa−국채 스프레드 · 2008년 4%↑ · 2020년 3%↑ · 정상 1~2%</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}%p {vl}</span>}
                 </div>
                 <CW h={190}>
                   <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
@@ -3831,12 +3831,13 @@ export default function App(){
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={10}  stroke={C.red}    strokeDasharray="3 3" label={{value:"위기 10%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={8}   stroke={C.orange} strokeDasharray="3 3" label={{value:"경계 8%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={6.5} stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 6.5%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="Baa수익률" stroke={C.red} strokeWidth={2.5}
+                    <ReferenceArea y1={4} y2={20} fill={`${C.red}08`}/>
+                    <ReferenceLine y={4}   stroke={C.red}    strokeDasharray="3 3" label={{value:"위기 4%p",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={3}   stroke={C.orange} strokeDasharray="3 3" label={{value:"경계 3%p",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={2}   stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 2%p",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="Baa신용스프레드" stroke={C.red} strokeWidth={2.5}
                       fill="url(#hyGrad)" dot={false} connectNulls/>
                   </ComposedChart>
                 </CW>
