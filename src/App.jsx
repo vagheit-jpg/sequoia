@@ -3569,7 +3569,7 @@ export default function App(){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                   <div>
                     <div style={{color:C.muted,fontSize:7,letterSpacing:"0.12em",marginBottom:3}}>
-                      SEQUOIA SEFCON — 금융위기 조기경보
+                      Sequoia Economic & Financial CONdition — 금융위기 조기경보
                     </div>
                     <div style={{color:dc.defconColor,fontSize:22,fontWeight:900,fontFamily:"monospace",
                       letterSpacing:"0.05em",textShadow:`0 0 20px ${dc.defconColor}88`}}>
