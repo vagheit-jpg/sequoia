@@ -33,7 +33,7 @@ async function fetchFRED(seriesId, startDate) {
     return [];
   }
   return json.observations
-    .map(r => ({ date: r.date, value: parseFloat(r.value) }))
+    .map(r => ({ date: r.date.replace(/-/g, "").slice(0, 8), value: parseFloat(r.value) }))
     .filter(r => !isNaN(r.value));
 }
 
