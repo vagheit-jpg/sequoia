@@ -377,17 +377,17 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   const epsMap={},bpsMap={};
   const htsQtr=(qtrData||[]).filter(r=>r.eps!=null&&r.year>0);
 
-  if(htsQtr.length>=4){
-    // TTM EPS: 직전 4분기 합산
+  if(htsQtr.length>=1){
+    // 영웅문 EPS = 분기 단순값 → TTM은 직전4분기 합산
     const qEnd={1:3,2:6,3:9,4:12};
     htsQtr.forEach((r,i,arr)=>{
       const ttm4=arr.slice(Math.max(0,i-3),i+1);
       const ttmEps=ttm4.reduce((s,x)=>s+(x.eps||0),0);
       const lbl=`${r.year}.${String(qEnd[r.quarter]||12).padStart(2,"0")}`;
       epsMap[lbl]=ttmEps;
-      // BPS 역산: price≈per×eps, bps=price/pbr
-      if(r.per&&r.pbr&&r.eps&&r.per>0&&r.pbr>0){
-        bpsMap[lbl]=Math.round((r.per*r.eps)/r.pbr);
+      // BPS 역산: 주가=PER×EPS, BPS=주가/PBR
+      if(r.per&&r.pbr&&r.eps&&r.per>0&&r.pbr>0&&Math.abs(r.eps)>0){
+        bpsMap[lbl]=Math.round((r.per*Math.abs(r.eps))/r.pbr);
       }
     });
   } else {
@@ -586,17 +586,32 @@ const buildAnnFromQtr=(qtrData)=>{
     .filter(g=>g.all.length>0)
     .map(g=>{
       const src=g.q4||g.all[g.all.length-1];
+      // 손익·현금흐름: 4분기 합산
       const sumQ=(key)=>{
         const vals=g.all.map(r=>r[key]).filter(v=>v!=null);
         return vals.length?+vals.reduce((s,v)=>s+v,0).toFixed(1):null;
       };
+      // 비율·지표: 4분기 평균 (단순 Q4값 X)
+      const avgQ=(key)=>{
+        const vals=g.all.map(r=>r[key]).filter(v=>v!=null);
+        return vals.length?+(vals.reduce((s,v)=>s+v,0)/vals.length).toFixed(2):null;
+      };
+      // EPS: 4분기 합산 = 연간 EPS
+      const annEps=sumQ("eps");
+      // PER: 연간EPS 기준 재계산 (Q4 주가/연간EPS) — Q4 PER이 있으면 보정
+      const annPer=src.per&&annEps&&src.eps?
+        +(src.per*(src.eps/annEps)).toFixed(1):src.per;
       return{
         year:g.year,
         rev:sumQ("rev"),op:sumQ("op"),net:sumQ("net"),
         cfo:sumQ("cfo"),cfi:sumQ("cfi"),cff:sumQ("cff"),fcf:sumQ("fcf"),
+        // 재무상태표: 연말(Q4) 기준
         assets:src.assets,liab:src.liab,equity:src.equity,
         debt:src.debt,retained:src.retained,
-        opm:src.opm,roe:src.roe,eps:src.eps,per:src.per,pbr:src.pbr,
+        // 비율: 연간 평균
+        opm:avgQ("opm"),roe:avgQ("roe"),
+        // EPS: 합산, PER: 보정, PBR: Q4
+        eps:annEps,per:annPer,pbr:src.pbr,
         shares:src.shares,
       };
     })
@@ -1461,7 +1476,10 @@ export default function App(){
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
     const full=calcMA60(monthly);
-    return buildBandsFromQtr(full,co?.qtrData,co?.annData,bandApplied).slice(-RANGES[rangeIdx].months);
+    return buildBandsFromQtr(full,co?.qtrData,co?.annData,
+      // BAND_DEFAULT와 동일하면 null 전달 → 자동계산, 수동 변경시만 적용
+      JSON.stringify(bandApplied)===JSON.stringify(BAND_DEFAULT)?null:bandApplied
+    ).slice(-RANGES[rangeIdx].months);
   },[monthly,co?.qtrData,co?.annData,rangeIdx,bandApplied]);
   const withPositionBands=useMemo(()=>calcPositionBands(monthly).slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
   const withRSI   =useMemo(()=>calcRSI(displayMonthly),[displayMonthly]);
@@ -2423,23 +2441,35 @@ export default function App(){
               </div>
               <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
                 <div style={{color:C.muted,fontSize:11}}>
-                  PER <span style={{color:C.green,fontWeight:700}}>{bandApplied.perLo}</span>배 ·
-                  <span style={{color:C.gold,fontWeight:700}}> {bandApplied.perMid}</span>배 ·
-                  <span style={{color:C.red,fontWeight:700}}> {bandApplied.perHi}</span>배 &nbsp;|&nbsp;
-                  PBR <span style={{color:C.green,fontWeight:700}}>{bandApplied.pbrLo}</span>배 ·
-                  <span style={{color:C.gold,fontWeight:700}}> {bandApplied.pbrMid}</span>배 ·
-                  <span style={{color:C.red,fontWeight:700}}> {bandApplied.pbrHi}</span>배
+                  {(()=>{
+                    const adaptive=withBands?.[0]?._adaptive;
+                    const isDefault=JSON.stringify(bandApplied)===JSON.stringify(BAND_DEFAULT);
+                    if(adaptive&&isDefault){
+                      return <span style={{color:C.cyan,fontSize:10}}>
+                        📊 CSV 기반 자동계산 — PER <b style={{color:C.green}}>{adaptive.perLo}</b>·<b style={{color:C.gold}}>{adaptive.perMid}</b>·<b style={{color:C.red}}>{adaptive.perHi}</b>배 &nbsp;|&nbsp;
+                        PBR <b style={{color:C.green}}>{adaptive.pbrLo}</b>·<b style={{color:C.gold}}>{adaptive.pbrMid}</b>·<b style={{color:C.red}}>{adaptive.pbrHi}</b>배
+                      </span>;
+                    }
+                    return <>
+                      PER <span style={{color:C.green,fontWeight:700}}>{bandApplied.perLo}</span>배 ·
+                      <span style={{color:C.gold,fontWeight:700}}> {bandApplied.perMid}</span>배 ·
+                      <span style={{color:C.red,fontWeight:700}}> {bandApplied.perHi}</span>배 &nbsp;|&nbsp;
+                      PBR <span style={{color:C.green,fontWeight:700}}>{bandApplied.pbrLo}</span>배 ·
+                      <span style={{color:C.gold,fontWeight:700}}> {bandApplied.pbrMid}</span>배 ·
+                      <span style={{color:C.red,fontWeight:700}}> {bandApplied.pbrHi}</span>배
+                    </>;
+                  })()}
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setBandDraft(BAND_DEFAULT)}
+                  <button onClick={()=>{setBandDraft(BAND_DEFAULT);setBandApplied(BAND_DEFAULT);}}
                     style={{background:C.card2,color:C.muted,border:`1px solid ${C.border}`,
                       borderRadius:8,padding:"7px 14px",fontSize:11,cursor:"pointer"}}>
-                    기본값
+                    자동(CSV)
                   </button>
                   <button onClick={()=>setBandApplied({...bandDraft})}
                     style={{background:`linear-gradient(135deg,${C.purple},${C.pink})`,color:"#fff",
                       border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700}}>
-                    ⚡ 밴드 재계산 적용
+                    ⚡ 수동 적용
                   </button>
                 </div>
               </div>
@@ -2487,18 +2517,18 @@ export default function App(){
               const isQtr=finView==="분기";
               const maxBar=isQtr?10:22;
 
-              // 분기 레이블 tick
+              // 분기 레이블 - 연도만 표시 (Q1만)
               const QTk=({x,y,payload})=>{
                 if(!payload?.value)return null;
                 const v=String(payload.value);
                 const isQ1=v.endsWith("Q1");
-                return(<g transform={`translate(${x},${y+2})`}>
-                  {isQ1&&<text y={0} textAnchor="middle" fill={C.text} fontSize={10} fontWeight={700} fontFamily="monospace">{v.slice(0,4)}</text>}
-                  <text y={isQ1?13:0} textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{v.slice(4)}</text>
+                if(!isQ1)return null;
+                return(<g transform={`translate(${x},${y+4})`}>
+                  <text textAnchor="middle" fill={C.muted} fontSize={10} fontFamily="monospace">{v.slice(0,4)}</text>
                 </g>);
               };
-              const xTk=isQtr?<QTk/>:<FinTick/>;
-              const xH=isQtr?32:24;
+              const xTk=<QTk/>;
+              const xH=20;
 
               // EPS·주가 동행 데이터 빌드 (분기별 주가 매핑)
               const epsPriceQtr=(()=>{
@@ -2537,7 +2567,7 @@ export default function App(){
                     <CW h={260}>
                       <ComposedChart data={epsPriceQtr} margin={{top:8,right:12,left:0,bottom:28}}>
                         <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                        <XAxis dataKey="period" tick={<QTk/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={32}/>
+                        <XAxis dataKey="period" tick={<QTk/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={20}/>
                         <YAxis yAxisId="eps" orientation="left"
                           tick={{fill:"#F97316",fontSize:10}} width={52}
                           tickFormatter={v=>v.toLocaleString()} stroke="#F97316" tickCount={5}
@@ -2573,7 +2603,7 @@ export default function App(){
                     <CW h={250}>
                       <ComposedChart data={epsPriceQtr.filter(r=>r.roe!=null)} margin={{top:8,right:12,left:0,bottom:28}}>
                         <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                        <XAxis dataKey="period" tick={<QTk/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={32}/>
+                        <XAxis dataKey="period" tick={<QTk/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={20}/>
                         <YAxis yAxisId="roe" orientation="left"
                           tick={{fill:"#F97316",fontSize:10}} width={40}
                           tickFormatter={v=>`${v}%`} stroke="#F97316" tickCount={5}
@@ -3067,47 +3097,60 @@ export default function App(){
         {tab==="stability"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
             {hasFinData?(()=>{
-              const data=stabView==="연간"?annTimeline:qtrTimeline;
+              const qtrSliceStab=(co?.qtrData||[]).filter(r=>r.year>0).slice(-40).map(r=>({...r,period:r.label}));
+              const data=stabView==="연간"?annTimeline:qtrSliceStab;
+              const isQtr=stabView==="분기";
+              const maxBar=isQtr?10:28;
+              const QTkS=({x,y,payload})=>{
+                if(!payload?.value)return null;
+                const v=String(payload.value);
+                if(!v.endsWith("Q1"))return null;
+                return(<g transform={`translate(${x},${y+4})`}>
+                  <text textAnchor="middle" fill={C.muted} fontSize={10} fontFamily="monospace">{v.slice(0,4)}</text>
+                </g>);
+              };
+              const xTkS=<QTkS/>;
+              const xHS=20;
               return(
                 <>
                   <ViewToggle view={stabView} setView={setStabView}/>
                   <ST accent={C.teal}>자본유보율(좌축) · 부채비율(우축)</ST>
                   <CW h={230}>
-                    <ComposedChart data={data} margin={{top:4,right:12,left:0,bottom:8}}>
+                    <ComposedChart data={data} margin={{top:4,right:12,left:0,bottom:xHS}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                      <XAxis dataKey="period" tick={xTkS} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xHS}/>
                       <YAxis yAxisId="left"  {...yp("%",52)} domain={[0,"auto"]}/>
                       <YAxis yAxisId="right" orientation="right" {...yp("%",48)} domain={[0,"auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <ReferenceLine yAxisId="right" y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"부채100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
-                      <Bar  yAxisId="right" dataKey="debt"     name="부채비율%"   fill={C.red}  opacity={0.55} maxBarSize={28}/>
-                      <Line yAxisId="left"  dataKey="retained" name="자본유보율%" stroke={C.teal} strokeWidth={2.5} dot={{r:3}}/>
+                      <Bar  yAxisId="right" dataKey="debt"     name="부채비율%"   fill={C.red}  opacity={0.55} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                      <Line yAxisId="left"  dataKey="retained" name="자본유보율%" stroke={C.teal} strokeWidth={2.5} dot={{r:isQtr?2:3}}/>
                     </ComposedChart>
                   </CW>
                   {(()=>{const {unit:ua,scale:sa}=autoUnit(data,["assets","liab","equity"]);const da=scaleData(data,["assets","liab","equity"],sa);return(<>
                   <ST accent={C.green}>자산·부채·자본 ({ua}원)</ST>
                   <CW h={220}>
-                    <ComposedChart data={da} margin={{top:4,right:20,left:0,bottom:8}}>
+                    <ComposedChart data={da} margin={{top:4,right:20,left:0,bottom:xHS}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                      <XAxis dataKey="period" tick={xTkS} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xHS}/>
                       <YAxis {...yp(ua)}/>
                       <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <Bar dataKey="assets" name="자산총계" fill={C.blue}  opacity={0.6} maxBarSize={24}/>
-                      <Bar dataKey="liab"   name="부채총계" fill={C.red}   opacity={0.6} maxBarSize={24}/>
-                      <Bar dataKey="equity" name="자본총계" fill={C.green} opacity={0.7} maxBarSize={24}/>
+                      <Bar dataKey="assets" name="자산총계" fill={C.blue}  opacity={0.6} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                      <Bar dataKey="liab"   name="부채총계" fill={C.red}   opacity={0.6} maxBarSize={maxBar} radius={[2,2,0,0]}/>
+                      <Bar dataKey="equity" name="자본총계" fill={C.green} opacity={0.7} maxBarSize={maxBar} radius={[2,2,0,0]}/>
                     </ComposedChart>
                   </CW>
                   <ST accent={C.blue}>자본·부채 적층(좌축) + 부채비율 꺾은선(우축)</ST>
                   <CW h={230}>
-                    <ComposedChart data={da} margin={{top:4,right:12,left:0,bottom:8}}>
+                    <ComposedChart data={da} margin={{top:4,right:12,left:0,bottom:xHS}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                      <XAxis dataKey="period" tick={xTkS} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={xHS}/>
                       <YAxis yAxisId="left"  {...yp(ua,48)}/>
                       <YAxis yAxisId="right" orientation="right" {...yp("%",52)} domain={[0,"auto"]}/>
                       <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <Bar yAxisId="left" dataKey="equity" name="자본총계" stackId="s" fill={C.green} opacity={0.75} maxBarSize={28}/>
-                      <Bar yAxisId="left" dataKey="liab"   name="부채총계" stackId="s" fill={C.red}   opacity={0.65} maxBarSize={28}/>
-                      <Line yAxisId="right" dataKey="debt" name="부채비율%" stroke={C.orange} strokeWidth={2.5} dot={{r:3}}/>
+                      <Bar yAxisId="left" dataKey="equity" name="자본총계" stackId="s" fill={C.green} opacity={0.75} maxBarSize={maxBar}/>
+                      <Bar yAxisId="left" dataKey="liab"   name="부채총계" stackId="s" fill={C.red}   opacity={0.65} maxBarSize={maxBar}/>
+                      <Line yAxisId="right" dataKey="debt" name="부채비율%" stroke={C.orange} strokeWidth={2.5} dot={{r:isQtr?2:3}}/>
                       <ReferenceLine yAxisId="right" y={100} stroke={C.orange} strokeDasharray="4 2" label={{value:"100%",fill:C.orange,fontSize:9,position:"insideTopRight"}}/>
                     </ComposedChart>
                   </CW></>);})()}
