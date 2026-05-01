@@ -386,8 +386,8 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
     const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
     let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
     let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
-    // k0 없음 = 가장 오래된 연도보다 이전 → 첫 번째 키 값 그대로 외삽
-    if(!k0)return map[keys[0]]||0;
+    // k0 없음 = 가장 오래된 연도보다 이전 → 데이터 없음, null 반환
+    if(!k0)return null;
     // k1 없음 = 가장 최신 연도 이후 → 마지막 키 값 그대로 유지
     if(!k1)return map[k0]||0;
     const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
@@ -404,23 +404,27 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
     const vPbr=(annData||[]).filter(r=>r.pbr>0&&r.pbr<50).map(r=>r.pbr).sort((a,b)=>a-b);
     const pct=(arr,p)=>arr.length?arr[Math.max(0,Math.floor((arr.length-1)*p/100))]:null;
     return{
-      perLo: vPer.length>=2?+pct(vPer,15).toFixed(1):BAND_DEFAULT.perLo,
+      perLo: vPer.length>=2?+pct(vPer,0).toFixed(1):BAND_DEFAULT.perLo,
       perMid:vPer.length>=2?+pct(vPer,50).toFixed(1):BAND_DEFAULT.perMid,
-      perHi: vPer.length>=2?+pct(vPer,85).toFixed(1):BAND_DEFAULT.perHi,
-      pbrLo: vPbr.length>=2?+pct(vPbr,15).toFixed(2):BAND_DEFAULT.pbrLo,
+      perHi: vPer.length>=2?+pct(vPer,100).toFixed(1):BAND_DEFAULT.perHi,
+      pbrLo: vPbr.length>=2?+pct(vPbr,0).toFixed(2):BAND_DEFAULT.pbrLo,
       pbrMid:vPbr.length>=2?+pct(vPbr,50).toFixed(2):BAND_DEFAULT.pbrMid,
-      pbrHi: vPbr.length>=2?+pct(vPbr,85).toFixed(2):BAND_DEFAULT.pbrHi,
+      pbrHi: vPbr.length>=2?+pct(vPbr,100).toFixed(2):BAND_DEFAULT.pbrHi,
     };
   })();
-  return monthly.map(d=>({...d,
-    perLo :Math.round(interp(d.label,epsMap)*adaptive.perLo),
-    perMid:Math.round(interp(d.label,epsMap)*adaptive.perMid),
-    perHi :Math.round(interp(d.label,epsMap)*adaptive.perHi),
-    pbrLo :Math.round(interp(d.label,bpsMap)*adaptive.pbrLo),
-    pbrMid:Math.round(interp(d.label,bpsMap)*adaptive.pbrMid),
-    pbrHi :Math.round(interp(d.label,bpsMap)*adaptive.pbrHi),
-    _adaptive:adaptive, // 디버그용 (차트 UI에서 실제 배수 표시에 활용 가능)
-  }));
+  return monthly.map(d=>{
+    const eVal=interp(d.label,epsMap);
+    const bVal=interp(d.label,bpsMap);
+    return{...d,
+      perLo :eVal!=null?Math.round(eVal*adaptive.perLo):null,
+      perMid:eVal!=null?Math.round(eVal*adaptive.perMid):null,
+      perHi :eVal!=null?Math.round(eVal*adaptive.perHi):null,
+      pbrLo :bVal!=null?Math.round(bVal*adaptive.pbrLo):null,
+      pbrMid:bVal!=null?Math.round(bVal*adaptive.pbrMid):null,
+      pbrHi :bVal!=null?Math.round(bVal*adaptive.pbrHi):null,
+      _adaptive:adaptive,
+    };
+  });
 };
 
 // 수정 5: 매수/매도 화살표 — 위아래 모두 표시
