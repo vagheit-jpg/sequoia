@@ -3535,7 +3535,7 @@ export default function App(){
 
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {[["defcon","DEFCON"],["macro","매크로"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
+              {[["defcon","SEFCON"],["macro","매크로"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
                 <button key={k} onClick={()=>setMarketSub(k)}
                   style={{flex:1,padding:"7px 0",borderRadius:8,
                     border:`1.5px solid ${marketSub===k?(k==="defcon"?C.red:C.teal):C.border}`,
@@ -3547,9 +3547,9 @@ export default function App(){
               ))}
             </div>
 
-            {/* ══ DEFCON 탭 ══ */}
+            {/* ══ SEFCON 탭 ══ */}
             {marketSub==="defcon"&&<>
-            {/* ══ DEFCON 2.0 메인 카드 ══ */}
+            {/* ══ SEFCON 메인 카드 ══ */}
             {dc&&(()=>{
               const catCfg=[
                 {cat:"신용위험",icon:"🔗",color:C.cyan},
@@ -3569,7 +3569,7 @@ export default function App(){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
                   <div>
                     <div style={{color:C.muted,fontSize:7,letterSpacing:"0.12em",marginBottom:3}}>
-                      SEQUOIA DEFCON 2.0 — 금융위기 조기경보
+                      SEQUOIA SEFCON — 금융위기 조기경보
                     </div>
                     <div style={{color:dc.defconColor,fontSize:22,fontWeight:900,fontFamily:"monospace",
                       letterSpacing:"0.05em",textShadow:`0 0 20px ${dc.defconColor}88`}}>
@@ -3706,7 +3706,7 @@ export default function App(){
                 </div>
 
                 <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right"}}>
-                  FRED · ECOS · Yahoo Finance 실시간 / 투자 참고용
+                  SEQUOIA SEFCON · FRED · ECOS · Yahoo Finance / 투자 참고용
                 </div>
               </div>
               );
@@ -4188,7 +4188,7 @@ export default function App(){
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.3</div>
+          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA SEFCON</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             <Tag color={C.blue}  size={8}>주가:한투API</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
