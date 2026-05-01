@@ -1796,7 +1796,7 @@ export default function App(){
       overflowX:"hidden"}}>
 
       {/* ── 상단 타이틀 바 */}
-      <div style={{background:`linear-gradient(135deg,#040C1A,#071428)`,borderBottom:`1px solid ${C.border}`,
+      <div style={{background:darkMode?`linear-gradient(135deg,#040C1A,#071428)`:`linear-gradient(135deg,${C.card},${C.card2})`,borderBottom:`1px solid ${C.border}`,
         padding:"8px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div style={{display:"flex",alignItems:"center",gap:10,cursor:"pointer"}}
           onClick={()=>setTab("overview")}
@@ -3740,8 +3740,9 @@ export default function App(){
 
       <style>{`
         @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-        html,body{overflow-x:hidden;background:#040710;min-height:100%;}
-        @media (hover:none) and (pointer:coarse){html,body{overscroll-behavior-y:none;}}
+        html,body{overflow-x:hidden;background:${C.bg};min-height:100%;}
+        html,body,#root{background:${C.bg};}
+        @media (hover:none) and (pointer:coarse){html,body{overscroll-behavior-y:contain;}}
         @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
         *{-webkit-tap-highlight-color:transparent;}
         /* 기본: 스크롤바 전체 숨김 (모바일 포함 모든 환경) */
