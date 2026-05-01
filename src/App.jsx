@@ -375,56 +375,110 @@ const calcPositionBands = (monthly) => {
 };
 const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   if(!monthly.length)return monthly;
-  const epsMap={},bpsMap={};
-  // 연간 데이터만 사용 — 분기 EPS는 미완성값이 밴드를 왜곡시킴
-  (annData||[]).forEach(r=>{
-    if(r.eps!=null)epsMap[`${r.year}.12`]=r.eps;
-    if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;
+  // 연간 데이터: EPS/BPS/PER/PBR 모두 맵으로 저장
+  const epsMap={},bpsMap={},perLoMap={},perMidMap={},perHiMap={},pbrLoMap={},pbrMidMap={},pbrHiMap={};
+  const ann=annData||[];
+
+  if(bandCfg){
+    // ── 수동모드: 사용자가 입력한 배수 × 보간된 EPS/BPS
+    ann.forEach(r=>{
+      if(r.eps!=null)epsMap[`${r.year}.12`]=r.eps;
+      if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;
+    });
+    const interp=(label,map)=>{
+      const keys=Object.keys(map).sort();if(!keys.length)return null;
+      const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
+      let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
+      let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
+      if(!k0)return null;
+      if(!k1)return map[k0]||0;
+      const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
+      const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
+      return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
+    };
+    return monthly.map(d=>{
+      const eVal=interp(d.label,epsMap);
+      const bVal=interp(d.label,bpsMap);
+      return{...d,
+        perLo :eVal!=null?Math.round(eVal*bandCfg.perLo):null,
+        perMid:eVal!=null?Math.round(eVal*bandCfg.perMid):null,
+        perHi :eVal!=null?Math.round(eVal*bandCfg.perHi):null,
+        pbrLo :bVal!=null?Math.round(bVal*bandCfg.pbrLo):null,
+        pbrMid:bVal!=null?Math.round(bVal*bandCfg.pbrMid):null,
+        pbrHi :bVal!=null?Math.round(bVal*bandCfg.pbrHi):null,
+        _adaptive:bandCfg,
+      };
+    });
+  }
+
+  // ── 자동모드: 연도별 실제 PER/PBR × 해당연도 EPS/BPS
+  // 각 연도의 실제 PER(min/mid/max), PBR(min/mid/max)를 연도별로 직접 저장
+  // min=해당연도PER, mid=해당연도PER, max=해당연도PER (1개면 동일)
+  // 여러 연도 데이터로 연도별 Lo/Mid/Hi 밴드를 구성:
+  //   perLo 밴드 = 해당연도EPS × 전체연도중 최소PER
+  //   perMid 밴드 = 해당연도EPS × 해당연도PER (실제값)
+  //   perHi 밴드 = 해당연도EPS × 전체연도중 최대PER
+  const validPer=ann.filter(r=>r.per>0&&r.per<300&&r.eps!=null);
+  const validPbr=ann.filter(r=>r.pbr>0&&r.pbr<50&&r.bps!=null);
+  const minPer=validPer.length?Math.min(...validPer.map(r=>r.per)):null;
+  const maxPer=validPer.length?Math.max(...validPer.map(r=>r.per)):null;
+  const minPbr=validPbr.length?Math.min(...validPbr.map(r=>r.pbr)):null;
+  const maxPbr=validPbr.length?Math.max(...validPbr.map(r=>r.pbr)):null;
+
+  // 연도별 실제PER × EPS → 밴드맵 구성
+  ann.forEach(r=>{
+    const key=`${r.year}.12`;
+    if(r.eps!=null){
+      epsMap[key]=r.eps;
+      if(r.per>0&&r.per<300){
+        perMidMap[key]=Math.round(r.eps*r.per); // 실제 주가 근사
+        if(minPer!=null)perLoMap[key]=Math.round(r.eps*minPer);
+        if(maxPer!=null)perHiMap[key]=Math.round(r.eps*maxPer);
+      }
+    }
+    if(r.bps!=null){
+      bpsMap[key]=r.bps;
+      if(r.pbr>0&&r.pbr<50){
+        pbrMidMap[key]=Math.round(r.bps*r.pbr);
+        if(minPbr!=null)pbrLoMap[key]=Math.round(r.bps*minPbr);
+        if(maxPbr!=null)pbrHiMap[key]=Math.round(r.bps*maxPbr);
+      }
+    }
   });
+
   const interp=(label,map)=>{
-    const keys=Object.keys(map).sort();if(!keys.length)return 0;
+    const keys=Object.keys(map).sort();if(!keys.length)return null;
     const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
     let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
     let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
-    // k0 없음 = 가장 오래된 연도보다 이전 → 데이터 없음, null 반환
     if(!k0)return null;
-    // k1 없음 = 가장 최신 연도 이후 → 마지막 키 값 그대로 유지
     if(!k1)return map[k0]||0;
     const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
     const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
     return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
-  // 종목별 자동 PER/PBR: annData 실제 분포(15%/50%/85%ile) 사용
-  // bandCfg가 BAND_DEFAULT와 같으면 자동계산, 수동 변경시 그대로 적용
-  const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
-  const isDefault=bandCfg&&JSON.stringify(bandCfg)===JSON.stringify(BAND_DEFAULT);
-  const adaptive=(()=>{
-    if(bandCfg&&!isDefault)return bandCfg; // 수동 변경값 우선
-    const vPer=(annData||[]).filter(r=>r.per>0&&r.per<300).map(r=>r.per).sort((a,b)=>a-b);
-    const vPbr=(annData||[]).filter(r=>r.pbr>0&&r.pbr<50).map(r=>r.pbr).sort((a,b)=>a-b);
-    const pct=(arr,p)=>arr.length?arr[Math.max(0,Math.floor((arr.length-1)*p/100))]:null;
-    return{
-      perLo: vPer.length>=2?+pct(vPer,0).toFixed(1):BAND_DEFAULT.perLo,
-      perMid:vPer.length>=2?+pct(vPer,50).toFixed(1):BAND_DEFAULT.perMid,
-      perHi: vPer.length>=2?+pct(vPer,100).toFixed(1):BAND_DEFAULT.perHi,
-      pbrLo: vPbr.length>=2?+pct(vPbr,0).toFixed(2):BAND_DEFAULT.pbrLo,
-      pbrMid:vPbr.length>=2?+pct(vPbr,50).toFixed(2):BAND_DEFAULT.pbrMid,
-      pbrHi: vPbr.length>=2?+pct(vPbr,100).toFixed(2):BAND_DEFAULT.pbrHi,
-    };
-  })();
-  return monthly.map(d=>{
-    const eVal=interp(d.label,epsMap);
-    const bVal=interp(d.label,bpsMap);
-    return{...d,
-      perLo :eVal!=null?Math.round(eVal*adaptive.perLo):null,
-      perMid:eVal!=null?Math.round(eVal*adaptive.perMid):null,
-      perHi :eVal!=null?Math.round(eVal*adaptive.perHi):null,
-      pbrLo :bVal!=null?Math.round(bVal*adaptive.pbrLo):null,
-      pbrMid:bVal!=null?Math.round(bVal*adaptive.pbrMid):null,
-      pbrHi :bVal!=null?Math.round(bVal*adaptive.pbrHi):null,
-      _adaptive:adaptive,
-    };
-  });
+
+  // UI 표시용 자동배수 (최솟값/중앙/최댓값)
+  const midPer=validPer.length?+(validPer.map(r=>r.per).sort((a,b)=>a-b)[Math.floor((validPer.length-1)/2)]).toFixed(1):null;
+  const midPbr=validPbr.length?+(validPbr.map(r=>r.pbr).sort((a,b)=>a-b)[Math.floor((validPbr.length-1)/2)]).toFixed(2):null;
+  const _adaptive={
+    perLo:minPer!=null?+minPer.toFixed(1):7,
+    perMid:midPer??13,
+    perHi:maxPer!=null?+maxPer.toFixed(1):20,
+    pbrLo:minPbr!=null?+minPbr.toFixed(2):1.0,
+    pbrMid:midPbr??2.0,
+    pbrHi:maxPbr!=null?+maxPbr.toFixed(2):3.5,
+  };
+
+  return monthly.map(d=>({...d,
+    perLo :interp(d.label,perLoMap),
+    perMid:interp(d.label,perMidMap),
+    perHi :interp(d.label,perHiMap),
+    pbrLo :interp(d.label,pbrLoMap),
+    pbrMid:interp(d.label,pbrMidMap),
+    pbrHi :interp(d.label,pbrHiMap),
+    _adaptive,
+  }));
 };
 
 // 수정 5: 매수/매도 화살표 — 위아래 모두 표시
@@ -1287,8 +1341,8 @@ export default function App(){
   const [dcfDraft,setDcfDraft]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
   const [dcfApplied,setDcfApplied]=useState({bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50});
   const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
-  const [bandDraft,setBandDraft]=useState(BAND_DEFAULT);
-  const [bandApplied,setBandApplied]=useState(BAND_DEFAULT);
+  const [bandDraft,setBandDraft]=useState(null); // null=자동모드
+  const [bandApplied,setBandApplied]=useState(null); // null=자동모드
   // 전체 종목 목록 (KRX 동적 로드)
   const [stockList,setStockList]=useState(FALLBACK_STOCKS);
   const fileRef=useRef();
@@ -1403,6 +1457,7 @@ export default function App(){
   // PER/PBR 밴드는 전체 monthly 기반 (범위 제한 없이 EPS 보간 정확히)
   const withBands =useMemo(()=>{
     const full=calcMA60(monthly);
+    // bandApplied가 null이면 자동모드, 값이 있으면 수동모드
     return buildBandsFromQtr(full,co?.qtrData,co?.annData,bandApplied).slice(-RANGES[rangeIdx].months);
   },[monthly,co?.qtrData,co?.annData,rangeIdx,bandApplied]);
   const withPositionBands=useMemo(()=>calcPositionBands(monthly).slice(-RANGES[rangeIdx].months),[monthly,rangeIdx]);
@@ -2309,52 +2364,61 @@ export default function App(){
             {/* ── 밴드 배수 설정 ── */}
             <Box>
               <ST accent={C.gold}>📐 밴드 배수 설정</ST>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
-                {[
-                  {key:"perLo", label:"PER 저평가(배)", step:1},
-                  {key:"perMid",label:"PER 적정(배)",   step:1},
-                  {key:"perHi", label:"PER 고평가(배)", step:1},
-                  {key:"pbrLo", label:"PBR 저평가(배)", step:0.5},
-                  {key:"pbrMid",label:"PBR 적정(배)",   step:0.5},
-                  {key:"pbrHi", label:"PBR 고평가(배)", step:0.5},
-                ].map(f=>(
-                  <div key={f.key}>
-                    <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
-                    <input type="number" step={f.step} min={0.1}
-                      value={bandDraft[f.key]===0?"":bandDraft[f.key]}
-                      placeholder={String(BAND_DEFAULT[f.key])}
-                      onChange={e=>setBandDraft(p=>({...p,[f.key]:e.target.value===""?0:+e.target.value}))}
-                      onFocus={e=>e.target.select()}
-                      style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${C.border}`,
-                        borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
+              {(()=>{
+                const autoVal=withBands[0]?._adaptive||BAND_DEFAULT;
+                const fields=[
+                  {key:"perLo", label:"PER 저평가(배)", step:0.1},
+                  {key:"perMid",label:"PER 적정(배)",   step:0.1},
+                  {key:"perHi", label:"PER 고평가(배)", step:0.1},
+                  {key:"pbrLo", label:"PBR 저평가(배)", step:0.1},
+                  {key:"pbrMid",label:"PBR 적정(배)",   step:0.1},
+                  {key:"pbrHi", label:"PBR 고평가(배)", step:0.1},
+                ];
+                const isAuto=bandApplied===null;
+                return(<>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+                  {fields.map(f=>(
+                    <div key={f.key}>
+                      <div style={{color:C.muted,fontSize:10,marginBottom:4}}>{f.label}</div>
+                      <input type="number" step={f.step} min={0.1}
+                        value={bandDraft?.[f.key]??""} 
+                        placeholder={String(autoVal[f.key])}
+                        onChange={e=>setBandDraft(p=>({...(p||autoVal),[f.key]:e.target.value===""?undefined:+e.target.value}))}
+                        onFocus={e=>e.target.select()}
+                        style={{width:"100%",background:C.card2,color:C.text,border:`1px solid ${isAuto?C.border:C.purple}`,
+                          borderRadius:6,padding:"5px 8px",fontSize:12,outline:"none",fontFamily:"monospace",boxSizing:"border-box"}}/>
+                    </div>
+                  ))}
+                </div>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
+                  <div style={{color:C.muted,fontSize:11}}>
+                    PER <span style={{color:C.green,fontWeight:700}}>{autoVal.perLo}</span>배 ·
+                    <span style={{color:C.gold,fontWeight:700}}> {autoVal.perMid}</span>배 ·
+                    <span style={{color:C.red,fontWeight:700}}> {autoVal.perHi}</span>배 &nbsp;|&nbsp;
+                    PBR <span style={{color:C.green,fontWeight:700}}>{autoVal.pbrLo}</span>배 ·
+                    <span style={{color:C.gold,fontWeight:700}}> {autoVal.pbrMid}</span>배 ·
+                    <span style={{color:C.red,fontWeight:700}}> {autoVal.pbrHi}</span>배
+                    {isAuto&&<span style={{color:C.teal,fontSize:9,marginLeft:6}}>[종목 자동]</span>}
                   </div>
-                ))}
-              </div>
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,flexWrap:"wrap"}}>
-                <div style={{color:C.muted,fontSize:11}}>
-                  {(()=>{const a=withBands[0]?._adaptive||bandApplied;return(<>
-                  PER <span style={{color:C.green,fontWeight:700}}>{a.perLo}</span>배 ·
-                  <span style={{color:C.gold,fontWeight:700}}> {a.perMid}</span>배 ·
-                  <span style={{color:C.red,fontWeight:700}}> {a.perHi}</span>배 &nbsp;|&nbsp;
-                  PBR <span style={{color:C.green,fontWeight:700}}>{a.pbrLo}</span>배 ·
-                  <span style={{color:C.gold,fontWeight:700}}> {a.pbrMid}</span>배 ·
-                  <span style={{color:C.red,fontWeight:700}}> {a.pbrHi}</span>배
-                  {JSON.stringify(bandApplied)===JSON.stringify(BAND_DEFAULT)&&<span style={{color:C.teal,fontSize:9,marginLeft:6}}>[종목 자동]</span>}
-                  </>);})()}
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>{setBandDraft(null);setBandApplied(null);}}
+                      style={{background:C.card2,color:C.muted,border:`1px solid ${C.border}`,
+                        borderRadius:8,padding:"7px 14px",fontSize:11,cursor:"pointer"}}>
+                      기본값
+                    </button>
+                    <button onClick={()=>{
+                      if(!bandDraft)return;
+                      const merged={...autoVal,...Object.fromEntries(Object.entries(bandDraft).filter(([,v])=>v!=null&&v!==undefined))};
+                      setBandApplied(merged);
+                    }}
+                      style={{background:`linear-gradient(135deg,${C.purple},${C.pink})`,color:"#fff",
+                        border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700}}>
+                      ⚡ 밴드 재계산 적용
+                    </button>
+                  </div>
                 </div>
-                <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setBandDraft(BAND_DEFAULT)}
-                    style={{background:C.card2,color:C.muted,border:`1px solid ${C.border}`,
-                      borderRadius:8,padding:"7px 14px",fontSize:11,cursor:"pointer"}}>
-                    기본값
-                  </button>
-                  <button onClick={()=>setBandApplied({...bandDraft})}
-                    style={{background:`linear-gradient(135deg,${C.purple},${C.pink})`,color:"#fff",
-                      border:"none",borderRadius:8,padding:"7px 18px",fontSize:12,cursor:"pointer",fontWeight:700}}>
-                    ⚡ 밴드 재계산 적용
-                  </button>
-                </div>
-              </div>
+                </>);
+              })()}
             </Box>
             {co?.annData?.length||co?.qtrData?.length?(
               <>
