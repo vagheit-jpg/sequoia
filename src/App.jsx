@@ -2529,16 +2529,33 @@ export default function App(){
                     })()}
                   </CW>
                   <ST accent={C.gold} right="%">OPM · ROE · ROA</ST>
-                  <CW h={190}>
-                    <ComposedChart data={data} margin={{top:4,right:20,left:0,bottom:8}}>
-                      <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                      <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                      <YAxis {...yp("%")}/>
-                      <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                      <Line dataKey="opm" name="OPM%" stroke={C.gold}  strokeWidth={2} dot={{r:3}}/>
-                      <Line dataKey="roe" name="ROE%" stroke={C.green} strokeWidth={2} dot={{r:3}}/>
-                      <Line dataKey="roa" name="ROA%" stroke={C.blueL} strokeWidth={2} dot={{r:3}}/>
-                    </ComposedChart>
+                  <CW h={230}>
+                    {(()=>{
+                      const merged=growthData.map(r=>{
+                        const base=finView==="연간"?annTimeline:qtrTimeline;
+                        const match=base.find(b=>b.period===r.period);
+                        return{...r,opm:match?.opm??null,roe:match?.roe??null,roa:match?.roa??null};
+                      });
+                      return(
+                      <ComposedChart data={merged} margin={{top:8,right:4,left:0,bottom:8}}>
+                        <defs>
+                          <linearGradient id="roeGrad" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor={C.purple} stopOpacity={0.35}/>
+                            <stop offset="95%" stopColor={C.purple} stopOpacity={0.02}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                        <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                        <YAxis {...yp("%")} domain={[0,"auto"]}/>
+                        <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
+                        <ReferenceLine y={15} stroke={C.purple} strokeDasharray="4 3"
+                          label={{value:"ROE 15%",fill:C.purple,fontSize:9,position:"insideTopRight"}}/>
+                        <Bar  dataKey="opm" name="OPM%" fill={C.gold} opacity={0.55} maxBarSize={22} radius={[3,3,0,0]}/>
+                        <Area dataKey="roe" name="ROE%" stroke={C.purple} strokeWidth={2.5} fill="url(#roeGrad)" dot={{r:3,fill:C.purple,strokeWidth:0}} connectNulls/>
+                        <Line dataKey="roa" name="ROA%" stroke={C.blueL} strokeWidth={2} dot={{r:2.5,fill:C.blueL,strokeWidth:0}} strokeDasharray="5 2" connectNulls/>
+                      </ComposedChart>
+                      );
+                    })()}
                   </CW>
                   {/* 수정 3: 현금흐름 — 막대 4개 + 0선 점선 */}
                   {(()=>{const {unit:uc,scale:sc}=autoUnit(data,["fcf","cfo","cfi","cff"]);const dc=scaleData(data,["fcf","cfo","cfi","cff"],sc);return(<>
@@ -2550,10 +2567,10 @@ export default function App(){
                       <YAxis {...yp(uc,52)}/>
                       <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                       <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
-                      <Bar  dataKey="fcf" name={`FCF(${uc})`} fill={C.gold}   opacity={0.9} maxBarSize={20} radius={[3,3,0,0]}/>
-                      <Line dataKey="cfo" name="영업CF" stroke={C.teal}   strokeWidth={2} dot={{r:3}} connectNulls/>
-                      <Line dataKey="cfi" name="투자CF" stroke={C.red}    strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="4 2"/>
-                      <Line dataKey="cff" name="재무CF" stroke={C.purple} strokeWidth={2} dot={{r:3}} connectNulls strokeDasharray="2 2"/>
+                      <Bar  dataKey="fcf" name={`FCF(${uc})`} fill={C.blueL}  opacity={0.85} maxBarSize={20} radius={[3,3,0,0]}/>
+                      <Line dataKey="cfo" name="영업CF" stroke={C.pink}   strokeWidth={2.5} dot={{r:3,fill:C.pink,strokeWidth:0}} connectNulls/>
+                      <Line dataKey="cfi" name="투자CF" stroke={C.gold}   strokeWidth={2}   dot={{r:3,fill:C.gold,strokeWidth:0}} connectNulls strokeDasharray="4 2"/>
+                      <Line dataKey="cff" name="재무CF" stroke={C.green}  strokeWidth={1.5} dot={{r:2.5,fill:C.green,strokeWidth:0}} connectNulls strokeDasharray="2 2"/>
                     </ComposedChart>
                   </CW></>);})()}
                   {/* EPS · FCF · 주가 동행 */}
@@ -3865,7 +3882,7 @@ export default function App(){
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.4</div>
+          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.3</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             <Tag color={C.blue}  size={8}>주가:한투API</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
