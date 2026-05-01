@@ -20,6 +20,23 @@ async function fetchECOS(statCode, itemCode, startDate, endDate, freq = "MM") {
              .filter(r => !isNaN(r.value));
 }
 
+// ── FRED 호출
+const FRED_KEY = process.env.FRED_API_KEY || "";
+async function fetchFRED(seriesId, startDate) {
+  const url = `https://api.stlouisfed.org/fred/series/observations` +
+    `?series_id=${seriesId}&api_key=${FRED_KEY}&file_type=json` +
+    `&observation_start=${startDate}&sort_order=asc`;
+  const res = await fetch(url);
+  const json = await res.json();
+  if (!json?.observations) {
+    console.warn(`[FRED] ${seriesId}: no observations`);
+    return [];
+  }
+  return json.observations
+    .map(r => ({ date: r.date, value: parseFloat(r.value) }))
+    .filter(r => !isNaN(r.value));
+}
+
 // ── Yahoo Finance 지수 월봉 (^KS11, ^KQ11)
 async function fetchIndexMonthly(yahooTicker) {
   const now = Math.floor(Date.now() / 1000);
@@ -78,17 +95,31 @@ function calcQuarterlyYoY(arr) {
   });
 }
 
-// ── ECON DEFCON
+// ── DEFCON 2.0
 function calcDefcon(indicators) {
-  const totalScore = indicators.reduce((s, d) => s + d.score, 0);
-  const maxScore   = indicators.length * 2;
+  const raw    = indicators.reduce((s, d) => s + d.score, 0);
+  const maxRaw = indicators.reduce((s, d) => s + 2, 0);
+  // 0~100점 환산 (50 = 중립)
+  const totalScore = Math.round((raw + maxRaw) / (maxRaw * 2) * 100);
+  const maxScore   = 100;
+
+  // 카테고리별 점수
+  const cats = ["신용위험","유동성","시장공포","실물경기","물가"];
+  const catScores = cats.map(cat => {
+    const inds   = indicators.filter(i => i.cat === cat);
+    const catRaw = inds.reduce((s, i) => s + i.score, 0);
+    const catMax = inds.length * 2;
+    return { cat, score: catMax > 0 ? Math.round((catRaw + catMax) / (catMax * 2) * 100) : 50, count: inds.length };
+  });
+
   let defcon, defconLabel, defconColor, defconDesc;
-  if      (totalScore <= -14) { defcon=1; defconLabel="ECON-1  위기"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선"; }
-  else if (totalScore <=  -7) { defcon=2; defconLabel="ECON-2  경계"; defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 축소 검토"; }
-  else if (totalScore <=   1) { defcon=3; defconLabel="ECON-3  주의"; defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 필요"; }
-  else if (totalScore <=  10) { defcon=4; defconLabel="ECON-4  관망"; defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색"; }
-  else                        { defcon=5; defconLabel="ECON-5  안정"; defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
-  return { defcon, defconLabel, defconColor, defconDesc, totalScore, maxScore, indicators };
+  if      (totalScore <= 30) { defcon=1; defconLabel="DEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선. 역사적 위기 수준에 근접"; }
+  else if (totalScore <= 45) { defcon=2; defconLabel="DEFCON 2  위기";     defconColor="#FF6B00"; defconDesc="선행지표 다수 경고. 리스크 자산 비중 즉시 축소 검토"; }
+  else if (totalScore <= 58) { defcon=3; defconLabel="DEFCON 3  경계";     defconColor="#F0C800"; defconDesc="일부 지표 악화. 포트폴리오 점검 및 방어적 포지션 준비"; }
+  else if (totalScore <= 72) { defcon=4; defconLabel="DEFCON 4  관망";     defconColor="#38BDF8"; defconDesc="대체로 양호. 선별적 기회 탐색 가능"; }
+  else                       { defcon=5; defconLabel="DEFCON 5  안정";     defconColor="#00C878"; defconDesc="전 지표 정상. 적극적 투자 환경"; }
+
+  return { defcon, defconLabel, defconColor, defconDesc, totalScore, maxScore, indicators, catScores };
 }
 
 export default async function handler(req, res) {
@@ -139,8 +170,9 @@ export default async function handler(req, res) {
     const startDate8 = `${endY - 2}0101`;  // 일별은 최근 2년만 (200개 제한 대응)
     const startDateQ = `${endY - 8}Q1`;
 
-    // ── 병렬 호출: ECOS 9개 + Yahoo 지수 2개
-    const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR] =
+    // ── 병렬 호출: ECOS 12개 + Yahoo 지수 2개 + FRED 4개
+    const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR,
+           fredT10Y2YR, fredHYR, fredVIXR, fredUNRATER] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -154,6 +186,10 @@ export default async function handler(req, res) {
         fetchECOS("151Y001", "1000000", startDateQ, `${endY}Q4`, "Q"),  // 가계신용 잔액(분기)
         fetchECOS("721Y001", "5050000", startDate,  endDate,     "M"),  // 국고채 10Y 수익률
         fetchECOS("721Y001", "5020000", startDate,  endDate,     "M"),  // 국고채 3Y 수익률
+        fetchFRED("T10Y2Y",        `${endY - 3}-01-01`),                // 미국 장단기 금리차
+        fetchFRED("BAMLH0A0HYM2", `${endY - 3}-01-01`),                // 하이일드 스프레드
+        fetchFRED("VIXCLS",        `${endY - 3}-01-01`),                // VIX
+        fetchFRED("UNRATE",        `${endY - 5}-01-01`),                // 미국 실업률
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -170,6 +206,10 @@ export default async function handler(req, res) {
     const hhCreditArr   = ok(hhCreditR);
     const bond10YArr    = ok(bond10YR);
     const bond3YArr     = ok(bond3YR);
+    const fredT10Y2YRaw = ok(fredT10Y2YR);
+    const fredHYRaw     = ok(fredHYR);
+    const fredVIXRaw    = ok(fredVIXR);
+    const fredUNRATE    = ok(fredUNRATER);
 
     // ── 가공
     // GDP: 이미 전기비% → yoy 필드로 매핑
@@ -196,37 +236,74 @@ export default async function handler(req, res) {
       return b3 != null ? { date: r.date, value: +(r.value - b3.value).toFixed(2) } : null;
     }).filter(Boolean);
 
+    // ── FRED 일별 → 월별 변환
+    const fredT10Y2Y = dailyToMonthly(fredT10Y2YRaw);
+    const fredHY     = dailyToMonthly(fredHYRaw);
+    const fredVIX    = dailyToMonthly(fredVIXRaw);
+    const lastFRED   = arr => arr?.slice(-1)[0]?.value ?? null;
+
     // ── DEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
 
-    const score = (v, [crit, warn, ok_], dir = 1) => {
+    const scoreV = (v, [bad2, bad1, good1, good2], dir = 1) => {
       if (v == null) return 0;
-      if (v * dir >= crit * dir) return -2;
-      if (v * dir >= warn * dir) return -1;
-      if (v * dir <= ok_  * dir) return +2;
+      if (v * dir >= bad2  * dir) return -2;
+      if (v * dir >= bad1  * dir) return -1;
+      if (v * dir <= good2 * dir) return +2;
+      if (v * dir <= good1 * dir) return +1;
       return 0;
     };
 
     const indicators = [
-      { key:"금리", label:"기준금리",       val:last(rate),         unit:"%",  good:"완화적", warn:"중립", bad:"긴축",
-        score: score(last(rate),         [4.0,3.0,2.0],  1) },
-      { key:"환율", label:"원/달러 환율",   val:last(fx),           unit:"원", good:"강세",   warn:"중립", bad:"약세",
-        score: score(last(fx),           [1450,1350,1200],1) },
-      { key:"GDP",  label:"GDP성장률(YoY)", val:lastYoy(gdp),       unit:"%",  good:"견조",   warn:"완만", bad:"침체",
-        score: score(lastYoy(gdp),       [-1,1,3],       -1) },
-      { key:"PPI",  label:"PPI YoY",        val:lastYoy(ppi),       unit:"%",  good:"안정",   warn:"보통", bad:"원가↑",
-        score: score(lastYoy(ppi),       [6,3,1],         1) },
-      { key:"CPI",  label:"소비자물가YoY",  val:lastYoy(cpi),       unit:"%",  good:"안정",   warn:"보통", bad:"고인플",
-        score: score(lastYoy(cpi),       [5,3,1],         1) },
-      { key:"BSI",  label:"BSI 제조업",     val:last(bsi),          unit:"",   good:"확장",   warn:"중립", bad:"수축",
-        score: score(last(bsi),          [80,90,100],    -1) },
-      { key:"수출", label:"수출YoY",        val:lastYoy(exportYoY), unit:"%",  good:"증가",   warn:"보합", bad:"감소",
-        score: score(lastYoy(exportYoY), [-15,-5,5],     -1) },
-      { key:"가계신용", label:"가계신용YoY", val:lastYoy(hhCreditYoY), unit:"%", good:"감소",  warn:"완만", bad:"과열",
-        score: score(lastYoy(hhCreditYoY), [8,5,2], 1) },
-      { key:"금리차", label:"10Y-3Y 금리차", val:last(yieldSpread),   unit:"%p", good:"정상화", warn:"평탄", bad:"역전",
-        score: score(last(yieldSpread), [-0.5,0,0.5], -1) * 2 },  // 가중치 2배 — 경기침체 선행 신뢰도 최고
+      // ── 신용위험
+      { cat:"신용위험", key:"미국금리역전", label:"미국 장단기금리차(T10Y2Y)", val:lastFRED(fredT10Y2Y), unit:"%",
+        good:"정상", warn:"평탄", bad:"역전",
+        score: scoreV(lastFRED(fredT10Y2Y), [-1.0, -0.5, 0.5,  1.0], -1) * 2 }, // 가중 2배
+      { cat:"신용위험", key:"하이일드",     label:"미국 하이일드 스프레드",    val:lastFRED(fredHY),     unit:"%",
+        good:"안정", warn:"경계", bad:"급등",
+        score: scoreV(lastFRED(fredHY),     [ 8.0,  5.0, 3.5,  2.5],  1) },
+      { cat:"신용위험", key:"금리차KR",     label:"한국 10Y-3Y 금리차",       val:last(yieldSpread),    unit:"%p",
+        good:"정상화", warn:"평탄", bad:"역전",
+        score: scoreV(last(yieldSpread),    [-0.5,  0.0, 0.5,  1.0], -1) },
+
+      // ── 유동성
+      { cat:"유동성", key:"기준금리", label:"한국 기준금리", val:last(rate), unit:"%",
+        good:"완화적", warn:"중립", bad:"긴축",
+        score: scoreV(last(rate), [4.0, 3.0, 2.0, 1.0], 1) },
+      { cat:"유동성", key:"환율",     label:"원/달러 환율", val:last(fx),   unit:"원",
+        good:"강세", warn:"중립", bad:"약세",
+        score: scoreV(last(fx),   [1450, 1380, 1250, 1150], 1) },
+
+      // ── 시장공포
+      { cat:"시장공포", key:"VIX", label:"VIX 공포지수",  val:lastFRED(fredVIX), unit:"",
+        good:"안정", warn:"경계", bad:"공포",
+        score: scoreV(lastFRED(fredVIX), [35, 25, 18, 13], 1) },
+      { cat:"시장공포", key:"BSI", label:"BSI 제조업",    val:last(bsi),         unit:"",
+        good:"확장", warn:"중립", bad:"수축",
+        score: scoreV(last(bsi),         [80, 90, 100, 110], -1) },
+
+      // ── 실물경기
+      { cat:"실물경기", key:"수출",   label:"한국 수출 YoY",  val:lastYoy(exportYoY),    unit:"%",
+        good:"증가", warn:"보합", bad:"감소",
+        score: scoreV(lastYoy(exportYoY),    [-15, -5,  5, 15], -1) },
+      { cat:"실물경기", key:"실업률", label:"미국 실업률",    val:lastFRED(fredUNRATE),  unit:"%",
+        good:"호조", warn:"보통", bad:"악화",
+        score: scoreV(lastFRED(fredUNRATE),  [5.5, 4.5, 3.8, 3.2], 1) },
+      { cat:"실물경기", key:"GDP",    label:"한국 GDP성장률", val:lastYoy(gdp),          unit:"%",
+        good:"견조", warn:"완만", bad:"침체",
+        score: scoreV(lastYoy(gdp),          [-1, 1, 3, 4], -1) },
+
+      // ── 물가
+      { cat:"물가", key:"CPI",    label:"한국 CPI YoY",   val:lastYoy(cpi),           unit:"%",
+        good:"안정", warn:"보통", bad:"고인플",
+        score: scoreV(lastYoy(cpi),           [5, 3, 1, 0], 1) },
+      { cat:"물가", key:"PPI",    label:"한국 PPI YoY",   val:lastYoy(ppi),           unit:"%",
+        good:"안정", warn:"보통", bad:"원가↑",
+        score: scoreV(lastYoy(ppi),           [6, 3, 1, 0], 1) },
+      { cat:"물가", key:"가계신용", label:"가계신용 YoY", val:lastYoy(hhCreditYoY),   unit:"%",
+        good:"감소", warn:"완만", bad:"과열",
+        score: scoreV(lastYoy(hhCreditYoY),   [8, 5, 2, 0], 1) },
     ];
 
     const defconData = calcDefcon(indicators);
@@ -236,6 +313,7 @@ export default async function handler(req, res) {
       rate, fx, ppi, cpi, bsi,
       kospiMonthly, kosdaqMonthly,
       hhCreditYoY, yieldSpread,
+      fredT10Y2Y, fredHY, fredVIX, fredUNRATE,
       defconData,
       updatedAt: Date.now(),
       _debug: {
@@ -243,6 +321,8 @@ export default async function handler(req, res) {
         fx:fxArr.length, ppi:ppiArr.length, bsi:bsiArr.length, cpi:cpiArr.length,
         kospi:kospiMonthly.length, kosdaq:kosdaqMonthly.length,
         hhCredit:hhCreditArr.length, bond10Y:bond10YArr.length, bond3Y:bond3YArr.length,
+        fredT10Y2Y:fredT10Y2YRaw.length, fredHY:fredHYRaw.length,
+        fredVIX:fredVIXRaw.length, fredUNRATE:fredUNRATE.length,
       }
     };
 
