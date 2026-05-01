@@ -3865,7 +3865,7 @@ export default function App(){
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.3</div>
+          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 SEQUOIA v3.4</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
             <Tag color={C.blue}  size={8}>주가:한투API</Tag>
             <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
