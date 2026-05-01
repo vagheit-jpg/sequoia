@@ -415,15 +415,37 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
   // 각 연도의 실제 PER(min/mid/max), PBR(min/mid/max)를 연도별로 직접 저장
   // min=해당연도PER, mid=해당연도PER, max=해당연도PER (1개면 동일)
   // 여러 연도 데이터로 연도별 Lo/Mid/Hi 밴드를 구성:
-  //   perLo 밴드 = 해당연도EPS × 전체연도중 최소PER
-  //   perMid 밴드 = 해당연도EPS × 해당연도PER (실제값)
-  //   perHi 밴드 = 해당연도EPS × 전체연도중 최대PER
-  const validPer=ann.filter(r=>r.per>0&&r.per<50&&r.eps!=null);
-  const validPbr=ann.filter(r=>r.pbr>0&&r.pbr<50&&r.bps!=null);
-  const minPer=validPer.length?Math.min(...validPer.map(r=>r.per)):null;
-  const maxPer=validPer.length?Math.max(...validPer.map(r=>r.per)):null;
-  const minPbr=validPbr.length?Math.min(...validPbr.map(r=>r.pbr)):null;
-  const maxPbr=validPbr.length?Math.max(...validPbr.map(r=>r.pbr)):null;
+  // ── 1단계: 기본 유효 데이터 (EPS/BPS 있고 명백한 이상치 제거)
+  const rawValidPer=ann.filter(r=>r.per>0&&r.per<200&&r.eps!=null&&r.eps>0);
+  const rawValidPbr=ann.filter(r=>r.pbr>0&&r.pbr<30&&r.bps!=null&&r.bps>0);
+
+  // ── 2단계: 중앙값 먼저 산출
+  const medOf=(arr,fn)=>{const s=[...arr].sort((a,b)=>fn(a)-fn(b));return s.length?fn(s[Math.floor((s.length-1)/2)]):null;};
+  const medPer=medOf(rawValidPer,r=>r.per)||13;
+  const medPbr=medOf(rawValidPbr,r=>r.pbr)||2.0;
+
+  // ── 3단계: 중앙값 기준 ×0.2~×4 이내만 최종 허용 (이상치 제거)
+  const validPer=rawValidPer.filter(r=>r.per>=medPer*0.2&&r.per<=medPer*4);
+  const validPbr=rawValidPbr.filter(r=>r.pbr>=medPbr*0.2&&r.pbr<=medPbr*4);
+
+  // ── midPer/midPbr: 필터 후 중앙값 재산출
+  const midPer=medOf(validPer,r=>r.per)||medPer;
+  const midPbr=medOf(validPbr,r=>r.pbr)||medPbr;
+
+  // ── Lo/Hi: midPer 기준 대칭 배수 (중간선이 항상 중앙에)
+  // 실제 데이터 범위도 참고하되 midPer ±60% 이내로 클램프
+  const rawMinPer=validPer.length?Math.min(...validPer.map(r=>r.per)):null;
+  const rawMaxPer=validPer.length?Math.max(...validPer.map(r=>r.per)):null;
+  const rawMinPbr=validPbr.length?Math.min(...validPbr.map(r=>r.pbr)):null;
+  const rawMaxPbr=validPbr.length?Math.max(...validPbr.map(r=>r.pbr)):null;
+
+  // 실제 min/max 범위를 midPer 기준으로 비율화 후 대칭 적용
+  const perSpread=rawMinPer&&rawMaxPer?Math.max((midPer-rawMinPer)/midPer,(rawMaxPer-midPer)/midPer):0.5;
+  const pbrSpread=rawMinPbr&&rawMaxPbr?Math.max((midPbr-rawMinPbr)/midPbr,(rawMaxPbr-midPbr)/midPbr):0.5;
+  const perLo=+(midPer*(1-Math.min(perSpread,0.6))).toFixed(1);
+  const perHi=+(midPer*(1+Math.min(perSpread,0.6))).toFixed(1);
+  const pbrLo=+(midPbr*(1-Math.min(pbrSpread,0.6))).toFixed(2);
+  const pbrHi=+(midPbr*(1+Math.min(pbrSpread,0.6))).toFixed(2);
 
   const interp=(label,map)=>{
     const keys=Object.keys(map).sort();if(!keys.length)return null;
@@ -437,35 +459,26 @@ const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
     return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
   };
 
- // UI 표시용 및 계산용 자동배수 확정 (중앙값 산출)
-  const midPer = validPer.length ? +(validPer.map(r => r.per).sort((a, b) => a - b)[Math.floor((validPer.length - 1) / 2)]) : 13;
-  const midPbr = validPbr.length ? +(validPbr.map(r => r.pbr).sort((a, b) => a - b)[Math.floor((validPbr.length - 1) / 2)]) : 2.0;
-
-  // 연도별 밴드맵 구성 로직 수정
-  ann.forEach(r => {
-    const key = `${r.year}.12`;
-    if (r.eps != null) {
-      epsMap[key] = r.eps;
-      // 핵심 수정: r.per(실제값) 대신 midPer(고정값)를 사용하여 밴드의 평행 유지
-      if (minPer != null) perLoMap[key] = Math.round(r.eps * minPer);
-      if (midPer != null) perMidMap[key] = Math.round(r.eps * midPer); 
-      if (maxPer != null) perHiMap[key] = Math.round(r.eps * maxPer);
+  // ── 연도별 밴드맵: midPer/Lo/Hi 고정 배수 × EPS 보간
+  ann.forEach(r=>{
+    const key=`${r.year}.12`;
+    if(r.eps!=null&&r.eps>0){
+      epsMap[key]=r.eps;
+      perLoMap[key]=Math.round(r.eps*perLo);
+      perMidMap[key]=Math.round(r.eps*midPer);
+      perHiMap[key]=Math.round(r.eps*perHi);
     }
-    if (r.bps != null) {
-      bpsMap[key] = r.bps;
-      if (minPbr != null) pbrLoMap[key] = Math.round(r.bps * minPbr);
-      if (midPbr != null) pbrMidMap[key] = Math.round(r.bps * midPbr);
-      if (maxPbr != null) pbrHiMap[key] = Math.round(r.bps * maxPbr);
+    if(r.bps!=null&&r.bps>0){
+      bpsMap[key]=r.bps;
+      pbrLoMap[key]=Math.round(r.bps*pbrLo);
+      pbrMidMap[key]=Math.round(r.bps*midPbr);
+      pbrHiMap[key]=Math.round(r.bps*pbrHi);
     }
   });
 
-  const _adaptive = {
-    perLo: minPer != null ? +minPer.toFixed(1) : 7,
-    perMid: +midPer.toFixed(1),
-    perHi: maxPer != null ? +maxPer.toFixed(1) : 20,
-    pbrLo: minPbr != null ? +minPbr.toFixed(2) : 1.0,
-    pbrMid: +midPbr.toFixed(2),
-    pbrHi: maxPbr != null ? +maxPbr.toFixed(2) : 3.5,
+  const _adaptive={
+    perLo:perLo,perMid:+midPer.toFixed(1),perHi:perHi,
+    pbrLo:pbrLo,pbrMid:+midPbr.toFixed(2),pbrHi:pbrHi,
   };
 
   return monthly.map(d=>({...d,
@@ -2787,7 +2800,7 @@ export default function App(){
                       <input type="number" min={f.min} max={f.max} step={f.step}
                         value={dcfDraft[f.key]??''}
                         placeholder={String(DCF_DEFAULT[f.key])}
-                        onChange={e=>setDcfDraft(p=>({...p,[f.key]:e.target.value===""?DCF_DEFAULT[f.key]:+e.target.value}))}
+                        onChange={e=>setDcfDraft(p=>({...p,[f.key]:e.target.value===""?null:+e.target.value}))}
                         onFocus={e=>e.target.select()}
                         style={{width:"100%",background:C.card2,color:C.text,
                           border:`1px solid ${isModified?C.purple:C.border}`,
