@@ -498,13 +498,19 @@ const buildIvHistory=(annData,bondYield)=>{
 };
 
 // ══════════════════════════════════════════════════════════════
-// 5. 영웅문 HTS CSV 파서 (EUC-KR, 분기 재무제표)
+// 5. 영웅문 HTS CSV 파서 (v3.4b - 검증완료)
 // ══════════════════════════════════════════════════════════════
+
+// 실제 영웅문 헤더명 → 필드명 (python csv.reader로 검증)
 const HTS_COL_MAP={
-  "결과도":"period","자산총계":"assets","자본총계":"equity","매출액":"rev",
-  "영업이익":"op","당기순이익":"net","영업활동현금흐름":"cfo","투자활동현금흐름":"cfi",
-  "재무활동현금흐름":"cff","순현금흐름":"fcf","PER":"per","PBR":"pbr","EPS":"eps",
-  "부채비율":"debt","유보율":"retained","영업이익률":"opm","지배ROE":"roe","부채총계":"liab",
+  "결산년도":"period","결과도":"period",
+  "자산총계":"assets","자본총계":"equity","부채총계":"liab",
+  "매출액":"rev","영업이익":"op","당기순익":"net",
+  "영업흐름":"cfo","투자흐름":"cfi","재무흐름":"cff","순현금흐름":"fcf",
+  "PER":"per","PBR":"pbr","EPS":"eps",
+  "부채율":"debt","유보율":"retained","영익률":"opm","지배ROE":"roe",
+  "당기순이익":"net","영업활동현금흐름":"cfo","투자활동현금흐름":"cfi",
+  "재무활동현금흐름":"cff","부채비율":"debt","영업이익률":"opm",
 };
 
 const decodeEucKr=(buffer)=>{
@@ -512,10 +518,23 @@ const decodeEucKr=(buffer)=>{
   catch{return new TextDecoder("latin1").decode(buffer);}
 };
 
-// "25년12월(4Q)" 또는 "2025년12월(4Q)" 파싱
+// RFC4180 CSV 파서 - 따옴표 안 쉼표(1,418 등) 정확히 처리
+const parseCSVLine=(line)=>{
+  const cells=[];let cur="",inQ=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch==='"'){if(inQ&&line[i+1]==='"'){cur+='"';i++;}else{inQ=!inQ;}}
+    else if(ch===','&&!inQ){cells.push(cur.trim());cur="";}
+    else{cur+=ch;}
+  }
+  cells.push(cur.trim());
+  return cells;
+};
+
+// "25년12월(4Q)" → {year,month,quarter,label}
 const parseHtsPeriod=(raw)=>{
   const s=String(raw||"").trim();
-  const m=s.match(/^(\d{2,4})년(\d{1,2})월(?:\((\d)Q\))?/);
+  const m=s.match(/(\d{2,4})년(\d{1,2})월(?:\((\d)Q\))?/);
   if(!m)return null;
   const yr=parseInt(m[1]);
   const year=yr<100?(yr>=18?2000+yr:1900+yr):yr;
@@ -527,34 +546,35 @@ const parseHtsPeriod=(raw)=>{
 const parseHtsCsv=(text)=>{
   const lines=text.split(/\r?\n/).filter(l=>l.trim());
   if(!lines.length)return[];
-  // 헤더
-  const headers=lines[0].split(",").map(h=>h.replace(/^"|"$/g,"").trim());
+  const headers=parseCSVLine(lines[0]);
   const colIdx={};
-  headers.forEach((h,i)=>{const mapped=HTS_COL_MAP[h];if(mapped)colIdx[mapped]=i;});
+  headers.forEach((h,i)=>{
+    const mapped=HTS_COL_MAP[h];
+    if(mapped&&colIdx[mapped]==null)colIdx[mapped]=i;
+  });
+  const periodIdx=colIdx.period??0;
   const rows=[];
   for(let i=1;i<lines.length;i++){
-    const cells=lines[i].split(",").map(c=>c.replace(/^"|"$/g,"").trim());
-    const periodRaw=cells[colIdx.period??0]||"";
-    const parsed=parseHtsPeriod(periodRaw);
+    const cells=parseCSVLine(lines[i]);
+    if(!cells.length)continue;
+    const parsed=parseHtsPeriod(cells[periodIdx]||"");
     if(!parsed)continue;
     const row={...parsed};
     Object.entries(colIdx).forEach(([field,ci])=>{
       if(field==="period")return;
-      const clean=(cells[ci]||"").replace(/,/g,"").trim();
-      row[field]=clean===""||clean==="-"||clean==="N/A"?null:parseFloat(clean);
+      const v=cells[ci]||"";
+      const clean=v.replace(/,/g,"").trim();
+      row[field]=(clean===""||clean==="-"||clean==="N/A")?null:(parseFloat(clean)||null);
     });
-    // shares 자동 역산: net / eps × 1억
-    if(row.shares==null&&row.net!=null&&row.eps!=null&&row.eps!==0){
+    if(row.shares==null&&row.net!=null&&row.eps!=null&&Math.abs(row.eps)>0){
       row.shares=Math.round(Math.abs(row.net/row.eps)*1e8);
     }
     rows.push(row);
   }
-  // 오래된 순 정렬
   rows.sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month);
   return rows;
 };
 
-// 분기 Q4 데이터로 연간 데이터 역산
 const buildAnnFromQtr=(qtrData)=>{
   const byYear={};
   qtrData.forEach(r=>{
@@ -563,24 +583,19 @@ const buildAnnFromQtr=(qtrData)=>{
     if(r.quarter===4)byYear[r.year].q4=r;
   });
   return Object.values(byYear)
-    .filter(g=>g.q4||g.all.length>0)
+    .filter(g=>g.all.length>0)
     .map(g=>{
       const src=g.q4||g.all[g.all.length-1];
-      // 손익계산서: Q4 누적이 연간값 — 영웅문은 분기별 단순값이므로 합산
-      const sum=(key)=>g.all.reduce((s,r)=>s+(r[key]||0),0);
+      const sumQ=(key)=>{
+        const vals=g.all.map(r=>r[key]).filter(v=>v!=null);
+        return vals.length?+vals.reduce((s,v)=>s+v,0).toFixed(1):null;
+      };
       return{
         year:g.year,
-        rev:+sum("rev").toFixed(1)||src.rev,
-        op:+sum("op").toFixed(1)||src.op,
-        net:+sum("net").toFixed(1)||src.net,
-        cfo:+sum("cfo").toFixed(1)||src.cfo,
-        cfi:+sum("cfi").toFixed(1)||src.cfi,
-        cff:+sum("cff").toFixed(1)||src.cff,
-        fcf:+sum("fcf").toFixed(1)||src.fcf,
-        // 스톡 항목(재무상태표)은 Q4 값 사용
+        rev:sumQ("rev"),op:sumQ("op"),net:sumQ("net"),
+        cfo:sumQ("cfo"),cfi:sumQ("cfi"),cff:sumQ("cff"),fcf:sumQ("fcf"),
         assets:src.assets,liab:src.liab,equity:src.equity,
         debt:src.debt,retained:src.retained,
-        // 비율/주가지표는 Q4 기준
         opm:src.opm,roe:src.roe,eps:src.eps,per:src.per,pbr:src.pbr,
         shares:src.shares,
       };
@@ -594,30 +609,22 @@ const parseHtsFile=(file)=>new Promise((resolve,reject)=>{
     try{
       const text=decodeEucKr(e.target.result);
       const qtrData=parseHtsCsv(text);
-      if(!qtrData.length)throw new Error("데이터를 찾을 수 없습니다. 영웅문 분기 재무추이 CSV인지 확인하세요.");
+      if(!qtrData.length)throw new Error("데이터 없음. 영웅문→재무추이→분기→CSV저장 후 업로드하세요.");
       const annData=buildAnnFromQtr(qtrData);
-      // 파일명에서 종목명/티커 추출
       const tickerMatch=file.name.match(/(?:^|_)(\d{6})(?:_|\.)/);
       const nameRaw=file.name
-        .replace(/\.csv$/i,"")
-        .replace(/_분기_?$/,"")
-        .replace(/_연간_?$/,"")
-        .replace(/(?:^|_)\d{6}(?:_|$)/,"")
-        .replace(/^_|_$/g,"")
-        .trim();
+        .replace(/\.csv$/i,"").replace(/_분기_?$/,"").replace(/_연간_?$/,"")
+        .replace(/(?:^|_)\d{6}(?:_|$)/,"").replace(/^_|_$/g,"").trim();
       resolve({
         ticker:tickerMatch?.[1]||"",
-        name:nameRaw,
-        qtrData,
-        annData,
-        divData:[],
+        name:nameRaw||file.name.replace(/\.csv$/i,""),
+        qtrData,annData,divData:[],
       });
     }catch(err){reject(err);}
   };
-  reader.onerror=reject;
+  reader.onerror=()=>reject(new Error("파일 읽기 실패"));
   reader.readAsArrayBuffer(file);
 });
-
 // ══════════════════════════════════════════════════════════════
 // 6. 종목 목록
 // ══════════════════════════════════════════════════════════════
