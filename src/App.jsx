@@ -3890,6 +3890,84 @@ export default function App(){
               );
             })()}
 
+            {/* ══ Crisis Navigation ══ */}
+            {macroData?.crisisAnalysis?.navigation&&(()=>{
+              const nav = macroData.crisisAnalysis.navigation;
+              const tc  = nav.topCrisis;
+              const pct = nav.proximityScore;
+              const barW = Math.min(100, pct);
+              const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
+              const impactKospi = tc?.impact?.kospi;
+              const impactKrw   = tc?.impact?.krw;
+              const impactDesc  = tc?.impact?.desc;
+              return(
+              <Box>
+                <ST accent={C.cyan}>🧭 Crisis Navigation</ST>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+
+                  {/* 상단: 유사 위기 + 예상 도달 */}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    <div style={{flex:1,minWidth:120,background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${barColor}44`}}>
+                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>가장 유사한 위기</div>
+                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{tc?.label||"—"}</div>
+                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>{tc?.date} · SEFCON {tc?.defcon}</div>
+                    </div>
+                    <div style={{flex:1,minWidth:120,background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
+                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 예상 도달</div>
+                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}</div>
+                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>거리 {nav.distToTop}pt 남음</div>
+                    </div>
+                  </div>
+
+                  {/* 근접도 바 */}
+                  <div style={{background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
+                      <span style={{color:C.muted,fontSize:9}}>현재 위기 근접도</span>
+                      <span style={{color:barColor,fontWeight:900,fontSize:11}}>{pct}%</span>
+                    </div>
+                    <div style={{background:`${C.muted}22`,borderRadius:4,height:8,overflow:"hidden"}}>
+                      <div style={{width:`${barW}%`,height:"100%",borderRadius:4,background:barColor,transition:"width 0.5s"}}/>
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
+                      <span style={{color:C.muted,fontSize:8}}>안전</span>
+                      <span style={{color:C.muted,fontSize:8}}>위기</span>
+                    </div>
+                  </div>
+
+                  {/* 위험 지표 밀도 */}
+                  <div style={{background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{color:C.muted,fontSize:9}}>위험 지표 밀도</span>
+                      <span style={{color:nav.dangerDensity>=50?C.red:nav.dangerDensity>=30?C.orange:C.green,
+                                    fontWeight:900,fontSize:11}}>
+                        {nav.dangerCount}/{nav.totalIndicators} ({nav.dangerDensity}%)
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* 위기 발생시 예상 파급력 */}
+                  {tc?.impact&&(
+                  <div style={{background:`${C.red}11`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.red}33`}}>
+                    <div style={{color:C.muted,fontSize:9,marginBottom:6}}>위기 발생시 예상 파급력</div>
+                    <div style={{display:"flex",gap:16,marginBottom:5}}>
+                      <div>
+                        <div style={{color:C.muted,fontSize:8}}>코스피</div>
+                        <div style={{color:C.red,fontWeight:900,fontSize:14}}>{impactKospi>0?"+":""}{impactKospi}%</div>
+                      </div>
+                      <div>
+                        <div style={{color:C.muted,fontSize:8}}>원/달러</div>
+                        <div style={{color:C.orange,fontWeight:900,fontSize:14}}>{impactKrw>0?"+":""}{impactKrw}%</div>
+                      </div>
+                    </div>
+                    <div style={{color:`${C.muted}CC`,fontSize:8,fontStyle:"italic"}}>"{impactDesc}"</div>
+                  </div>
+                  )}
+
+                </div>
+              </Box>
+              );
+            })()}
+
             {/* ══ 역사적 위기 유사도 분석 ══ */}
             {macroData?.crisisAnalysis&&(()=>{
               const ca=macroData.crisisAnalysis;
@@ -4008,6 +4086,19 @@ export default function App(){
                 const ucol=lastUS==null?"#888":lastUS<-0.5?C.red:lastUS<0?C.orange:lastUS<0.5?C.gold:C.green;
                 const ulbl=lastUS==null?"":lastUS<-0.5?"역전 위험":lastUS<0?"역전중":lastUS<0.5?"평탄":"정상";
                 return(<>
+                <div style={{background:`${C.red}0e`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.red,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    미국 10년 국채금리 − 2년 국채금리의 차이입니다. 장기금리가 단기금리보다 낮아지는 "<span style={{color:C.red,fontWeight:700}}>역전</span>" 현상은
+                    경기침체의 가장 강력한 선행지표로, 1970년 이후 미국 침체 전 <span style={{color:C.gold,fontWeight:700}}>100% 발생</span>했습니다.<br/>
+                    역전 후 실제 침체까지 평균 <span style={{color:C.gold,fontWeight:700}}>12~18개월</span> 소요. 실선=미국(파랑), 점선=한국(금색)
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 +0.5%↑","정상"],["🟡 0~+0.5%","평탄"],["🟠 -0.5%~0","역전경계"],["🔴 -1%↓","심각역전"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>역전 → 평균 12~18개월 후 경기침체 · 2008/2020 모두 선행</span>
@@ -4056,15 +4147,24 @@ export default function App(){
                 const vc=last==null?"#888":last>=35?C.red:last>=25?C.orange:last>=18?C.gold:C.green;
                 const vl=last==null?"":last>=35?"극단공포":last>=25?"공포":last>=18?"경계":"안정";
                 return(<>
+                <div style={{background:`${C.purple}0e`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.purple,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    투자자들이 향후 30일 주가 변동성에 얼마나 불안해하는지를 나타내는 <span style={{color:C.purple,fontWeight:700}}>공포 온도계</span>입니다.
+                    숫자가 높을수록 시장 참여자들이 패닉 상태임을 의미합니다.<br/>
+                    2008년 금융위기 시 <span style={{color:C.red,fontWeight:700}}>80</span>, 2020년 코로나 충격 시 <span style={{color:C.red,fontWeight:700}}>66</span>까지 급등했습니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 18 미만","안정"],["🟡 18~25","경계"],["🟠 25~35","공포"],["🔴 35↑","극단패닉"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>VIX 20이상 주의 · 30이상 위기 · 40이상 패닉</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="vixGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.4}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4097,15 +4197,25 @@ export default function App(){
                 const vc=last==null?"#888":last>=4?C.red:last>=3?C.orange:last>=2?C.gold:C.green;
                 const vl=last==null?"":last>=4?"위기":last>=3?"경계":last>=2?"주의":"안정";
                 return(<>
+                <div style={{background:`${C.red}0e`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.red,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    투자등급 하단 기업(Baa등급)의 채권금리와 미국 국채금리의 차이입니다.
+                    기업들이 돈을 빌릴 때 국채 대비 <span style={{color:C.red,fontWeight:700}}>얼마나 더 비싸게</span> 빌려야 하는지를 보여줍니다.<br/>
+                    스프레드가 벌어질수록 투자자들이 기업 부도를 우려한다는 신호입니다.
+                    2008년 리만 사태 때 <span style={{color:C.red,fontWeight:700}}>4.2%p</span>까지 급등했습니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 2%p 미만","안정"],["🟡 2~3%p","주의"],["🟠 3~4%p","경계"],["🔴 4%p↑","위기"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>Baa−국채 스프레드 · 2008년 4%↑ · 2020년 3%↑ · 정상 1~2%</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}%p {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="hyGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4137,15 +4247,25 @@ export default function App(){
                 const vc=last==null?"#888":last>=9?C.red:last>=6?C.orange:last>=4?C.gold:C.green;
                 const vl=last==null?"":last>=9?"위기":last>=6?"경계":last>=4?"주의":"안정";
                 return(<>
+                <div style={{background:`${C.red}0e`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.red,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    투기등급(하이일드, BB/B 등급) 채권과 국채의 금리 차이입니다. 사모대출·중소기업 자금조달 시장의
+                    <span style={{color:C.red,fontWeight:700}}> 위험 프리미엄</span> 대용 지표로 사용합니다.<br/>
+                    Baa 스프레드보다 더 민감하게 반응해 <span style={{color:C.gold,fontWeight:700}}>위기 조기 감지</span>에 유용합니다.
+                    2008년 <span style={{color:C.red,fontWeight:700}}>18%p</span>, 2020년 코로나 <span style={{color:C.red,fontWeight:700}}>10%p</span> 급등.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 4%p 미만","안정"],["🟡 4~6%p","주의"],["🟠 6~9%p","경계"],["🔴 9%p↑","위기"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>HY 스프레드 정상 3~4%p · 경계 6~7%p · 위기 9%p↑ (사모신용 대용)</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}%p {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="bamlGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4177,15 +4297,24 @@ export default function App(){
                 const vc=last==null?"#888":last>=50?C.red:last>=20?C.orange:last>=-5?C.gold:C.green;
                 const vl=last==null?"":last>=50?"극단강화":last>=20?"경계":last>=-5?"중립":"완화";
                 return(<>
+                <div style={{background:`${C.red}0e`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.red,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    미국 연방준비제도가 분기마다 은행 임원들에게 설문하는 대출태도 지수입니다.
+                    <span style={{color:C.red,fontWeight:700}}> 양수</span>면 은행이 대출 기준을 높여서 돈 빌리기가 어려워진다는 뜻입니다.
+                    신용경색의 <span style={{color:C.gold,fontWeight:700}}>6~12개월 선행</span> 지표로 2008년·2020년 위기 전 급등했습니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 -5 미만","완화"],["🟡 -5~20","중립"],["🟠 20~50","긴축경계"],["🔴 50↑","극단긴축"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>미국 연준 선임대출담당자 서베이 · 양수=강화 · 2008년 60%↑ · 2020년 70%↑</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}% {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="usSloosGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4205,43 +4334,6 @@ export default function App(){
             </Box>
             )}
 
-            {/* ── 한국 은행 대출태도지수 (한국판 SLOOS) */}
-            {(macroData?.krSloos||[]).length>0&&(
-            <Box>
-              <ST accent={C.red}>🏛 한국 대출태도지수 — 신용경색 선행 1~2분기</ST>
-              {(()=>{
-                const data=(macroData.krSloos||[]).slice(-20);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=40?C.red:last>=20?C.orange:last>=-5?C.gold:C.green;
-                const vl=last==null?"":last>=40?"극단강화":last>=20?"경계":last>=-5?"중립":"완화";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>한국은행 대출행태서베이 · 양수=강화(긴축) · 국내은행 차주가중종합지수</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last} {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="sloosGradPos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
-                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={0}  stroke={C.muted}         strokeWidth={1.5} strokeDasharray="4 2"/>
-                    <ReferenceLine y={40} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"극단 40",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={20} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 20",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="대출태도" stroke={C.red} strokeWidth={2.5} fill="url(#sloosGradPos)" dot={{fill:C.red,r:3}} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
 
             {/* ── 미국 LEI 경기선행지수 */}
             {(macroData?.fredLEI||[]).length>0&&(
@@ -4253,15 +4345,24 @@ export default function App(){
                 const vc=last==null?"#888":last<98?C.red:last<99?C.orange:last<100.5?C.gold:C.green;
                 const vl=last==null?"":last<98?"수축":last<99?"둔화":last<100.5?"중립":"확장";
                 return(<>
+                <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    OECD가 발표하는 미국 경기선행지수로, 향후 <span style={{color:C.teal,fontWeight:700}}>6~9개월</span>의 경기 방향을 먼저 보여줍니다.
+                    주문, 건설허가, 주가, 금리차 등 10개 지표를 합성한 복합지수이며 <span style={{color:C.gold,fontWeight:700}}>100이 기준</span>입니다.<br/>
+                    100 위에서 아래로 내려오는 추세가 더 중요합니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 100.5↑","경기확장"],["🟡 99~100.5","중립"],["🟠 98~99","둔화"],["🔴 98 미만","수축"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>OECD 복합선행지수 · 100 기준 · 99이하 둔화신호</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="leiGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4294,17 +4395,31 @@ export default function App(){
                 const vc=lastDX==null?"#888":lastDX>=108?C.red:lastDX>=104?C.orange:lastDX>=100?C.gold:C.green;
                 const vl=lastDX==null?"":lastDX>=108?"달러강세위험":lastDX>=104?"경계":lastDX>=100?"보통":"달러약세";
                 return(<>
+                <div style={{background:`${C.cyan}0e`,border:`1px solid ${C.cyan}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.cyan,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    주요 6개국 통화 대비 달러 가치를 나타내는 지수입니다. 달러가 강해질수록 신흥국(한국 포함)에서
+                    <span style={{color:C.red,fontWeight:700}}> 자금이 빠져나갑니다</span>.<br/>
+                    원/달러 환율(점선)과 함께 보면 한국 금융시장 외국인 자금 흐름을 파악할 수 있습니다.
+                    실선=DXY(파랑), 점선=원달러(금색)
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 100 미만","달러약세"],["🟡 100~104","보통"],["🟠 104~108","긴축압박"],["🔴 108↑","강세위험"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>DXY강세 = 신흥국 압박·자금이탈 / 원달러와 동행</span>
                   {lastDX!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{lastDX} {vl}</span>}
                 </div>
-                <CW h={200}>
-                  <ComposedChart data={merged} margin={{top:8,right:40,left:0,bottom:8}}>
+                <CW h={210}>
+                  <ComposedChart data={merged} margin={{top:8,right:4,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis yAxisId="dxy" tick={{fill:C.cyan,fontSize:9}} width={36} domain={["auto","auto"]} tickFormatter={v=>`${v}`}/>
-                    <YAxis yAxisId="fx"  orientation="right" tick={{fill:C.gold,fontSize:9}} width={40} domain={["auto","auto"]} tickFormatter={v=>`${v}₩`}/>
+                    <YAxis yAxisId="fx"  orientation="right" tick={{fill:C.gold,fontSize:9}} width={32} domain={["auto","auto"]} tickFormatter={v=>`${v}₩`}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
                     <ReferenceLine yAxisId="dxy" y={104} stroke={`${C.orange}66`} strokeDasharray="3 3"/>
                     <ReferenceLine yAxisId="dxy" y={108} stroke={`${C.red}55`}    strokeDasharray="3 3"/>
@@ -4327,15 +4442,25 @@ export default function App(){
                 const vc=last==null?"#888":last<0.15?C.red:last<0.18?C.orange:last<0.25?C.gold:C.green;
                 const vl=last==null?"":last<0.15?"위기":last<0.18?"경계":last<0.25?"중립":"경기호조";
                 return(<>
+                <div style={{background:`${C.gold}0e`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    구리는 산업에 쓰이는 금속, 금은 위기 때 피난처입니다. 이 둘의 가격 비율로
+                    시장이 <span style={{color:C.gold,fontWeight:700}}>경기 회복을 기대하는지</span> vs <span style={{color:C.red,fontWeight:700}}>위기를 피하려는지</span>를 파악합니다.<br/>
+                    비율이 <span style={{color:C.green,fontWeight:700}}>오를수록</span> 경기 낙관, <span style={{color:C.red,fontWeight:700}}>내려갈수록</span> 위기 회피 심리 확산.
+                    ×1000 배율로 표시합니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 0.25↑","경기호조"],["🟡 0.18~0.25","중립"],["🟠 0.15~0.18","경계"],["🔴 0.15 미만","위기"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>구리(산업)/금(안전) 비율 상승 = 경기낙관 / 하락 = 위기회피</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="cgGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4364,15 +4489,25 @@ export default function App(){
                 const vc=last==null?"#888":last>=300?C.red:last>=250?C.orange:last>=210?C.gold:C.green;
                 const vl=last==null?"":last>=300?"급등위험":last>=250?"경계":last>=210?"주의":"안정";
                 return(<>
+                <div style={{background:`${C.purple}0e`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.purple,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    매주 미국에서 새로 실업수당을 신청한 사람 수입니다. 고용시장 악화를
+                    <span style={{color:C.purple,fontWeight:700}}> 가장 빠르게</span> 알려주는 주간 지표입니다.<br/>
+                    정상 구간은 <span style={{color:C.green,fontWeight:700}}>20만명(200k) 이하</span>. 수치가 오를수록 실직자 급증. 2020년 코로나 때 700k까지 폭등했습니다.
+                    여기서는 월 평균값으로 표시합니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 210k 미만","안정"],["🟡 210~250k","주의"],["🟠 250~300k","경계"],["🔴 300k↑","침체신호"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>신규 실업수당 청구 · 250k↑ 경계 · 300k↑ 침체신호 (월 평균값)</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}k {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="icsaGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4662,9 +4797,23 @@ export default function App(){
                 const vc=last==null?"#888":last>=110?C.red:last>=100?C.orange:last>=85?C.gold:C.green;
                 const vl=last==null?"":last>=110?"위험":last>=100?"경계":last>=85?"주의":"안정";
                 return(<>
+                <div style={{background:`${C.orange}0e`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.orange,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    한국 가계가 진 빚(가계신용 잔액)이 국내총생산(GDP) 대비 얼마나 되는지를 나타냅니다.
+                    BIS(국제결제은행)가 금융 안정성 평가에 쓰는 핵심 지표입니다.<br/>
+                    한국은 <span style={{color:C.red,fontWeight:700}}>OECD 최고 수준</span>으로 2022년 기준 약 105% 수준입니다.
+                    높을수록 금리 인상 시 가계 부실 위험이 커집니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 85% 미만","안정"],["🟡 85~100%","주의"],["🟠 100~110%","경계"],["🔴 110%↑","위험"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>가계신용/명목GDP · BIS: 85%↑ 주의 · 100%↑ 위험 · 한국 OECD 최고 수준</span>
+                  <span style={{fontSize:8,color:C.muted}}>가계신용잔액 ÷ 연간 명목GDP × 100 · BIS 기준</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
                 </div>
                 <CW h={210}>
@@ -4688,8 +4837,60 @@ export default function App(){
                   </ComposedChart>
                 </CW>
                 <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginTop:4}}>
-                  산출: 가계신용잔액(ECOS 151Y001) ÷ 명목GDP(한국은행 연간 공표치 분기환산) × 100
+                  산출: 가계신용잔액(ECOS 151Y001) ÷ 연간명목GDP(ECOS 200Y113) × 100
                 </div>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 한국 은행 대출태도지수 (한국판 SLOOS) */}
+            {(macroData?.krSloos||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>🏛 한국 대출태도지수 — 국내 신용경색 선행 1~2분기</ST>
+              {(()=>{
+                const data=(macroData.krSloos||[]).slice(-20);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=40?C.red:last>=20?C.orange:last>=-5?C.gold:C.green;
+                const vl=last==null?"":last>=40?"극단강화":last>=20?"경계":last>=-5?"중립":"완화";
+                return(<>
+                <div style={{background:`${C.red}0e`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.red,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    한국은행이 분기마다 국내 은행에 설문하는 대출태도 지수입니다.
+                    미국 SLOOS의 한국판으로, <span style={{color:C.red,fontWeight:700}}>국내 가계·기업 신용경색</span>을 측정합니다.<br/>
+                    <span style={{color:C.red,fontWeight:700}}>양수(+)</span>면 은행이 대출 기준을 올려 돈 빌리기 어려워진 상태.
+                    <span style={{color:C.green,fontWeight:700}}> 음수(−)</span>면 대출 기준 완화로 자금 조달이 쉬워진 상태입니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 -5 미만","완화"],["🟡 -5~20","중립"],["🟠 20~40","긴축경계"],["🔴 40↑","극단긴축"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>한국은행 대출행태서베이(514Y001) · 국내은행 차주가중종합지수</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last} {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="krSloosGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0}  stroke={C.muted}         strokeWidth={1.5} strokeDasharray="4 2"/>
+                    <ReferenceLine y={40} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"극단 40",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={20} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 20",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="대출태도" stroke={C.red} strokeWidth={2.5} fill="url(#krSloosGrad)" dot={{fill:C.red,r:3}} connectNulls/>
+                  </ComposedChart>
+                </CW>
                 </>);
               })()}
             </Box>
