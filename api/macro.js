@@ -364,6 +364,8 @@ export default async function handler(req, res) {
       ["KR_SLOOS_대출태도_AA",      "514Y001", "AA",    "Q", "2020Q1", "2024Q4"],
       ["KR_SLOOS_신용위험_514Y002", "514Y002", "1",     "Q", "2020Q1", "2024Q4"],  // 신용위험
       ["KR_SLOOS_대출수요_514Y003", "514Y003", "1",     "Q", "2020Q1", "2024Q4"],  // 대출수요
+      // ── 가계신용 단위 확인
+      ["가계신용_151Y001_1000000",  "151Y001", "1000000","Q", "2023Q1", "2024Q4"],  // 가계신용 잔액
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
