@@ -4628,6 +4628,19 @@ export default function App(){
                   const gapLabel=gap==null?"":gap>1.5?"강한 과열":gap>0.5?"과열":gap>-0.5?"중립":gap>-1.5?"저평가":"강한 저평가";
                   const gapColor=gap==null?"#888":gap>1?"#FF6B00":gap>0?"#F0C800":gap>-1?"#38BDF8":"#00C878";
                   return(<>
+                  <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      한국 경제의 두 핵심 엔진인 <span style={{color:C.teal,fontWeight:700}}>수출과 코스피</span>를 Z-Score로 정규화해 같은 축에 비교합니다.
+                      수출은 실물경기 선행지표, 코스피는 기대심리 지표로 두 선의 <span style={{color:C.gold,fontWeight:700}}>괴리(Gap)</span>가 핵심입니다.<br/>
+                      코스피가 수출보다 크게 앞서면 <span style={{color:C.red,fontWeight:700}}>과열(밸류에이션 부담)</span>, 크게 뒤처지면 <span style={{color:C.green,fontWeight:700}}>저평가(반등 기회)</span> 신호입니다.
+                    </div>
+                    <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                      {[["🔴 +1.5σ↑","강한 과열"],["🟠 +0.5~1.5σ","과열"],["🟡 ±0.5σ","중립"],["🟢 -1.5σ↓","저평가"]].map(([r,l])=>(
+                        <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                      ))}
+                    </div>
+                  </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                     background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                     <span style={{fontSize:8,color:C.muted}}>📌 Z-Score 기반 — 코스피가 수출 대비</span>
@@ -4657,6 +4670,18 @@ export default function App(){
                 {(macroData?.ppi||[]).filter(r=>r.yoy!=null).length>0&&(
                   <>
                   <ST accent={C.orange} right="생산자물가 전년비%">PPI — 원가 압력 선행지표</ST>
+                  <div style={{background:`${C.orange}0e`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:C.orange,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      기업이 물건을 만들 때 드는 <span style={{color:C.orange,fontWeight:700}}>원자재·중간재 가격 변화율</span>입니다. 소비자물가(CPI)보다 <span style={{color:C.gold,fontWeight:700}}>1~3개월 선행</span>하는 인플레이션 선행지표입니다.<br/>
+                      PPI가 오르면 기업 수익성이 악화되고 이후 소비자가격 인상으로 이어집니다. <span style={{color:C.red,fontWeight:700}}>+3% 이상</span>이면 원가 압박 경고 구간입니다.
+                    </div>
+                    <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                      {[["🟢 0% 미만","디플레"],["🟡 0~3%","안정"],["🟠 3~6%","주의"],["🔴 6%↑","원가 위기"]].map(([r,l])=>(
+                        <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                      ))}
+                    </div>
+                  </div>
                   <CW h={180}>
                     <ComposedChart data={(macroData.ppi||[]).filter(r=>r.yoy!=null).slice(-60)} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -4684,6 +4709,18 @@ export default function App(){
                   const trend=lastMA6&&prevMA6?(lastMA6.ma6>prevMA6.ma6?"개선↑":"둔화↓"):null;
                   const trendColor=trend?.includes("개선")?C.green:C.red;
                   return(<>
+                  <div style={{background:`${C.purple}0e`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:C.purple,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      제조업체 경영자가 체감하는 <span style={{color:C.purple,fontWeight:700}}>경기 상황을 매월 설문</span>한 지수입니다. <span style={{color:C.gold,fontWeight:700}}>100 이상</span>이면 확장(긍정 응답 多), 100 이하면 수축(부정 응답 多)을 의미합니다.<br/>
+                      실물 데이터보다 <span style={{color:C.purple,fontWeight:700}}>1~2개월 선행</span>하며, 6개월 이동평균 추세가 핵심입니다. 연속 하락 시 경기 둔화 신호입니다.
+                    </div>
+                    <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                      {[["🔴 85↓","침체"],["🟠 85~95","수축"],["🟡 95~100","둔화"],["🟢 100↑","확장"]].map(([r,l])=>(
+                        <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                      ))}
+                    </div>
+                  </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <ST accent={C.purple}>BSI 제조업 — 경기 방향성 선행</ST>
                     {lastMA6&&trend&&(
@@ -4722,6 +4759,18 @@ export default function App(){
                 const vc=v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;
                 const vl=v==null?"":v>=8?"과열":v>=5?"경계":v>=2?"완만":"감소";
                 return(<>
+                <div style={{background:`${C.orange}0e`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.orange,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    가계가 빌린 돈(대출+카드할부)의 <span style={{color:C.orange,fontWeight:700}}>전년 대비 증가율</span>입니다. 레이 달리오의 <span style={{color:C.gold,fontWeight:700}}>단기 부채사이클</span> 핵심 지표입니다.<br/>
+                    너무 빠르게 늘면 자산 버블과 금융 불안정 위험이 높아집니다. <span style={{color:C.red,fontWeight:700}}>+8% 이상</span>은 과열 경고, <span style={{color:C.green,fontWeight:700}}>감소세</span>는 디레버리징 진행을 의미합니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 0% 미만","감소/안정"],["🟡 0~2%","완만"],["🟠 2~5%","주의"],["🔴 5~8%","경계"],["🔴🔴 8%↑","과열"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>달리오 단기부채사이클 — 가계신용 팽창 모니터</span>
@@ -4762,6 +4811,18 @@ export default function App(){
                 const vc=v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;
                 const vl=v==null?"":v<-0.5?"역전":v<0?"평탄":v<0.5?"보통":"정상화";
                 return(<>
+                <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    국고채 10년물 금리에서 3년물 금리를 뺀 값입니다. 정상적으로는 장기금리가 더 높아 <span style={{color:C.teal,fontWeight:700}}>양수(+)</span>를 유지합니다.<br/>
+                    이 값이 <span style={{color:C.red,fontWeight:700}}>0 이하로 역전</span>되면 시장이 단기 경기를 비관한다는 신호입니다. 미국 T10Y2Y와 함께 <span style={{color:C.gold,fontWeight:700}}>경기침체 선행 6~18개월</span> 전 역전이 나타납니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🔴 0↓","역전(위험)"],["🟠 0~+0.3%p","평탄"],["🟡 +0.3~+0.5%p","보통"],["🟢 +0.5%p↑","정상화"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"5px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>달리오 빅사이클 — 역전 시 경기침체 선행 신호</span>
