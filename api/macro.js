@@ -278,6 +278,13 @@ export default async function handler(req, res) {
       ["PPI",      "404Y014", "*AA",     "M", "202201",   "202412"  ],
       ["BSI",      "512Y013", "99988",   "M", "202201",   "202412"  ],
       ["CPI",      "901Y009", "0",       "M", "202201",   "202412"  ],
+      // DSR 후보 코드 테스트
+      ["DSR_151Y013_10",  "151Y013", "10", "Q", "2020Q1", "2024Q4"],  // 가계대출 DSR 전체
+      ["DSR_151Y013_1",   "151Y013", "1",  "Q", "2020Q1", "2024Q4"],  // 은행권
+      ["DSR_151Y013_AA",  "151Y013", "AA", "Q", "2020Q1", "2024Q4"],  // 와일드카드
+      ["DSR_151Y010_A",   "151Y010", "A",  "Q", "2020Q1", "2024Q4"],  // 현재 사용중
+      ["DSR_151Y010_AA",  "151Y010", "AA", "Q", "2020Q1", "2024Q4"],  // 와일드카드
+      ["DSR_601Y001_10",  "601Y001", "10", "Q", "2020Q1", "2024Q4"],  // 부채상환비율
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
@@ -345,7 +352,7 @@ export default async function handler(req, res) {
         fetchYahooMonthly("HG=F", 5),                                    // 구리 선물
         fetchYahooMonthly("GC=F", 5),                                    // 금 선물
         fetchECOS("721Y001", "5010000", startDate,  endDate,     "M"),  // CD 91일물 수익률
-        fetchECOS("151Y010", "A",       startDateQ, `${endY}Q4`, "Q"),  // 가계부채 DSR (151Y010/A — 분기)
+        fetchECOS("151Y013", "10",      startDateQ, `${endY}Q4`, "Q"),  // 가계대출 DSR 전체(전금융권) — 분기
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
