@@ -156,53 +156,85 @@ const CRISIS_BENCHMARKS = [
     id: "imf1997", label: "한국 IMF 외환위기", date: "1997.11",
     defcon: 1, color: "#FF1A1A",
     desc: "외환보유액 39억달러 고갈, 원달러 1,964원, IMF 구제금융 550억달러",
-    // 신용위험6: T10Y2Y보통·Baa보통·HY보통·한국금리차역전·미국SLOOS보통·한국대출태도강화
-    // 유동성4: 기준금리급등·환율폭락·CD스프레드폭등·부채GDP급등
-    // 시장공포3: VIX급등·BSI폭락·DXY강세 / 실물경기5: 수출폭락·ICSA급등·GDP음전·LEI추락·구리금폭락
-    // 물가3: CPI급등·PPI급등·가계신용폭발
     cat: { 신용위험:30, 유동성:5, 시장공포:8, 실물경기:8, 물가:10 },
+    impact: { kospi:-67, krw:+100, desc:"코스피 반토막 이상, 원달러 2배" },
   },
   {
     id: "dotcom2000", label: "IT 버블 붕괴", date: "2000.03",
     defcon: 2, color: "#FF6B00",
     desc: "나스닥 -78%, 금리역전, 미국 기술주 버블 붕괴 → 한국 수출 타격",
-    // T10Y2Y역전·HY확대·미국SLOOS강화 / 유동성보통 / VIX급등·BSI수축
-    // 수출감소·GDP둔화·LEI하락 / 물가보통
     cat: { 신용위험:28, 유동성:35, 시장공포:22, 실물경기:42, 물가:45 },
+    impact: { kospi:-50, krw:+15, desc:"IT버블 연루, 코스피 -50%" },
   },
   {
     id: "gfc2008", label: "글로벌 금융위기", date: "2008.10",
     defcon: 1, color: "#FF1A1A",
     desc: "리만 붕괴, VIX 80 역대최고, Baa스프레드 4.2%p, 신용경색 전세계 확산",
-    // T10Y2Y역전(*2)·Baa4%p·HY18%p·미국SLOOS60%·한국금리차역전·한국대출태도강화 → 신용위험 최저
-    // 유동성: 금리인하로 완화 / VIX80·BSI폭락·DXY강세
-    // 수출폭락·실업급등·GDP-4%·LEI추락·구리금폭락 / CPI급락
     cat: { 신용위험:4, 유동성:20, 시장공포:3, 실물경기:8, 물가:25 },
+    impact: { kospi:-54, krw:+35, desc:"코스피 반토막, 원달러 35% 급등" },
   },
   {
     id: "europe2011", label: "유럽 재정위기", date: "2011.09",
     defcon: 2, color: "#FF6B00",
     desc: "PIIGS 국채위기, VIX 45, 신흥국 자금이탈, 원달러 급등",
-    // T10Y2Y보통·Baa확대·HY확대·미국SLOOS강화·한국금리차평탄·한국대출태도강화
     cat: { 신용위험:25, 유동성:28, 시장공포:18, 실물경기:38, 물가:38 },
+    impact: { kospi:-22, krw:+12, desc:"코스피 -22%, 원달러 급등" },
   },
   {
     id: "covid2020", label: "코로나 충격", date: "2020.03",
     defcon: 2, color: "#FF6B00",
     desc: "VIX 66, 수출 -24%, 글로벌 봉쇄 → 역대급 유동성 공급으로 빠른 회복",
-    // T10Y2Y역전·Baa급등·HY급등·미국SLOOS70%·미국금리정상·한국대출태도강화
-    // 유동성: 제로금리·QE폭발로 완화 / VIX66·BSI폭락
-    // 수출-24%·실업14%·GDP급락·구리금폭락 / CPI안정
     cat: { 신용위험:12, 유동성:58, 시장공포:6, 실물경기:10, 물가:68 },
+    impact: { kospi:-35, krw:+10, desc:"코스피 -35% 후 V자 반등" },
   },
   {
     id: "tightening2022", label: "미국 긴축 위기", date: "2022.10",
     defcon: 3, color: "#F0C800",
     desc: "금리역전 -1.06%, 원달러 1,444원, PPI 10%, 레고랜드 PF 부실 동시 발생",
-    // T10Y2Y-1.06역전(*2)·Baa보통·HY보통·미국SLOOS강화·한국금리차역전·한국대출태도강화
-    // 기준금리급등·환율약세·CD스프레드확대·부채GDP증가
-    // VIX30대·BSI수축·DXY강세 / 수출둔화·LEI하락 / CPI·PPI 고점
     cat: { 신용위험:22, 유동성:18, 시장공포:30, 실물경기:42, 물가:14 },
+    impact: { kospi:-25, krw:+20, desc:"코스피 -25%, 원달러 1,450원" },
+  },
+  {
+    id: "volcker1979", label: "볼커 긴축 쇼크", date: "1979.10",
+    defcon: 2, color: "#FF6B00",
+    desc: "연준 기준금리 20%, CPI 13%, 인플레 파이터. 신흥국 외채위기 도화선",
+    cat: { 신용위험:18, 유동성:8, 시장공포:12, 실물경기:25, 물가:5 },
+    impact: { kospi:-22, krw:+12, desc:"한국 수출 타격, 외채부담 급증" },
+  },
+  {
+    id: "japan1990", label: "일본 버블 붕괴", date: "1990.01",
+    defcon: 3, color: "#F0C800",
+    desc: "닛케이 -48%, 부동산 버블 붕괴. 한국 간접 타격, 과잉신용 경고 원형",
+    cat: { 신용위험:35, 유동성:25, 시장공포:40, 실물경기:52, 물가:20 },
+    impact: { kospi:-26, krw:+8, desc:"코스피 간접 하락, 수출 둔화" },
+  },
+  {
+    id: "bond1994", label: "채권 대학살", date: "1994.02",
+    defcon: 3, color: "#F0C800",
+    desc: "연준 급격 금리인상, 채권가격 폭락. 2022 긴축위기의 역사적 원형",
+    cat: { 신용위험:30, 유동성:22, 시장공포:28, 실물경기:45, 물가:32 },
+    impact: { kospi:-25, krw:+5, desc:"채권가격 폭락, 코스피 급락" },
+  },
+  {
+    id: "ltcm1998", label: "러시아 디폴트/LTCM", date: "1998.08",
+    defcon: 2, color: "#FF6B00",
+    desc: "HY스프레드 폭등, LTCM 붕괴 신용경색. GFC의 예고편. 한국 IMF 직후 이중충격",
+    cat: { 신용위험:15, 유동성:18, 시장공포:12, 실물경기:22, 물가:52 },
+    impact: { kospi:-35, krw:+20, desc:"IMF 직후 2차 충격, 원화 재급등" },
+  },
+  {
+    id: "china2015", label: "중국 충격", date: "2015.08",
+    defcon: 3, color: "#F0C800",
+    desc: "위안화 절하, 상하이 -40%. 한국 수출 -14%, 코스피 급락, 구리 폭락",
+    cat: { 신용위험:35, 유동성:25, 시장공포:28, 실물경기:30, 물가:55 },
+    impact: { kospi:-15, krw:+10, desc:"수출 -14%, 코스피 단기 -15%" },
+  },
+  {
+    id: "fed2018", label: "연준 긴축 2018", date: "2018.12",
+    defcon: 4, color: "#38BDF8",
+    desc: "장단기금리차 0.1%p까지 평탄, 코스피 -20%. 금리역전 직전 경고 사례",
+    cat: { 신용위험:38, 유동성:35, 시장공포:35, 실물경기:42, 물가:38 },
+    impact: { kospi:-20, krw:+8, desc:"코스피 -20%, 원달러 1,150→1,130" },
   },
 ];
 
@@ -241,7 +273,42 @@ function calcCrisisAnalysis(defconData) {
   if ((curMap["실물경기"]??50) < 40) warnings.push("실물경기 둔화");
   if ((curMap["물가"]??50) < 40)     warnings.push("물가 압력");
 
-  return { results, top, top2, warnings };
+  // ── Crisis Navigation Metrics
+  const cats = ["신용위험","유동성","시장공포","실물경기","물가"];
+  // ① proximityScore: 현재 → 가장 유사한 위기까지 유클리드 거리 → 근접도 (0~100)
+  let sumSqTop = 0;
+  cats.forEach(cat => {
+    const cur = curMap[cat] ?? 50;
+    const cri = top?.cat?.[cat] ?? 50;
+    sumSqTop += Math.pow(cur - cri, 2);
+  });
+  const distToTop = Math.sqrt(sumSqTop);
+  const proximityScore = Math.max(0, Math.round((1 - distToTop / 250) * 100));
+
+  // ② dangerDensity: 현재 음수(위험) 지표 비율
+  const indicators = defconData.indicators || [];
+  const dangerCount = indicators.filter(i => i.score < 0).length;
+  const dangerDensity = indicators.length > 0
+    ? Math.round((dangerCount / indicators.length) * 100)
+    : 0;
+
+  // ③ estimatedMonths: 위기 도달 예상 시간
+  const estimatedMonths = proximityScore >= 80 ? "3개월 이내"
+    : proximityScore >= 60 ? "6개월 이내"
+    : proximityScore >= 40 ? "12개월 이내"
+    : "안전구간";
+
+  const navigation = {
+    proximityScore,
+    distToTop: Math.round(distToTop),
+    dangerCount,
+    totalIndicators: indicators.length,
+    dangerDensity,
+    estimatedMonths,
+    topCrisis: top,
+  };
+
+  return { results, top, top2, warnings, navigation };
 }
 
 // ── SEFCON
@@ -483,8 +550,9 @@ export default async function handler(req, res) {
         ?? nominalGdpByYear[String(+yr - 2)]
         ?? null;
       if (!gdpAnnual || !r.value) return null;
-      const gdpQtr = gdpAnnual / 4;
-      return { date: r.date, value: +(r.value / gdpQtr * 100).toFixed(1) };
+      // BIS 기준: 가계신용 잔액(스톡) ÷ 연간 명목 GDP(플로우) × 100
+      // 분기 데이터지만 GDP는 연간 전체로 나눔 (/ 4 하면 4배 부풀어짐)
+      return { date: r.date, value: +(r.value / gdpAnnual * 100).toFixed(1) };
     }).filter(Boolean);
 
     // ── SEFCON 지표
