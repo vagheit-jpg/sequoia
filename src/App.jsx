@@ -3890,85 +3890,98 @@ export default function App(){
               );
             })()}
 
-            {/* ══ Crisis Navigation ══ */}
+            {/* ══ 역사적 위기 유사도 분석 ══ */}
+            {/* ══ 🧭 Crisis Navigation ══ */}
             {macroData?.crisisAnalysis?.navigation&&(()=>{
-              const nav = macroData.crisisAnalysis.navigation;
-              const tc  = nav.topCrisis;
-              const pct = nav.proximityScore;
-              const barW = Math.min(100, pct);
-              const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
-              const impactKospi = tc?.impact?.kospi;
-              const impactKrw   = tc?.impact?.krw;
-              const impactDesc  = tc?.impact?.desc;
+              const ca  = macroData.crisisAnalysis;
+              const nav = ca.navigation;
+              const top = ca.top;
+              const imp = top?.impact;
+              const prox = nav.proximityScore;
+              const proxColor = prox>=80?C.red:prox>=60?C.orange:prox>=40?C.gold:C.green;
+              const proxLabel = prox>=80?"위험 근접":prox>=60?"경계":prox>=40?"관찰":"안전";
+              const distPts   = Math.max(0, 100 - prox);
+              const densePct  = Math.round(nav.dangerDensity * 100);
+              const filledBars = Math.round(prox / 10);
               return(
               <Box>
-                <ST accent={C.cyan}>🧭 Crisis Navigation</ST>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-
-                  {/* 상단: 유사 위기 + 예상 도달 */}
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <div style={{flex:1,minWidth:120,background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${barColor}44`}}>
-                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>가장 유사한 위기</div>
-                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{tc?.label||"—"}</div>
-                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>{tc?.date} · SEFCON {tc?.defcon}</div>
-                    </div>
-                    <div style={{flex:1,minWidth:120,background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 예상 도달</div>
-                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}</div>
-                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>거리 {nav.distToTop}pt 남음</div>
-                    </div>
+                <ST accent={C.orange}>🧭 Crisis Navigation</ST>
+                {/* ── 상단: 타겟 위기명 */}
+                {top&&(
+                <div style={{background:`${top.color}12`,border:`1.5px solid ${top.color}44`,
+                  borderRadius:10,padding:"10px 12px",marginBottom:8}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <span style={{color:top.color,fontSize:9,fontWeight:800}}>
+                      가장 유사한 위기 — {top.label} ({top.date})
+                    </span>
+                    <span style={{color:`${C.muted}88`,fontSize:7}}>DEFCON {top.defcon}</span>
                   </div>
 
                   {/* 근접도 바 */}
-                  <div style={{background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                      <span style={{color:C.muted,fontSize:9}}>현재 위기 근접도</span>
-                      <span style={{color:barColor,fontWeight:900,fontSize:11}}>{pct}%</span>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                    <span style={{color:`${C.muted}99`,fontSize:7,whiteSpace:"nowrap",minWidth:52}}>현재 근접도</span>
+                    <div style={{flex:1,display:"flex",gap:2}}>
+                      {Array.from({length:10}).map((_,i)=>(
+                        <div key={i} style={{flex:1,height:8,borderRadius:2,
+                          background: i < filledBars ? proxColor : `${C.muted}22`}}/>
+                      ))}
                     </div>
-                    <div style={{background:`${C.muted}22`,borderRadius:4,height:8,overflow:"hidden"}}>
-                      <div style={{width:`${barW}%`,height:"100%",borderRadius:4,background:barColor,transition:"width 0.5s"}}/>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                      <span style={{color:C.muted,fontSize:8}}>안전</span>
-                      <span style={{color:C.muted,fontSize:8}}>위기</span>
-                    </div>
+                    <span style={{color:proxColor,fontSize:10,fontWeight:900,fontFamily:"monospace",minWidth:36}}>
+                      {prox}%
+                    </span>
                   </div>
 
-                  {/* 위험 지표 밀도 */}
-                  <div style={{background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:C.muted,fontSize:9}}>위험 지표 밀도</span>
-                      <span style={{color:nav.dangerDensity>=50?C.red:nav.dangerDensity>=30?C.orange:C.green,
-                                    fontWeight:900,fontSize:11}}>
-                        {nav.dangerCount}/{nav.totalIndicators} ({nav.dangerDensity}%)
-                      </span>
-                    </div>
+                  {/* 수치 행 */}
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {[
+                      ["위기까지 거리", `${distPts}점 남음`, proxColor],
+                      ["위험 지표 밀도", `${nav.dangerCount}/${nav.totalCount} (${densePct}%)`, densePct>=50?C.red:densePct>=30?C.orange:C.gold],
+                      ["예상 도달", nav.estimatedMonths, nav.estimatedMonths==="안전구간"?C.green:nav.estimatedMonths==="3개월 이내"?C.red:C.orange],
+                    ].map(([label,val,col])=>(
+                      <div key={label} style={{background:C.dim,borderRadius:6,padding:"5px 8px",flex:1,minWidth:80}}>
+                        <div style={{color:`${C.muted}88`,fontSize:6,marginBottom:2}}>{label}</div>
+                        <div style={{color:col,fontSize:9,fontWeight:800,fontFamily:"monospace"}}>{val}</div>
+                      </div>
+                    ))}
                   </div>
 
-                  {/* 위기 발생시 예상 파급력 */}
-                  {tc?.impact&&(
-                  <div style={{background:`${C.red}11`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.red}33`}}>
-                    <div style={{color:C.muted,fontSize:9,marginBottom:6}}>위기 발생시 예상 파급력</div>
-                    <div style={{display:"flex",gap:16,marginBottom:5}}>
-                      <div>
-                        <div style={{color:C.muted,fontSize:8}}>코스피</div>
-                        <div style={{color:C.red,fontWeight:900,fontSize:14}}>{impactKospi>0?"+":""}{impactKospi}%</div>
+                  {/* ── 위기 발생시 파급력 */}
+                  {imp&&(
+                  <div style={{marginTop:8,background:`${C.dim}`,border:`1px solid ${C.border}`,
+                    borderRadius:8,padding:"7px 10px"}}>
+                    <div style={{color:`${C.muted}99`,fontSize:7,fontWeight:700,marginBottom:5}}>
+                      ⚡ 위기 발생시 예상 파급력
+                    </div>
+                    <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                      <div style={{textAlign:"center",flex:1}}>
+                        <div style={{color:`${C.muted}77`,fontSize:6}}>코스피</div>
+                        <div style={{color:C.red,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>
+                          {imp.kospi}%
+                        </div>
                       </div>
-                      <div>
-                        <div style={{color:C.muted,fontSize:8}}>원/달러</div>
-                        <div style={{color:C.orange,fontWeight:900,fontSize:14}}>{impactKrw>0?"+":""}{impactKrw}%</div>
+                      <div style={{width:1,height:28,background:C.border}}/>
+                      <div style={{textAlign:"center",flex:1}}>
+                        <div style={{color:`${C.muted}77`,fontSize:6}}>원달러</div>
+                        <div style={{color:C.orange,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>
+                          +{imp.krw}%
+                        </div>
+                      </div>
+                      <div style={{width:1,height:28,background:C.border}}/>
+                      <div style={{flex:3}}>
+                        <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.5}}>{imp.desc}</div>
                       </div>
                     </div>
-                    <div style={{color:`${C.muted}CC`,fontSize:8,fontStyle:"italic"}}>"{impactDesc}"</div>
                   </div>
                   )}
-
+                </div>
+                )}
+                <div style={{color:`${C.muted}44`,fontSize:6,textAlign:"right"}}>
+                  근접도 = top 유사 위기 유클리드 거리 / 위험밀도 = 음수 지표 비율 / 참고용
                 </div>
               </Box>
               );
             })()}
 
-            {/* ══ 역사적 위기 유사도 분석 ══ */}
             {macroData?.crisisAnalysis&&(()=>{
               const ca=macroData.crisisAnalysis;
               const simColor=s=>s>=70?C.red:s>=50?C.orange:s>=30?C.gold:C.green;
@@ -4164,11 +4177,10 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>VIX 20이상 주의 · 30이상 위기 · 40이상 패닉</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                    <defs><linearGradient id="vixGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.4}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
-                      </linearGradient></defs>
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
@@ -4216,11 +4228,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>Baa−국채 스프레드 · 2008년 4%↑ · 2020년 3%↑ · 정상 1~2%</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}%p {vl}</span>}
-                </div>
-                    <defs><linearGradient id="hyGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
-                      </linearGradient></defs>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
@@ -4266,12 +4278,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>HY 스프레드 정상 3~4%p · 경계 6~7%p · 위기 9%p↑ (사모신용 대용)</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}%p {vl}</span>}
-                </div>
-                    <defs><linearGradient id="bamlGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
@@ -4316,12 +4327,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>미국 연준 선임대출담당자 서베이 · 양수=강화 · 2008년 60%↑ · 2020년 70%↑</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}% {vl}</span>}
-                </div>
-                    <defs><linearGradient id="usSloosGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
@@ -4365,12 +4375,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>OECD 복합선행지수 · 100 기준 · 99이하 둔화신호</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                    <defs><linearGradient id="leiGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={40} domain={["auto","auto"]}/>
@@ -4464,12 +4473,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>구리(산업)/금(안전) 비율 상승 = 경기낙관 / 하락 = 위기회피</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                    <defs><linearGradient id="cgGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={44} domain={["auto","auto"]}/>
@@ -4512,12 +4520,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>신규 실업수당 청구 · 250k↑ 경계 · 300k↑ 침체신호 (월 평균값)</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}k {vl}</span>}
-                </div>
-                    <defs><linearGradient id="icsaGrad" x1="0" y1="0" x2="0" y2="1">
+                </div> x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}k`} domain={["auto","auto"]}/>
