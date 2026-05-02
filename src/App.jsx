@@ -3935,7 +3935,10 @@ export default function App(){
                   </div>
                   {tc?.impact&&(
                   <div style={{background:`${C.red}11`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.red}33`}}>
-                    <div style={{color:C.muted,fontSize:9,marginBottom:6}}>위기 발생시 예상 파급력</div>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
+                      <div style={{color:C.muted,fontSize:9}}>위기 발생시 예상 파급력</div>
+                      <div style={{color:`${C.muted}66`,fontSize:7}}>※ 해당 위기 당시 한국 실제 영향 기준</div>
+                    </div>
                     <div style={{display:"flex",gap:16,marginBottom:5}}>
                       <div>
                         <div style={{color:C.muted,fontSize:8}}>코스피</div>
@@ -3947,6 +3950,9 @@ export default function App(){
                       </div>
                     </div>
                     <div style={{color:`${C.muted}CC`,fontSize:8,fontStyle:"italic"}}>"{tc.impact.desc}"</div>
+                    <div style={{color:`${C.muted}55`,fontSize:7,marginTop:5,lineHeight:1.6}}>
+                      ⚠️ 현재 상황이 해당 위기 패턴과 유사할 뿐, 동일한 충격을 의미하지 않습니다. 진원지·전파경로에 따라 실제 충격은 더 크거나 작을 수 있습니다.
+                    </div>
                   </div>
                   )}
                 </div>
@@ -4039,6 +4045,21 @@ export default function App(){
                           );
                         })}
                       </div>
+                      {cr.impact&&(
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                        marginTop:6,paddingTop:5,borderTop:`1px solid ${C.border}`}}>
+                        <div style={{color:`${C.muted}77`,fontSize:7}}>당시 한국 실제 영향</div>
+                        <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                          <span style={{color:C.red,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
+                            코스피 {cr.impact.kospi>0?"+":""}{cr.impact.kospi}%
+                          </span>
+                          <span style={{color:C.orange,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
+                            원달러 {cr.impact.krw>0?"+":""}{cr.impact.krw}%
+                          </span>
+                          <span style={{color:`${C.muted}99`,fontSize:7}}>{cr.impact.desc}</span>
+                        </div>
+                      </div>
+                      )}
                     </div>
                     );
                   })}
@@ -4709,6 +4730,14 @@ export default function App(){
                   const trend=lastMA6&&prevMA6?(lastMA6.ma6>prevMA6.ma6?"개선↑":"둔화↓"):null;
                   const trendColor=trend?.includes("개선")?C.green:C.red;
                   return(<>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <ST accent={C.purple}>BSI 제조업 — 경기 방향성 선행</ST>
+                    {lastMA6&&trend&&(
+                      <span style={{fontSize:10,fontWeight:700,color:trendColor,fontFamily:"monospace",marginBottom:4}}>
+                        6MA {lastMA6.ma6} {trend}
+                      </span>
+                    )}
+                  </div>
                   <div style={{background:`${C.purple}0e`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                     <div style={{color:C.purple,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
                     <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
@@ -4720,14 +4749,6 @@ export default function App(){
                         <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
                       ))}
                     </div>
-                  </div>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <ST accent={C.purple}>BSI 제조업 — 경기 방향성 선행</ST>
-                    {lastMA6&&trend&&(
-                      <span style={{fontSize:10,fontWeight:700,color:trendColor,fontFamily:"monospace",marginBottom:4}}>
-                        6MA {lastMA6.ma6} {trend}
-                      </span>
-                    )}
                   </div>
                   <CW h={190}>
                     <ComposedChart data={withMA} margin={{top:4,right:20,left:0,bottom:8}}>
