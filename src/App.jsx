@@ -3422,9 +3422,9 @@ export default function App(){
             {label:"10Y-3Y금리차", val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
-            {label:"가계DSR", val:(()=>{const v=(macroData?.ecosDSR||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
-             color:(()=>{const v=(macroData?.ecosDSR||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=45?C.red:v>=40?C.orange:v>=30?C.gold:C.green;})(),
-             tip:(()=>{const v=(macroData?.ecosDSR||[]).slice(-1)[0]?.value??null;return v==null?"":v>=45?"과부하":v>=40?"경계":v>=30?"주의":"안정";})()},
+            {label:"부채/GDP", val:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
+             color:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=110?C.red:v>=100?C.orange:v>=85?C.gold:C.green;})(),
+             tip:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"":v>=110?"위험":v>=100?"경계":v>=85?"주의":"안정";})()},
           ];
 
           // ── IndexChart — 주가탭 위치밴드 스타일
@@ -3664,7 +3664,7 @@ export default function App(){
                 {/* ── 지표 상세 그리드 */}
                 <div style={{marginBottom:8}}>
                   <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
-                    📋 지표별 상세 (20개)
+                    📋 지표별 상세 (21개)
                   </div>
                   {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
                     const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
@@ -4167,10 +4167,10 @@ export default function App(){
             </Box>
             )}
 
-            {/* ── SLOOS 은행대출 기준강화 */}
+            {/* ── 미국 SLOOS 은행대출 기준강화 */}
             {(macroData?.fredSLOOS||[]).length>0&&(
             <Box>
-              <ST accent={C.red}>🏛 SLOOS 은행대출 기준 — 신용경색 선행 6~12개월</ST>
+              <ST accent={C.red}>🏛 미국 SLOOS — 글로벌 신용경색 선행 6~12개월</ST>
               {(()=>{
                 const data=(macroData.fredSLOOS||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4179,13 +4179,13 @@ export default function App(){
                 return(<>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>양수=대출기준강화(긴축) · 2008년 60%↑ · 2020년 70%↑</span>
+                  <span style={{fontSize:8,color:C.muted}}>미국 연준 선임대출담당자 서베이 · 양수=강화 · 2008년 60%↑ · 2020년 70%↑</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}% {vl}</span>}
                 </div>
                 <CW h={200}>
                   <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
                     <defs>
-                      <linearGradient id="sloosGradPos" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="usSloosGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
@@ -4197,7 +4197,45 @@ export default function App(){
                     <ReferenceLine y={0}  stroke={C.muted}         strokeWidth={1.5} strokeDasharray="4 2"/>
                     <ReferenceLine y={50} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"극단 50",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={20} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 20",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="SLOOS" stroke={C.red} strokeWidth={2.5} fill="url(#sloosGradPos)" dot={false} connectNulls/>
+                    <Area dataKey="value" name="미국SLOOS" stroke={C.red} strokeWidth={2.5} fill="url(#usSloosGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 한국 은행 대출태도지수 (한국판 SLOOS) */}
+            {(macroData?.krSloos||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>🏛 한국 대출태도지수 — 신용경색 선행 1~2분기</ST>
+              {(()=>{
+                const data=(macroData.krSloos||[]).slice(-20);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=40?C.red:last>=20?C.orange:last>=-5?C.gold:C.green;
+                const vl=last==null?"":last>=40?"극단강화":last>=20?"경계":last>=-5?"중립":"완화";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>한국은행 대출행태서베이 · 양수=강화(긴축) · 국내은행 차주가중종합지수</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last} {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="sloosGradPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0}  stroke={C.muted}         strokeWidth={1.5} strokeDasharray="4 2"/>
+                    <ReferenceLine y={40} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"극단 40",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={20} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 20",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="대출태도" stroke={C.red} strokeWidth={2.5} fill="url(#sloosGradPos)" dot={{fill:C.red,r:3}} connectNulls/>
                   </ComposedChart>
                 </CW>
                 </>);
@@ -4614,39 +4652,44 @@ export default function App(){
             </Box>
             )}
 
-            {/* ── 한국 가계부채 DSR */}
-            {(macroData?.ecosDSR||[]).length>0&&(
+            {/* ── 한국 가계부채/GDP 비율 */}
+            {(macroData?.hhDebtGDP||[]).length>0&&(
             <Box>
-              <ST accent={C.orange}>📊 한국 가계부채 DSR — 원리금상환부담 추이</ST>
+              <ST accent={C.orange}>📊 한국 가계부채/GDP 비율 — BIS 기준 부채 건전성</ST>
               {(()=>{
-                const data=(macroData.ecosDSR||[]).slice(-20);
+                const data=(macroData.hhDebtGDP||[]).slice(-20);
                 const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=45?C.red:last>=40?C.orange:last>=30?C.gold:C.green;
-                const vl=last==null?"":last>=45?"과부하":last>=40?"경계":last>=30?"주의":"안정";
+                const vc=last==null?"#888":last>=110?C.red:last>=100?C.orange:last>=85?C.gold:C.green;
+                const vl=last==null?"":last>=110?"위험":last>=100?"경계":last>=85?"주의":"안정";
                 return(<>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>소득 대비 원리금 상환비율(DSR) · 40%이상 과중부채 임계선</span>
+                  <span style={{fontSize:8,color:C.muted}}>가계신용/명목GDP · BIS: 85%↑ 주의 · 100%↑ 위험 · 한국 OECD 최고 수준</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
                 </div>
-                <CW h={200}>
+                <CW h={210}>
                   <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
                     <defs>
-                      <linearGradient id="dsrGrad" x1="0" y1="0" x2="0" y2="1">
+                      <linearGradient id="debtGdpGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.orange} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.orange} stopOpacity={0.02}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceArea y1={40} y2={60} fill={`${C.red}08`}/>
-                    <ReferenceLine y={40} stroke={`${C.red}77`}  strokeDasharray="3 3" label={{value:"과중 40%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={30} stroke={`${C.gold}77`} strokeDasharray="3 3" label={{value:"주의 30%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="DSR" stroke={C.orange} strokeWidth={2.5} fill="url(#dsrGrad)" dot={{fill:C.orange,r:3}} connectNulls/>
+                    <ReferenceArea y1={100} y2={130} fill={`${C.red}08`}/>
+                    <ReferenceLine y={110} stroke={`${C.red}77`}    strokeDasharray="3 3" label={{value:"위험 110%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={100} stroke={`${C.orange}77`} strokeDasharray="3 3" label={{value:"경계 100%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={85}  stroke={`${C.gold}77`}   strokeDasharray="3 3" label={{value:"주의 85%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="가계부채/GDP" stroke={C.orange} strokeWidth={2.5}
+                      fill="url(#debtGdpGrad)" dot={{fill:C.orange,r:3}} connectNulls/>
                   </ComposedChart>
                 </CW>
+                <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginTop:4}}>
+                  산출: 가계신용잔액(ECOS 151Y001) ÷ 명목GDP(한국은행 연간 공표치 분기환산) × 100
+                </div>
                 </>);
               })()}
             </Box>
