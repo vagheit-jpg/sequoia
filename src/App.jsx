@@ -4360,11 +4360,32 @@ export default function App(){
               {(()=>{
                 const data=(macroData.yahooBIZD||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
+                const peak=data.reduce((m,r)=>r.value>m?r.value:m,0);
+                const drawdown=last&&peak?+((last/peak-1)*100).toFixed(1):null;
+                const ddc=drawdown==null?"#888":drawdown<-20?C.red:drawdown<-10?C.orange:drawdown<-5?C.gold:C.green;
+                const ddl=drawdown==null?"":drawdown<-20?"급락위험":drawdown<-10?"경계":drawdown<-5?"주의":"안정";
                 return(<>
+                {/* 해석 가이드 패널 */}
+                <div style={{background:`${C.teal}10`,border:`1px solid ${C.teal}33`,borderRadius:8,padding:"8px 10px",marginBottom:6}}>
+                  <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:4}}>📖 해석 가이드</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    BIZD는 BDC(Business Development Company) ETF로 중소기업·사모대출에 투자합니다.<br/>
+                    <span style={{color:C.green,fontWeight:700}}>가격 상승</span> → 사모신용 시장 건전 · 대출 수요 양호 · 위험선호 확대<br/>
+                    <span style={{color:C.red,fontWeight:700}}>가격 하락</span> → 사모신용 스트레스 · 부도 우려 증가 · 위험회피<br/>
+                    <span style={{color:`${C.muted}aa`,fontStyle:"italic"}}>※ 배당수익률 역산 불가로 가격 추이만 참고 / 위험 산출은 위 HY 스프레드 사용</span>
+                  </div>
+                </div>
+                {/* 현재값 + Drawdown */}
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>BDC ETF 가격 추이 — 위험 산출은 HY 스프레드 사용 / 참고용</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:C.muted,fontFamily:"monospace"}}>${last}</span>}
+                  <div style={{display:"flex",flexDirection:"column",gap:1}}>
+                    <span style={{fontSize:7,color:C.muted}}>전고점 대비 낙폭 (3년내)</span>
+                    <span style={{fontSize:8,color:C.muted}}>하락 -5% 주의 · -10% 경계 · -20% 위험</span>
+                  </div>
+                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+                    {last!=null&&<span style={{fontSize:11,fontWeight:700,color:C.muted,fontFamily:"monospace"}}>${last}</span>}
+                    {drawdown!=null&&<span style={{fontSize:10,fontWeight:700,color:ddc,fontFamily:"monospace"}}>{drawdown}% {ddl}</span>}
+                  </div>
                 </div>
                 <CW h={180}>
                   <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
@@ -4378,7 +4399,10 @@ export default function App(){
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`$${v}`} domain={["auto","auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <Area dataKey="value" name="BIZD가격" stroke={`${C.teal}88`} strokeWidth={1.5} fill="url(#bizdGrad)" dot={false} connectNulls/>
+                    {peak>0&&<ReferenceLine y={peak}           stroke={`${C.green}66`} strokeDasharray="3 3" label={{value:`전고점 $${peak.toFixed(0)}`,fill:C.green,fontSize:7,position:"insideTopLeft"}}/>}
+                    {peak>0&&<ReferenceLine y={+(peak*0.9).toFixed(2)} stroke={`${C.orange}55`} strokeDasharray="2 3" label={{value:"-10%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>}
+                    {peak>0&&<ReferenceLine y={+(peak*0.8).toFixed(2)} stroke={`${C.red}55`}    strokeDasharray="2 3" label={{value:"-20%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>}
+                    <Area dataKey="value" name="BIZD가격" stroke={`${C.teal}aa`} strokeWidth={2} fill="url(#bizdGrad)" dot={false} connectNulls/>
                   </ComposedChart>
                 </CW>
                 </>);
@@ -4583,6 +4607,44 @@ export default function App(){
                     <ReferenceLine y={0.5}  stroke={`${C.gold}55`}  strokeDasharray="3 3" label={{value:"0.5%p",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={-0.5} stroke={`${C.red}55`}   strokeDasharray="3 3" label={{value:"-0.5%p",fill:C.red,fontSize:7,position:"insideBottomRight"}}/>
                     <Area dataKey="value" name="10Y-3Y" stroke={C.teal} strokeWidth={2.5} fill="url(#ysGradPos)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 한국 가계부채 DSR */}
+            {(macroData?.ecosDSR||[]).length>0&&(
+            <Box>
+              <ST accent={C.orange}>📊 한국 가계부채 DSR — 원리금상환부담 추이</ST>
+              {(()=>{
+                const data=(macroData.ecosDSR||[]).slice(-20);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=45?C.red:last>=40?C.orange:last>=30?C.gold:C.green;
+                const vl=last==null?"":last>=45?"과부하":last>=40?"경계":last>=30?"주의":"안정";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>소득 대비 원리금 상환비율(DSR) · 40%이상 과중부채 임계선</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="dsrGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.orange} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.orange} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceArea y1={40} y2={60} fill={`${C.red}08`}/>
+                    <ReferenceLine y={40} stroke={`${C.red}77`}  strokeDasharray="3 3" label={{value:"과중 40%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={30} stroke={`${C.gold}77`} strokeDasharray="3 3" label={{value:"주의 30%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="DSR" stroke={C.orange} strokeWidth={2.5} fill="url(#dsrGrad)" dot={{fill:C.orange,r:3}} connectNulls/>
                   </ComposedChart>
                 </CW>
                 </>);
