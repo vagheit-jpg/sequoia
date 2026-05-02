@@ -4164,10 +4164,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>VIX 20이상 주의 · 30이상 위기 · 40이상 패닉</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="vixGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.4}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
-                      </linearGradient>
+                      </linearGradient></defs>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
@@ -4215,11 +4216,11 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>Baa−국채 스프레드 · 2008년 4%↑ · 2020년 3%↑ · 정상 1~2%</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}%p {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="hyGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
+                      </linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
@@ -4265,11 +4266,12 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>HY 스프레드 정상 3~4%p · 경계 6~7%p · 위기 9%p↑ (사모신용 대용)</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}%p {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="bamlGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs>
+                    </defs></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
@@ -4314,11 +4316,12 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>미국 연준 선임대출담당자 서베이 · 양수=강화 · 2008년 60%↑ · 2020년 70%↑</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}% {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="usSloosGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs>
+                    </defs></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
@@ -4362,11 +4365,12 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>OECD 복합선행지수 · 100 기준 · 99이하 둔화신호</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="leiGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs>
+                    </defs></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={40} domain={["auto","auto"]}/>
@@ -4460,11 +4464,12 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>구리(산업)/금(안전) 비율 상승 = 경기낙관 / 하락 = 위기회피</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="cgGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs>
+                    </defs></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={44} domain={["auto","auto"]}/>
@@ -4507,11 +4512,12 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>신규 실업수당 청구 · 250k↑ 경계 · 300k↑ 침체신호 (월 평균값)</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}k {vl}</span>}
-                </div> x1="0" y1="0" x2="0" y2="1">
+                </div>
+                    <defs><linearGradient id="icsaGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs>
+                    </defs></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}k`} domain={["auto","auto"]}/>
