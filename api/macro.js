@@ -364,10 +364,6 @@ export default async function handler(req, res) {
       ["KR_SLOOS_대출태도_AA",      "514Y001", "AA",    "Q", "2020Q1", "2024Q4"],
       ["KR_SLOOS_신용위험_514Y002", "514Y002", "1",     "Q", "2020Q1", "2024Q4"],  // 신용위험
       ["KR_SLOOS_대출수요_514Y003", "514Y003", "1",     "Q", "2020Q1", "2024Q4"],  // 대출수요
-      // ── 자금순환표 가계부채 탐색 (BIS 광의 기준)
-      ["자금순환_주요지표_283Y001_AA",  "283Y001", "AA",    "A", "2020",   "2024"  ],  // 주요지표 와일드카드
-      ["자금순환_잔액표_281Y002_AA",    "281Y002", "AA",    "A", "2020",   "2024"  ],  // 금융자산부채잔액표
-      ["자금순환_상세잔액_284Y001_AA",  "284Y001", "AA",    "A", "2020",   "2024"  ],  // 상세자금순환 잔액표
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
@@ -554,8 +550,8 @@ export default async function handler(req, res) {
         ?? nominalGdpByYear[String(+yr - 2)]
         ?? null;
       if (!gdpAnnual || !r.value) return null;
-      // BIS 기준: 가계신용 잔액(스톡) ÷ 연간 명목 GDP(플로우) × 100
-      // 분기 데이터지만 GDP는 연간 전체로 나눔 (/ 4 하면 4배 부풀어짐)
+      // ECOS 151Y001 협의 기준: 예금취급기관 대출 + 판매신용 ÷ 연간 명목 GDP × 100
+      // BIS 광의(~105%)와 다름 — 보정계수 없이 실제값 그대로 사용
       return { date: r.date, value: +(r.value / gdpAnnual * 100).toFixed(1) };
     }).filter(Boolean);
 
@@ -604,11 +600,11 @@ export default async function handler(req, res) {
       { cat:"유동성", key:"CD스프레드", label:"CD금리-기준금리 스프레드", val:last(cdSpread), unit:"%p",
         good:"안정", warn:"보통", bad:"확대",
         score: scoreV(last(cdSpread), [1.5, 1.0, 0.3, 0.1], 1) },
-      { cat:"유동성", key:"가계부채GDP", label:"가계부채/GDP 비율",        val:last(hhDebtGDP), unit:"%",
+      { cat:"유동성", key:"가계부채GDP", label:"가계부채/GDP (ECOS협의)",  val:last(hhDebtGDP), unit:"%",
         good:"안정", warn:"주의", bad:"과부하",
-        // ECOS 151Y001 협의 기준 (예금취급기관+판매신용, BIS 대비 ~75% 수준)
-        // BIS 80/90/100/110% → ECOS 환산 약 60/68/75/82% → bad2:90 bad1:82 good1:68 good2:60
-        score: scoreV(last(hhDebtGDP), [90, 82, 68, 60], 1) },
+        // ECOS 151Y001 협의 기준 실제값 (BIS ~105%와 정의 다름, 보정 없음)
+        // 현재 ~77%. 역사적: 2008년 ~60%, 2022년 ~80%. bad2:82 bad1:75 good1:65 good2:60
+        score: scoreV(last(hhDebtGDP), [82, 75, 65, 60], 1) },
 
       // ── 시장공포 (3개)
       { cat:"시장공포", key:"VIX", label:"VIX 공포지수",  val:lastFRED(fredVIX), unit:"",
