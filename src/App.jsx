@@ -3895,74 +3895,60 @@ export default function App(){
               const nav = macroData.crisisAnalysis.navigation;
               const tc  = nav.topCrisis;
               const pct = nav.proximityScore;
-              const barW = Math.min(100, pct);
               const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
-              const impactKospi = tc?.impact?.kospi;
-              const impactKrw   = tc?.impact?.krw;
-              const impactDesc  = tc?.impact?.desc;
               return(
               <Box>
                 <ST accent={C.cyan}>🧭 Crisis Navigation</ST>
                 <div style={{display:"flex",flexDirection:"column",gap:8}}>
-
-                  {/* 상단: 유사 위기 + 예상 도달 */}
                   <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <div style={{flex:1,minWidth:120,background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${barColor}44`}}>
+                    <div style={{flex:1,minWidth:120,background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${barColor}44`}}>
                       <div style={{color:C.muted,fontSize:9,marginBottom:3}}>가장 유사한 위기</div>
                       <div style={{color:barColor,fontWeight:900,fontSize:13}}>{tc?.label||"—"}</div>
                       <div style={{color:C.muted,fontSize:8,marginTop:1}}>{tc?.date} · SEFCON {tc?.defcon}</div>
                     </div>
-                    <div style={{flex:1,minWidth:120,background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
+                    <div style={{flex:1,minWidth:120,background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
                       <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 예상 도달</div>
                       <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}</div>
                       <div style={{color:C.muted,fontSize:8,marginTop:1}}>거리 {nav.distToTop}pt 남음</div>
                     </div>
                   </div>
-
-                  {/* 근접도 바 */}
-                  <div style={{background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
+                  <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                       <span style={{color:C.muted,fontSize:9}}>현재 위기 근접도</span>
                       <span style={{color:barColor,fontWeight:900,fontSize:11}}>{pct}%</span>
                     </div>
                     <div style={{background:`${C.muted}22`,borderRadius:4,height:8,overflow:"hidden"}}>
-                      <div style={{width:`${barW}%`,height:"100%",borderRadius:4,background:barColor,transition:"width 0.5s"}}/>
+                      <div style={{width:`${Math.min(100,pct)}%`,height:"100%",borderRadius:4,background:barColor,transition:"width 0.5s"}}/>
                     </div>
                     <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
                       <span style={{color:C.muted,fontSize:8}}>안전</span>
                       <span style={{color:C.muted,fontSize:8}}>위기</span>
                     </div>
                   </div>
-
-                  {/* 위험 지표 밀도 */}
-                  <div style={{background:`${C.surface}`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
+                  <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span style={{color:C.muted,fontSize:9}}>위험 지표 밀도</span>
-                      <span style={{color:nav.dangerDensity>=50?C.red:nav.dangerDensity>=30?C.orange:C.green,
-                                    fontWeight:900,fontSize:11}}>
+                      <span style={{color:nav.dangerDensity>=50?C.red:nav.dangerDensity>=30?C.orange:C.green,fontWeight:900,fontSize:11}}>
                         {nav.dangerCount}/{nav.totalIndicators} ({nav.dangerDensity}%)
                       </span>
                     </div>
                   </div>
-
-                  {/* 위기 발생시 예상 파급력 */}
                   {tc?.impact&&(
                   <div style={{background:`${C.red}11`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.red}33`}}>
                     <div style={{color:C.muted,fontSize:9,marginBottom:6}}>위기 발생시 예상 파급력</div>
                     <div style={{display:"flex",gap:16,marginBottom:5}}>
                       <div>
                         <div style={{color:C.muted,fontSize:8}}>코스피</div>
-                        <div style={{color:C.red,fontWeight:900,fontSize:14}}>{impactKospi>0?"+":""}{impactKospi}%</div>
+                        <div style={{color:C.red,fontWeight:900,fontSize:14}}>{tc.impact.kospi>0?"+":""}{tc.impact.kospi}%</div>
                       </div>
                       <div>
                         <div style={{color:C.muted,fontSize:8}}>원/달러</div>
-                        <div style={{color:C.orange,fontWeight:900,fontSize:14}}>{impactKrw>0?"+":""}{impactKrw}%</div>
+                        <div style={{color:C.orange,fontWeight:900,fontSize:14}}>{tc.impact.krw>0?"+":""}{tc.impact.krw}%</div>
                       </div>
                     </div>
-                    <div style={{color:`${C.muted}CC`,fontSize:8,fontStyle:"italic"}}>"{impactDesc}"</div>
+                    <div style={{color:`${C.muted}CC`,fontSize:8,fontStyle:"italic"}}>"{tc.impact.desc}"</div>
                   </div>
                   )}
-
                 </div>
               </Box>
               );
@@ -4168,7 +4154,7 @@ export default function App(){
                     <defs><linearGradient id="vixGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.4}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
-                      </linearGradient></defs>
+                      </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
@@ -4220,7 +4206,8 @@ export default function App(){
                     <defs><linearGradient id="hyGrad" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
-                      </linearGradient></defs>
+                      </linearGradient>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
@@ -4271,7 +4258,7 @@ export default function App(){
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
@@ -4321,7 +4308,7 @@ export default function App(){
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
                         <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
@@ -4370,7 +4357,7 @@ export default function App(){
                         <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={40} domain={["auto","auto"]}/>
@@ -4469,7 +4456,7 @@ export default function App(){
                         <stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={44} domain={["auto","auto"]}/>
@@ -4517,7 +4504,7 @@ export default function App(){
                         <stop offset="0%" stopColor={C.purple} stopOpacity={0.3}/>
                         <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
                       </linearGradient>
-                    </defs></linearGradient></defs>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}k`} domain={["auto","auto"]}/>
