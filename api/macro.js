@@ -364,8 +364,6 @@ export default async function handler(req, res) {
       ["KR_SLOOS_대출태도_AA",      "514Y001", "AA",    "Q", "2020Q1", "2024Q4"],
       ["KR_SLOOS_신용위험_514Y002", "514Y002", "1",     "Q", "2020Q1", "2024Q4"],  // 신용위험
       ["KR_SLOOS_대출수요_514Y003", "514Y003", "1",     "Q", "2020Q1", "2024Q4"],  // 대출수요
-      // ── 가계신용 단위 확인
-      ["가계신용_151Y001_1000000",  "151Y001", "1000000","Q", "2023Q1", "2024Q4"],  // 가계신용 잔액
     ];
     const results = {};
     for (const [name, stat, item, freq, sd, ed] of tests) {
@@ -604,8 +602,9 @@ export default async function handler(req, res) {
         score: scoreV(last(cdSpread), [1.5, 1.0, 0.3, 0.1], 1) },
       { cat:"유동성", key:"가계부채GDP", label:"가계부채/GDP 비율",        val:last(hhDebtGDP), unit:"%",
         good:"안정", warn:"주의", bad:"과부하",
-        // BIS 기준: 80%이하 안정, 90%이상 주의, 100%이상 위험 (한국 현재 ~100%)
-        score: scoreV(last(hhDebtGDP), [110, 100, 85, 75], 1) },
+        // ECOS 151Y001 협의 기준 (예금취급기관+판매신용, BIS 대비 ~75% 수준)
+        // BIS 80/90/100/110% → ECOS 환산 약 60/68/75/82% → bad2:90 bad1:82 good1:68 good2:60
+        score: scoreV(last(hhDebtGDP), [90, 82, 68, 60], 1) },
 
       // ── 시장공포 (3개)
       { cat:"시장공포", key:"VIX", label:"VIX 공포지수",  val:lastFRED(fredVIX), unit:"",
