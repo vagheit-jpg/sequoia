@@ -312,10 +312,10 @@ export default async function handler(req, res) {
     const startDate8 = `${endY - 2}0101`;  // 일별은 최근 2년만 (200개 제한 대응)
     const startDateQ = `${endY - 8}Q1`;
 
-    // ── 병렬 호출: ECOS 14개 + Yahoo 지수+4개 + FRED 7개
+    // ── 병렬 호출: ECOS 14개 + Yahoo 지수+4개 + FRED 8개
     const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR,
            fredT10Y2YR, fredHYR, fredDGS10R, fredVIXR, fredUNRATER,
-           fredSLOOSR, fredLEIR, fredICSAR,
+           fredSLOOSR, fredLEIR, fredICSAR, fredBAMLR,
            yahooBIZDR, yahooDXYR, yahooHGR, yahooGCR,
            ecosCDR, ecosDSRR] =
       await Promise.allSettled([
@@ -331,20 +331,21 @@ export default async function handler(req, res) {
         fetchECOS("151Y001", "1000000", startDateQ, `${endY}Q4`, "Q"),  // 가계신용 잔액(분기)
         fetchECOS("721Y001", "5050000", startDate,  endDate,     "M"),  // 국고채 10Y 수익률
         fetchECOS("721Y001", "5020000", startDate,  endDate,     "M"),  // 국고채 3Y 수익률
-        fetchFRED("T10Y2Y",   `${endY - 3}-01-01`),                     // 미국 장단기 금리차
-        fetchFRED("DBAA",     `${endY - 3}-01-01`),                     // 무디스 Baa 회사채
-        fetchFRED("DGS10",    `${endY - 3}-01-01`),                     // 미국 10년 국채 수익률
+        fetchFRED("T10Y2Y",           `${endY - 3}-01-01`),             // 미국 장단기 금리차
+        fetchFRED("DBAA",             `${endY - 3}-01-01`),             // 무디스 Baa 회사채
+        fetchFRED("DGS10",            `${endY - 3}-01-01`),             // 미국 10년 국채 수익률
         fetchVIXMonthly(),                                               // VIX (Yahoo)
-        fetchFRED("UNRATE",   `${endY - 5}-01-01`),                     // 미국 실업률
-        fetchFRED("DRTSCILM", `${endY - 5}-01-01`),                     // SLOOS 은행대출 기준강화 (신규)
-        fetchFRED("USALOLITONOSTSAM", `${endY - 5}-01-01`),             // 미국 LEI 경기선행지수 (신규)
-        fetchFRED("ICSA",     `${endY - 3}-01-01`),                     // 주간 실업청구건수 (신규, 일별→월별)
-        fetchYahooMonthly("BIZD", 5),                                    // BIZD 사모신용 ETF (신규)
-        fetchYahooMonthly("DX-Y.NYB", 5),                               // DXY 달러인덱스 (신규)
-        fetchYahooMonthly("HG=F", 5),                                    // 구리 선물 (신규)
-        fetchYahooMonthly("GC=F", 5),                                    // 금 선물 (신규)
-        fetchECOS("721Y001", "5010000", startDate,  endDate,     "M"),  // CD 91일물 수익률 (신규)
-        fetchECOS("152Y001", "M202301", startDateQ, `${endY}Q4`, "Q"),  // 가계부채 DSR (신규 — 분기)
+        fetchFRED("UNRATE",           `${endY - 5}-01-01`),             // 미국 실업률
+        fetchFRED("DRTSCILM",         `${endY - 5}-01-01`),             // SLOOS 은행대출 기준강화
+        fetchFRED("USALOLITONOSTSAM", `${endY - 5}-01-01`),             // 미국 LEI 경기선행지수
+        fetchFRED("ICSA",             `${endY - 3}-01-01`),             // 주간 실업청구건수
+        fetchFRED("BAMLH0A0HYM2",     `${endY - 5}-01-01`),             // ICE BofA HY 스프레드 (사모신용 대용, 신규)
+        fetchYahooMonthly("BIZD", 5),                                    // BIZD ETF 가격 (그래프 참고용)
+        fetchYahooMonthly("DX-Y.NYB", 5),                               // DXY 달러인덱스
+        fetchYahooMonthly("HG=F", 5),                                    // 구리 선물
+        fetchYahooMonthly("GC=F", 5),                                    // 금 선물
+        fetchECOS("721Y001", "5010000", startDate,  endDate,     "M"),  // CD 91일물 수익률
+        fetchECOS("151Y010", "A",       startDateQ, `${endY}Q4`, "Q"),  // 가계부채 DSR (151Y010/A — 분기)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -370,6 +371,7 @@ export default async function handler(req, res) {
     const fredSLOOSRaw  = ok(fredSLOOSR);
     const fredLEIRaw    = ok(fredLEIR);
     const fredICSARaw   = ok(fredICSAR);
+    const fredBAMLRaw   = ok(fredBAMLR);   // ICE BofA HY 스프레드
     const yahooBIZDRaw  = ok(yahooBIZDR);
     const yahooDXYRaw   = ok(yahooDXYR);
     const yahooHGRaw    = ok(yahooHGR);
@@ -422,7 +424,9 @@ export default async function handler(req, res) {
     const fredLEI = dailyToMonthly(fredLEIRaw);
     // ICSA: 주간 실업청구 → 월별 (천명 단위)
     const fredICSA = dailyToMonthly(fredICSARaw.map(r => ({ ...r, value: +(r.value / 1000).toFixed(1) })));
-    // BIZD ETF 가격 (사모신용 시장 프록시)
+    // ICE BofA HY 스프레드 — 일별 → 월별 (사모신용 위험 프리미엄 대용)
+    const fredBAML = dailyToMonthly(fredBAMLRaw);
+    // BIZD ETF 가격 (그래프 참고용만 — 지표 계산 미사용)
     const yahooBIZD = yahooBIZDRaw;
     // DXY 달러인덱스
     const yahooDXY = yahooDXYRaw;
@@ -471,10 +475,10 @@ export default async function handler(req, res) {
       { cat:"신용위험", key:"금리차KR",     label:"한국 10Y-3Y 금리차",       val:last(yieldSpread),    unit:"%p",
         good:"정상화", warn:"평탄", bad:"역전",
         score: scoreV(last(yieldSpread),    [-0.5,  0.0, 0.5,  1.0], -1) },
-      { cat:"신용위험", key:"BIZD",         label:"BIZD 사모신용 ETF",        val:last(yahooBIZD),      unit:"$",
-        good:"상승", warn:"보합", bad:"하락",
-        // BIZD 하락 = 사모신용 스트레스 상승. 15달러 이하 위험, 18달러 이상 안정
-        score: scoreV(last(yahooBIZD),      [13, 15, 18, 20], -1) },
+      { cat:"신용위험", key:"HY스프레드",   label:"ICE BofA HY 스프레드",      val:lastFRED(fredBAML),   unit:"%p",
+        good:"안정", warn:"경계", bad:"위기",
+        // 사모신용 대용: 정상 3~4%p, 경계 6~7%p, 위기 9%p↑
+        score: scoreV(lastFRED(fredBAML),   [ 9.0,  6.0, 4.0,  3.0],  1) },
       { cat:"신용위험", key:"SLOOS",        label:"SLOOS 은행대출 기준강화",  val:lastFRED(fredSLOOS),  unit:"%",
         good:"완화", warn:"중립", bad:"강화",
         // 양수 = 대출기준 강화(긴축). 50이상 극단, 20이상 경계
@@ -546,7 +550,7 @@ export default async function handler(req, res) {
       kospiMonthly, kosdaqMonthly,
       hhCreditYoY, yieldSpread,
       fredT10Y2Y, fredHY, fredVIX, fredUNRATE,
-      fredSLOOS, fredLEI, fredICSA,
+      fredSLOOS, fredLEI, fredICSA, fredBAML,
       yahooBIZD, yahooDXY, copperGold, yahooHG, yahooGC,
       cdSpread, ecosDSR,
       defconData,
@@ -560,6 +564,7 @@ export default async function handler(req, res) {
         fredT10Y2Y:fredT10Y2YRaw.length, fredHY:fredHYRaw.length, fredDGS10:fredDGS10Raw.length,
         fredVIX:fredVIXRaw.length, fredUNRATE:fredUNRATE.length,
         fredSLOOS:fredSLOOSRaw.length, fredLEI:fredLEIRaw.length, fredICSA:fredICSARaw.length,
+        fredBAML:fredBAMLRaw.length,
         yahooBIZD:yahooBIZDRaw.length, yahooDXY:yahooDXYRaw.length,
         yahooHG:yahooHGRaw.length, yahooGC:yahooGCRaw.length,
         cdSpread:cdSpread.length, ecosDSR:ecosDSRArr.length,
