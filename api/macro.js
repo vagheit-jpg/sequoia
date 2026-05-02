@@ -94,6 +94,32 @@ async function fetchVIXMonthly() {
   }).filter(r => r.value != null);
 }
 
+// ── Yahoo Finance 일별 → 월별 (범용: BIZD, DXY, 구리, 금 등)
+async function fetchYahooMonthly(yahooTicker, yearsBack = 5) {
+  const now = Math.floor(Date.now() / 1000);
+  const from = now - yearsBack * 365 * 24 * 60 * 60;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooTicker)}` +
+    `?interval=1mo&period1=${from}&period2=${now}&includePrePost=false`;
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Accept": "application/json",
+    },
+  });
+  if (!res.ok) throw new Error(`Yahoo ${yahooTicker} ${res.status}`);
+  const data = await res.json();
+  const result = data?.chart?.result?.[0];
+  if (!result) throw new Error(`No data: ${yahooTicker}`);
+  const timestamps = result.timestamps || result.timestamp || [];
+  const closes = result.indicators?.quote?.[0]?.close || [];
+  return timestamps.map((ts, i) => {
+    const d = new Date(ts * 1000);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    return { date: `${y}${m}`, value: closes[i] ? +closes[i].toFixed(4) : null };
+  }).filter(r => r.value != null);
+}
+
 // ── 일별 → 월별 변환 (말일 값 사용)
 function dailyToMonthly(arr) {
   const map = {};
@@ -130,37 +156,46 @@ const CRISIS_BENCHMARKS = [
     id: "imf1997", label: "한국 IMF 외환위기", date: "1997.11",
     defcon: 1, color: "#FF1A1A",
     desc: "외환보유액 39억달러 고갈, 원달러 1,964원, IMF 구제금융 550억달러",
-    cat: { 신용위험:10, 유동성:5, 시장공포:12, 실물경기:8, 물가:15 },
+    // 신용위험5: T10Y2Y역전·Baa급등·금리차역전·BIZD급등·SLOOS강화 / 유동성4: 기준금리급등·환율폭락·CD스프레드폭등·DSR과열
+    // 시장공포3: VIX급등·BSI폭락·DXY강세 / 실물경기5: 수출폭락·ICSA급등·GDP음전·LEI추락·구리금비율폭락 / 물가3: CPI급등·PPI급등·가계신용폭발
+    cat: { 신용위험:8, 유동성:5, 시장공포:10, 실물경기:8, 물가:12 },
   },
   {
     id: "dotcom2000", label: "IT 버블 붕괴", date: "2000.03",
     defcon: 2, color: "#FF6B00",
     desc: "나스닥 -78%, 금리역전, 미국 기술주 버블 붕괴 → 한국 수출 타격",
-    cat: { 신용위험:38, 유동성:25, 시장공포:22, 실물경기:52, 물가:42 },
+    cat: { 신용위험:35, 유동성:28, 시장공포:25, 실물경기:48, 물가:40 },
   },
   {
     id: "gfc2008", label: "글로벌 금융위기", date: "2008.10",
     defcon: 1, color: "#FF1A1A",
     desc: "리만 붕괴, VIX 80 역대최고, Baa스프레드 4.2%p, 신용경색 전세계 확산",
-    cat: { 신용위험:8, 유동성:18, 시장공포:5, 실물경기:15, 물가:20 },
+    // Baa급등·SLOOS극한·T10Y2Y역전·BIZD급등·금리차역전 / 유동성압박 / VIX80·BSI폭락·DXY급등
+    // 수출폭락·실업급등·GDP-4%·LEI추락·구리금폭락 / CPI급락(디플레방향)
+    cat: { 신용위험:6, 유동성:15, 시장공포:4, 실물경기:10, 물가:22 },
   },
   {
     id: "europe2011", label: "유럽 재정위기", date: "2011.09",
     defcon: 2, color: "#FF6B00",
     desc: "PIIGS 국채위기, VIX 45, 신흥국 자금이탈, 원달러 급등",
-    cat: { 신용위험:28, 유동성:22, 시장공포:18, 실물경기:40, 물가:35 },
+    cat: { 신용위험:25, 유동성:22, 시장공포:18, 실물경기:38, 물가:35 },
   },
   {
     id: "covid2020", label: "코로나 충격", date: "2020.03",
     defcon: 2, color: "#FF6B00",
     desc: "VIX 66, 수출 -24%, 글로벌 봉쇄 → 역대급 유동성 공급으로 빠른 회복",
-    cat: { 신용위험:35, 유동성:52, 시장공포:10, 실물경기:15, 물가:68 },
+    // 신용위험: Baa급등·SLOOS강화 / 유동성: 완화적(공급폭발) / VIX66·BSI폭락
+    // 수출-24%·실업14%·GDP급락·구리금비율폭락 / CPI안정(봉쇄효과)
+    cat: { 신용위험:30, 유동성:55, 시장공포:8, 실물경기:12, 물가:65 },
   },
   {
     id: "tightening2022", label: "미국 긴축 위기", date: "2022.10",
     defcon: 3, color: "#F0C800",
     desc: "금리역전 -1.06%, 원달러 1,444원, PPI 10%, 레고랜드 PF 부실 동시 발생",
-    cat: { 신용위험:32, 유동성:18, 시장공포:32, 실물경기:45, 물가:15 },
+    // T10Y2Y -1.06 역전·Baa보통·금리차역전·SLOOS강화 / 기준금리급등·환율약세·DSR과열·CD스프레드확대
+    // VIX30대·BSI수축·DXY강세 / 수출둔화·실업낮음·GDP약화·LEI하락·구리금약세
+    // CPI·PPI 고점·가계신용완만
+    cat: { 신용위험:28, 유동성:18, 시장공포:30, 실물경기:42, 물가:14 },
   },
 ];
 
@@ -277,9 +312,12 @@ export default async function handler(req, res) {
     const startDate8 = `${endY - 2}0101`;  // 일별은 최근 2년만 (200개 제한 대응)
     const startDateQ = `${endY - 8}Q1`;
 
-    // ── 병렬 호출: ECOS 12개 + Yahoo 지수 2개 + FRED 4개
+    // ── 병렬 호출: ECOS 14개 + Yahoo 지수+4개 + FRED 7개
     const [gdpR, exportR, rateR, fxR, ppiR, bsiR, cpiR, kospiR, kosdaqR, hhCreditR, bond10YR, bond3YR,
-           fredT10Y2YR, fredHYR, fredDGS10R, fredVIXR, fredUNRATER] =
+           fredT10Y2YR, fredHYR, fredDGS10R, fredVIXR, fredUNRATER,
+           fredSLOOSR, fredLEIR, fredICSAR,
+           yahooBIZDR, yahooDXYR, yahooHGR, yahooGCR,
+           ecosCDR, ecosDSRR] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -293,11 +331,20 @@ export default async function handler(req, res) {
         fetchECOS("151Y001", "1000000", startDateQ, `${endY}Q4`, "Q"),  // 가계신용 잔액(분기)
         fetchECOS("721Y001", "5050000", startDate,  endDate,     "M"),  // 국고채 10Y 수익률
         fetchECOS("721Y001", "5020000", startDate,  endDate,     "M"),  // 국고채 3Y 수익률
-        fetchFRED("T10Y2Y",        `${endY - 3}-01-01`),                // 미국 장단기 금리차
-        fetchFRED("DBAA",         `${endY - 3}-01-01`),                // 무디스 Baa 회사채
-        fetchFRED("DGS10",        `${endY - 3}-01-01`),                // 미국 10년 국채 수익률
+        fetchFRED("T10Y2Y",   `${endY - 3}-01-01`),                     // 미국 장단기 금리차
+        fetchFRED("DBAA",     `${endY - 3}-01-01`),                     // 무디스 Baa 회사채
+        fetchFRED("DGS10",    `${endY - 3}-01-01`),                     // 미국 10년 국채 수익률
         fetchVIXMonthly(),                                               // VIX (Yahoo)
-        fetchFRED("UNRATE",        `${endY - 5}-01-01`),                // 미국 실업률
+        fetchFRED("UNRATE",   `${endY - 5}-01-01`),                     // 미국 실업률
+        fetchFRED("DRTSCILM", `${endY - 5}-01-01`),                     // SLOOS 은행대출 기준강화 (신규)
+        fetchFRED("USALOLITONOSTSAM", `${endY - 5}-01-01`),             // 미국 LEI 경기선행지수 (신규)
+        fetchFRED("ICSA",     `${endY - 3}-01-01`),                     // 주간 실업청구건수 (신규, 일별→월별)
+        fetchYahooMonthly("BIZD", 5),                                    // BIZD 사모신용 ETF (신규)
+        fetchYahooMonthly("DX-Y.NYB", 5),                               // DXY 달러인덱스 (신규)
+        fetchYahooMonthly("HG=F", 5),                                    // 구리 선물 (신규)
+        fetchYahooMonthly("GC=F", 5),                                    // 금 선물 (신규)
+        fetchECOS("721Y001", "5010000", startDate,  endDate,     "M"),  // CD 91일물 수익률 (신규)
+        fetchECOS("152Y001", "M202301", startDateQ, `${endY}Q4`, "Q"),  // 가계부채 DSR (신규 — 분기)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -319,6 +366,16 @@ export default async function handler(req, res) {
     const fredDGS10Raw  = ok(fredDGS10R);
     const fredVIXRaw    = ok(fredVIXR);
     const fredUNRATE    = ok(fredUNRATER);
+    // 신규
+    const fredSLOOSRaw  = ok(fredSLOOSR);
+    const fredLEIRaw    = ok(fredLEIR);
+    const fredICSARaw   = ok(fredICSAR);
+    const yahooBIZDRaw  = ok(yahooBIZDR);
+    const yahooDXYRaw   = ok(yahooDXYR);
+    const yahooHGRaw    = ok(yahooHGR);
+    const yahooGCRaw    = ok(yahooGCR);
+    const ecosCDRaw     = ok(ecosCDR);
+    const ecosDSRArr    = ok(ecosDSRR);
 
     // ── 가공
     // GDP: 이미 전기비% → yoy 필드로 매핑
@@ -358,6 +415,38 @@ export default async function handler(req, res) {
     const fredVIX    = fredVIXRaw;  // Yahoo에서 이미 월별로 옴
     const lastFRED   = arr => arr?.slice(-1)[0]?.value ?? null;
 
+    // ── 신규 가공
+    // SLOOS: 일별 → 월별 (양수 = 대출기준 강화)
+    const fredSLOOS = dailyToMonthly(fredSLOOSRaw);
+    // LEI: 일별 → 월별 (OECD 선행지수, 100 기준)
+    const fredLEI = dailyToMonthly(fredLEIRaw);
+    // ICSA: 주간 실업청구 → 월별 (천명 단위)
+    const fredICSA = dailyToMonthly(fredICSARaw.map(r => ({ ...r, value: +(r.value / 1000).toFixed(1) })));
+    // BIZD ETF 가격 (사모신용 시장 프록시)
+    const yahooBIZD = yahooBIZDRaw;
+    // DXY 달러인덱스
+    const yahooDXY = yahooDXYRaw;
+    // 구리/금 비율 (월별 매칭)
+    const yahooHG = yahooHGRaw;  // 구리 선물 ($/lb)
+    const yahooGC = yahooGCRaw;  // 금 선물 ($/oz)
+    const copperGoldMap = {};
+    yahooGC.forEach(r => { copperGoldMap[r.date] = r.value; });
+    const copperGold = yahooHG.map(r => {
+      const gold = copperGoldMap[r.date];
+      return gold ? { date: r.date, value: +(r.value / gold * 1000).toFixed(4) } : null;
+    }).filter(Boolean);
+    // CD금리 스프레드 = CD91일 - 기준금리
+    const cdMonthly = ecosCDRaw;
+    const rateMonthly = dailyToMonthly(rateArr);
+    const rateMap2 = {};
+    rateMonthly.forEach(r => { rateMap2[r.date] = r.value; });
+    const cdSpread = cdMonthly.map(r => {
+      const base = rateMap2[r.date];
+      return base != null ? { date: r.date, value: +(r.value - base).toFixed(2) } : null;
+    }).filter(Boolean);
+    // DSR (분기, 가계부채 원리금상환비율 %)
+    const ecosDSR = ecosDSRArr;
+
     // ── SEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
@@ -372,7 +461,7 @@ export default async function handler(req, res) {
     };
 
     const indicators = [
-      // ── 신용위험
+      // ── 신용위험 (5개)
       { cat:"신용위험", key:"미국금리역전", label:"미국 장단기금리차(T10Y2Y)", val:lastFRED(fredT10Y2Y), unit:"%",
         good:"정상", warn:"평탄", bad:"역전",
         score: scoreV(lastFRED(fredT10Y2Y), [-1.0, -0.5, 0.5,  1.0], -1) * 2 }, // 가중 2배
@@ -382,35 +471,61 @@ export default async function handler(req, res) {
       { cat:"신용위험", key:"금리차KR",     label:"한국 10Y-3Y 금리차",       val:last(yieldSpread),    unit:"%p",
         good:"정상화", warn:"평탄", bad:"역전",
         score: scoreV(last(yieldSpread),    [-0.5,  0.0, 0.5,  1.0], -1) },
+      { cat:"신용위험", key:"BIZD",         label:"BIZD 사모신용 ETF",        val:last(yahooBIZD),      unit:"$",
+        good:"상승", warn:"보합", bad:"하락",
+        // BIZD 하락 = 사모신용 스트레스 상승. 15달러 이하 위험, 18달러 이상 안정
+        score: scoreV(last(yahooBIZD),      [13, 15, 18, 20], -1) },
+      { cat:"신용위험", key:"SLOOS",        label:"SLOOS 은행대출 기준강화",  val:lastFRED(fredSLOOS),  unit:"%",
+        good:"완화", warn:"중립", bad:"강화",
+        // 양수 = 대출기준 강화(긴축). 50이상 극단, 20이상 경계
+        score: scoreV(lastFRED(fredSLOOS),  [50, 20, -5, -20], 1) },
 
-      // ── 유동성
+      // ── 유동성 (4개)
       { cat:"유동성", key:"기준금리", label:"한국 기준금리", val:last(rate), unit:"%",
         good:"완화적", warn:"중립", bad:"긴축",
         score: scoreV(last(rate), [4.0, 3.0, 2.0, 1.0], 1) },
       { cat:"유동성", key:"환율",     label:"원/달러 환율", val:last(fx),   unit:"원",
         good:"강세", warn:"중립", bad:"약세",
         score: scoreV(last(fx),   [1450, 1380, 1250, 1150], 1) },
+      { cat:"유동성", key:"CD스프레드", label:"CD금리-기준금리 스프레드", val:last(cdSpread), unit:"%p",
+        good:"안정", warn:"보통", bad:"확대",
+        score: scoreV(last(cdSpread), [1.5, 1.0, 0.3, 0.1], 1) },
+      { cat:"유동성", key:"DSR",      label:"가계부채 DSR",   val:last(ecosDSR), unit:"%",
+        good:"안정", warn:"주의", bad:"과열",
+        score: scoreV(last(ecosDSR), [45, 40, 30, 25], 1) },
 
-      // ── 시장공포
+      // ── 시장공포 (3개)
       { cat:"시장공포", key:"VIX", label:"VIX 공포지수",  val:lastFRED(fredVIX), unit:"",
         good:"안정", warn:"경계", bad:"공포",
         score: scoreV(lastFRED(fredVIX), [35, 25, 18, 13], 1) },
       { cat:"시장공포", key:"BSI", label:"BSI 제조업",    val:last(bsi),         unit:"",
         good:"확장", warn:"중립", bad:"수축",
         score: scoreV(last(bsi),         [80, 90, 100, 110], -1) },
+      { cat:"시장공포", key:"DXY", label:"DXY 달러인덱스", val:last(yahooDXY),   unit:"",
+        good:"약세", warn:"중립", bad:"강세",
+        // 달러 강세 = 위험회피·신흥국 압박. 106이상 위험, 100이하 안정
+        score: scoreV(last(yahooDXY), [108, 104, 100, 97], 1) },
 
-      // ── 실물경기
-      { cat:"실물경기", key:"수출",   label:"한국 수출 YoY",  val:lastYoy(exportYoY),    unit:"%",
+      // ── 실물경기 (5개)
+      { cat:"실물경기", key:"수출",   label:"한국 수출 YoY",       val:lastYoy(exportYoY),   unit:"%",
         good:"증가", warn:"보합", bad:"감소",
-        score: scoreV(lastYoy(exportYoY),    [-15, -5,  5, 15], -1) },
-      { cat:"실물경기", key:"실업률", label:"미국 실업률",    val:lastFRED(fredUNRATE),  unit:"%",
-        good:"호조", warn:"보통", bad:"악화",
-        score: scoreV(lastFRED(fredUNRATE),  [5.5, 4.5, 3.8, 3.2], 1) },
-      { cat:"실물경기", key:"GDP",    label:"한국 GDP성장률", val:lastYoy(gdp),          unit:"%",
+        score: scoreV(lastYoy(exportYoY),   [-15, -5,  5, 15], -1) },
+      { cat:"실물경기", key:"ICSA",   label:"주간 실업청구(천건)",  val:lastFRED(fredICSA),  unit:"k",
+        good:"안정", warn:"증가", bad:"급등",
+        score: scoreV(lastFRED(fredICSA),   [300, 250, 210, 180], 1) },
+      { cat:"실물경기", key:"GDP",    label:"한국 GDP성장률",       val:lastYoy(gdp),         unit:"%",
         good:"견조", warn:"완만", bad:"침체",
-        score: scoreV(lastYoy(gdp),          [-1, 1, 3, 4], -1) },
+        score: scoreV(lastYoy(gdp),         [-1, 1, 3, 4], -1) },
+      { cat:"실물경기", key:"LEI",    label:"미국 LEI 경기선행지수", val:lastFRED(fredLEI),  unit:"",
+        good:"확장", warn:"둔화", bad:"수축",
+        // OECD LEI: 100 기준. 99이하 둔화, 98이하 수축
+        score: scoreV(lastFRED(fredLEI),    [98, 99, 100.5, 101.5], -1) },
+      { cat:"실물경기", key:"구리금", label:"구리/금 비율(×1000)",   val:last(copperGold),   unit:"",
+        good:"강세", warn:"중립", bad:"약세",
+        // 구리금 상승 = 경기기대 양호. 하락 = 경기비관
+        score: scoreV(last(copperGold),     [0.15, 0.18, 0.25, 0.30], -1) },
 
-      // ── 물가
+      // ── 물가 (3개)
       { cat:"물가", key:"CPI",    label:"한국 CPI YoY",   val:lastYoy(cpi),           unit:"%",
         good:"안정", warn:"보통", bad:"고인플",
         score: scoreV(lastYoy(cpi),           [5, 3, 1, 0], 1) },
@@ -431,6 +546,9 @@ export default async function handler(req, res) {
       kospiMonthly, kosdaqMonthly,
       hhCreditYoY, yieldSpread,
       fredT10Y2Y, fredHY, fredVIX, fredUNRATE,
+      fredSLOOS, fredLEI, fredICSA,
+      yahooBIZD, yahooDXY, copperGold, yahooHG, yahooGC,
+      cdSpread, ecosDSR,
       defconData,
       crisisAnalysis,
       updatedAt: Date.now(),
@@ -441,6 +559,10 @@ export default async function handler(req, res) {
         hhCredit:hhCreditArr.length, bond10Y:bond10YArr.length, bond3Y:bond3YArr.length,
         fredT10Y2Y:fredT10Y2YRaw.length, fredHY:fredHYRaw.length, fredDGS10:fredDGS10Raw.length,
         fredVIX:fredVIXRaw.length, fredUNRATE:fredUNRATE.length,
+        fredSLOOS:fredSLOOSRaw.length, fredLEI:fredLEIRaw.length, fredICSA:fredICSARaw.length,
+        yahooBIZD:yahooBIZDRaw.length, yahooDXY:yahooDXYRaw.length,
+        yahooHG:yahooHGRaw.length, yahooGC:yahooGCRaw.length,
+        cdSpread:cdSpread.length, ecosDSR:ecosDSRArr.length,
       }
     };
 
