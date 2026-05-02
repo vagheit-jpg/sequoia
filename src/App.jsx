@@ -3422,6 +3422,9 @@ export default function App(){
             {label:"10Y-3Y금리차", val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
+            {label:"가계DSR", val:(()=>{const v=(macroData?.ecosDSR||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
+             color:(()=>{const v=(macroData?.ecosDSR||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=45?C.red:v>=40?C.orange:v>=30?C.gold:C.green;})(),
+             tip:(()=>{const v=(macroData?.ecosDSR||[]).slice(-1)[0]?.value??null;return v==null?"":v>=45?"과부하":v>=40?"경계":v>=30?"주의":"안정";})()},
           ];
 
           // ── IndexChart — 주가탭 위치밴드 스타일
@@ -3661,7 +3664,7 @@ export default function App(){
                 {/* ── 지표 상세 그리드 */}
                 <div style={{marginBottom:8}}>
                   <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
-                    📋 지표별 상세 (13개)
+                    📋 지표별 상세 (20개)
                   </div>
                   {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
                     const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
@@ -4124,6 +4127,265 @@ export default function App(){
             </Box>
             )}
 
+            {/* ── ICE BofA HY 스프레드 (사모신용 위험 프리미엄 대용) */}
+            {(macroData?.fredBAML||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>🔥 ICE BofA HY 스프레드 — 사모신용 위험 프리미엄 대용</ST>
+              {(()=>{
+                const data=(macroData.fredBAML||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=9?C.red:last>=6?C.orange:last>=4?C.gold:C.green;
+                const vl=last==null?"":last>=9?"위기":last>=6?"경계":last>=4?"주의":"안정";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>HY 스프레드 정상 3~4%p · 경계 6~7%p · 위기 9%p↑ (사모신용 대용)</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}%p {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="bamlGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%p`} domain={[0,"auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceArea y1={9} y2={30} fill={`${C.red}08`}/>
+                    <ReferenceLine y={9}  stroke={C.red}    strokeDasharray="3 3" label={{value:"위기 9%p",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={6}  stroke={C.orange} strokeDasharray="3 3" label={{value:"경계 6%p",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={4}  stroke={C.gold}   strokeDasharray="3 3" label={{value:"주의 4%p",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="HY스프레드" stroke={C.red} strokeWidth={2.5}
+                      fill="url(#bamlGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── SLOOS 은행대출 기준강화 */}
+            {(macroData?.fredSLOOS||[]).length>0&&(
+            <Box>
+              <ST accent={C.red}>🏛 SLOOS 은행대출 기준 — 신용경색 선행 6~12개월</ST>
+              {(()=>{
+                const data=(macroData.fredSLOOS||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=50?C.red:last>=20?C.orange:last>=-5?C.gold:C.green;
+                const vl=last==null?"":last>=50?"극단강화":last>=20?"경계":last>=-5?"중립":"완화";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>양수=대출기준강화(긴축) · 2008년 60%↑ · 2020년 70%↑</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}% {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="sloosGradPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0}  stroke={C.muted}         strokeWidth={1.5} strokeDasharray="4 2"/>
+                    <ReferenceLine y={50} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"극단 50",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={20} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 20",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="SLOOS" stroke={C.red} strokeWidth={2.5} fill="url(#sloosGradPos)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 미국 LEI 경기선행지수 */}
+            {(macroData?.fredLEI||[]).length>0&&(
+            <Box>
+              <ST accent={C.teal}>📈 미국 LEI 경기선행지수 — 경기 방향 6~9개월 선행</ST>
+              {(()=>{
+                const data=(macroData.fredLEI||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last<98?C.red:last<99?C.orange:last<100.5?C.gold:C.green;
+                const vl=last==null?"":last<98?"수축":last<99?"둔화":last<100.5?"중립":"확장";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>OECD 복합선행지수 · 100 기준 · 99이하 둔화신호</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
+                </div>
+                <CW h={190}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="leiGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={100}  stroke={C.green}          strokeWidth={1.5} strokeDasharray="4 2" label={{value:"기준 100",fill:C.green,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={99}   stroke={`${C.orange}66`}  strokeDasharray="3 3" label={{value:"둔화 99",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={98}   stroke={`${C.red}66`}     strokeDasharray="3 3" label={{value:"수축 98",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="LEI" stroke={C.teal} strokeWidth={2.5} fill="url(#leiGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── DXY 달러인덱스 + 원달러 이중축 */}
+            {(macroData?.yahooDXY||[]).length>0&&(
+            <Box>
+              <ST accent={C.cyan}>💵 DXY 달러인덱스 — 글로벌 위험회피 바로미터</ST>
+              {(()=>{
+                const dxData=(macroData.yahooDXY||[]).slice(-36);
+                const fxData=(macroData.fx||[]).slice(-36);
+                const fxMap={};fxData.forEach(r=>{fxMap[r.date]=r.value;});
+                const merged=dxData.map(r=>({date:r.date,DXY:r.value,원달러:fxMap[r.date]??null}));
+                const lastDX=dxData.slice(-1)[0]?.value??null;
+                const vc=lastDX==null?"#888":lastDX>=108?C.red:lastDX>=104?C.orange:lastDX>=100?C.gold:C.green;
+                const vl=lastDX==null?"":lastDX>=108?"달러강세위험":lastDX>=104?"경계":lastDX>=100?"보통":"달러약세";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>DXY강세 = 신흥국 압박·자금이탈 / 원달러와 동행</span>
+                  {lastDX!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{lastDX} {vl}</span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={merged} margin={{top:8,right:40,left:0,bottom:8}}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis yAxisId="dxy" tick={{fill:C.cyan,fontSize:9}} width={36} domain={["auto","auto"]} tickFormatter={v=>`${v}`}/>
+                    <YAxis yAxisId="fx"  orientation="right" tick={{fill:C.gold,fontSize:9}} width={40} domain={["auto","auto"]} tickFormatter={v=>`${v}₩`}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine yAxisId="dxy" y={104} stroke={`${C.orange}66`} strokeDasharray="3 3"/>
+                    <ReferenceLine yAxisId="dxy" y={108} stroke={`${C.red}55`}    strokeDasharray="3 3"/>
+                    <Line yAxisId="dxy" dataKey="DXY"    name="DXY"    stroke={C.cyan} strokeWidth={2.5} dot={false} connectNulls/>
+                    <Line yAxisId="fx"  dataKey="원달러" name="원달러" stroke={C.gold} strokeWidth={1.5} dot={false} connectNulls strokeDasharray="4 2"/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 구리/금 비율 */}
+            {(macroData?.copperGold||[]).length>0&&(
+            <Box>
+              <ST accent={C.gold}>🔴 구리/금 비율 — 경기기대 vs 안전자산 수요</ST>
+              {(()=>{
+                const data=(macroData.copperGold||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last<0.15?C.red:last<0.18?C.orange:last<0.25?C.gold:C.green;
+                const vl=last==null?"":last<0.15?"위기":last<0.18?"경계":last<0.25?"중립":"경기호조";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>구리(산업)/금(안전) 비율 상승 = 경기낙관 / 하락 = 위기회피</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
+                </div>
+                <CW h={190}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="cgGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={44} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0.15} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"위기 0.15",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={0.18} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 0.18",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="구리/금(×1000)" stroke={C.gold} strokeWidth={2.5} fill="url(#cgGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 주간 실업청구건수 */}
+            {(macroData?.fredICSA||[]).length>0&&(
+            <Box>
+              <ST accent={C.purple}>📉 주간 실업청구건수 — 고용 악화 최조기 감지</ST>
+              {(()=>{
+                const data=(macroData.fredICSA||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                const vc=last==null?"#888":last>=300?C.red:last>=250?C.orange:last>=210?C.gold:C.green;
+                const vl=last==null?"":last>=300?"급등위험":last>=250?"경계":last>=210?"주의":"안정";
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>신규 실업수당 청구 · 250k↑ 경계 · 300k↑ 침체신호 (월 평균값)</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}k {vl}</span>}
+                </div>
+                <CW h={190}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="icsaGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.purple} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}k`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={300} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"침체 300k",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={250} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 250k",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="실업청구(k)" stroke={C.purple} strokeWidth={2.5} fill="url(#icsaGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── BIZD ETF 가격 (참고용 — 지표 계산 미사용) */}
+            {(macroData?.yahooBIZD||[]).length>0&&(
+            <Box>
+              <ST accent={C.teal}>🏦 BIZD ETF 가격 — 사모신용 시장 체감 참고용</ST>
+              {(()=>{
+                const data=(macroData.yahooBIZD||[]).slice(-36);
+                const last=data.slice(-1)[0]?.value??null;
+                return(<>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>BDC ETF 가격 추이 — 위험 산출은 HY 스프레드 사용 / 참고용</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:C.muted,fontFamily:"monospace"}}>${last}</span>}
+                </div>
+                <CW h={180}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="bizdGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.25}/>
+                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`$${v}`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <Area dataKey="value" name="BIZD가격" stroke={`${C.teal}88`} strokeWidth={1.5} fill="url(#bizdGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
             {/* ── 거시 신호등 */}
             <Box>
               <ST accent={C.teal}>거시경제 신호등</ST>
@@ -4327,266 +4589,6 @@ export default function App(){
               })()}
             </Box>
             )}
-            {/* ── 신규: BIZD 사모신용 ETF */}
-            {(macroData?.yahooBIZD||[]).length>0&&(
-            <Box>
-              <ST accent={C.red}>🏦 BIZD 사모신용 ETF — 사모금융 스트레스 선행지표</ST>
-              {(()=>{
-                const data=(macroData.yahooBIZD||[]).slice(-36);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last<13?C.red:last<15?C.orange:last<18?C.gold:C.green;
-                const vl=last==null?"":last<13?"위기":last<15?"경계":last<18?"주의":"안정";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>BDC ETF 하락 = 사모신용 스트레스 → 신용위기 선행 감지</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>${last} {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="bizdGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`$${v}`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={15} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 $15",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={13} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"위기 $13",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="BIZD" stroke={C.teal} strokeWidth={2.5} fill="url(#bizdGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 신규: 한국 DSR 추이 */}
-            {(macroData?.ecosDSR||[]).length>0&&(
-            <Box>
-              <ST accent={C.orange}>📊 한국 가계부채 DSR — 원리금상환부담 추이</ST>
-              {(()=>{
-                const data=(macroData.ecosDSR||[]).slice(-20);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=45?C.red:last>=40?C.orange:last>=30?C.gold:C.green;
-                const vl=last==null?"":last>=45?"과부하":last>=40?"경계":last>=30?"주의":"안정";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>소득 대비 원리금 상환비율 — 40%이상 과중부채 임계선</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="dsrGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.orange} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.orange} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={40} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"과중 40%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={30} stroke={`${C.gold}66`}   strokeDasharray="3 3" label={{value:"주의 30%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="DSR" stroke={C.orange} strokeWidth={2.5} fill="url(#dsrGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 신규: SLOOS 은행대출 기준강화 */}
-            {(macroData?.fredSLOOS||[]).length>0&&(
-            <Box>
-              <ST accent={C.red}>🏛 SLOOS 은행대출 기준 — 신용경색 선행 6~12개월</ST>
-              {(()=>{
-                const data=(macroData.fredSLOOS||[]).slice(-36);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=50?C.red:last>=20?C.orange:last>=-5?C.gold:C.green;
-                const vl=last==null?"":last>=50?"극단강화":last>=20?"경계":last>=-5?"중립":"완화";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>양수=대출기준강화(긴축) · 2008년 60%↑ · 2020년 70%↑</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last>0?"+":""}{last}% {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="sloosGradPos" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.red} stopOpacity={0.35}/>
-                        <stop offset="100%" stopColor={C.red} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v>0?"+":""}${v}`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={0}  stroke={C.muted}         strokeWidth={1.5} strokeDasharray="4 2"/>
-                    <ReferenceLine y={50} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"극단 50",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={20} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 20",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="SLOOS" stroke={C.red} strokeWidth={2.5} fill="url(#sloosGradPos)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 신규: 미국 LEI 경기선행지수 */}
-            {(macroData?.fredLEI||[]).length>0&&(
-            <Box>
-              <ST accent={C.teal}>📈 미국 LEI 경기선행지수 — 경기 방향 6~9개월 선행</ST>
-              {(()=>{
-                const data=(macroData.fredLEI||[]).slice(-36);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last<98?C.red:last<99?C.orange:last<100.5?C.gold:C.green;
-                const vl=last==null?"":last<98?"수축":last<99?"둔화":last<100.5?"중립":"확장";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>OECD 복합선행지수 · 100 기준 · 99이하 둔화신호</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="leiGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={100} stroke={C.green}          strokeWidth={1.5} strokeDasharray="4 2" label={{value:"기준 100",fill:C.green,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={99}  stroke={`${C.orange}66`}  strokeDasharray="3 3" label={{value:"둔화 99",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={98}  stroke={`${C.red}66`}     strokeDasharray="3 3" label={{value:"수축 98",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="LEI" stroke={C.teal} strokeWidth={2.5} fill="url(#leiGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 신규: DXY 달러인덱스 + 원달러 이중축 */}
-            {(macroData?.yahooDXY||[]).length>0&&(
-            <Box>
-              <ST accent={C.cyan}>💵 DXY 달러인덱스 — 글로벌 위험회피 바로미터</ST>
-              {(()=>{
-                const dxData=(macroData.yahooDXY||[]).slice(-36);
-                const fxData=(macroData.fx||[]).slice(-36);
-                const fxMap={};fxData.forEach(r=>{fxMap[r.date]=r.value;});
-                const merged=dxData.map(r=>({date:r.date,DXY:r.value,원달러:fxMap[r.date]??null}));
-                const lastDX=dxData.slice(-1)[0]?.value??null;
-                const vc=lastDX==null?"#888":lastDX>=108?C.red:lastDX>=104?C.orange:lastDX>=100?C.gold:C.green;
-                const vl=lastDX==null?"":lastDX>=108?"달러강세위험":lastDX>=104?"경계":lastDX>=100?"보통":"달러약세";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>DXY강세 = 신흥국 압박·자금이탈 / 원달러와 동행</span>
-                  {lastDX!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{lastDX} {vl}</span>}
-                </div>
-                <CW h={200}>
-                  <ComposedChart data={merged} margin={{top:8,right:40,left:0,bottom:8}}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis yAxisId="dxy" tick={{fill:C.cyan,fontSize:9}} width={36} domain={["auto","auto"]} tickFormatter={v=>`${v}`}/>
-                    <YAxis yAxisId="fx"  orientation="right" tick={{fill:C.gold,fontSize:9}} width={40} domain={["auto","auto"]} tickFormatter={v=>`${v}₩`}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine yAxisId="dxy" y={104} stroke={`${C.orange}66`} strokeDasharray="3 3"/>
-                    <ReferenceLine yAxisId="dxy" y={108} stroke={`${C.red}55`}    strokeDasharray="3 3"/>
-                    <Line yAxisId="dxy" dataKey="DXY"   name="DXY" stroke={C.cyan} strokeWidth={2.5} dot={false} connectNulls/>
-                    <Line yAxisId="fx"  dataKey="원달러" name="원달러" stroke={C.gold} strokeWidth={1.5} dot={false} connectNulls strokeDasharray="4 2"/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 신규: 구리/금 비율 */}
-            {(macroData?.copperGold||[]).length>0&&(
-            <Box>
-              <ST accent={C.gold}>🔴 구리/금 비율 — 경기기대 vs 안전자산 수요</ST>
-              {(()=>{
-                const data=(macroData.copperGold||[]).slice(-36);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last<0.15?C.red:last<0.18?C.orange:last<0.25?C.gold:C.green;
-                const vl=last==null?"":last<0.15?"위기":last<0.18?"경계":last<0.25?"중립":"경기호조";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>구리(산업)/금(안전) 비율 상승 = 경기낙관 / 하락 = 위기회피</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="cgGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.gold} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.gold} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={44} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={0.15} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"위기 0.15",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={0.18} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 0.18",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="구리/금(×1000)" stroke={C.gold} strokeWidth={2.5} fill="url(#cgGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
-            {/* ── 신규: 주간 실업청구건수 */}
-            {(macroData?.fredICSA||[]).length>0&&(
-            <Box>
-              <ST accent={C.purple}>📉 주간 실업청구건수 — 고용 악화 최조기 감지</ST>
-              {(()=>{
-                const data=(macroData.fredICSA||[]).slice(-36);
-                const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=300?C.red:last>=250?C.orange:last>=210?C.gold:C.green;
-                const vl=last==null?"":last>=300?"급등위험":last>=250?"경계":last>=210?"주의":"안정";
-                return(<>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>신규 실업수당 청구 · 250k↑ 경계 · 300k↑ 침체신호 (월 평균값)</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}k {vl}</span>}
-                </div>
-                <CW h={190}>
-                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
-                    <defs>
-                      <linearGradient id="icsaGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor={C.purple} stopOpacity={0.3}/>
-                        <stop offset="100%" stopColor={C.purple} stopOpacity={0.02}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={36} tickFormatter={v=>`${v}k`} domain={["auto","auto"]}/>
-                    <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceLine y={300} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"침체 300k",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={250} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 250k",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <Area dataKey="value" name="실업청구(k)" stroke={C.purple} strokeWidth={2.5} fill="url(#icsaGrad)" dot={false} connectNulls/>
-                  </ComposedChart>
-                </CW>
-                </>);
-              })()}
-            </Box>
-            )}
-
             </> /* macro 탭 끝 */}
 
             {/* ══ 코스피 섹션 ══ */}
