@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import * as XLSX from "xlsx";
 import {
-  ComposedChart, AreaChart, Area, Bar, Line,
+  ComposedChart, AreaChart, Area, Bar, Line, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   ReferenceLine, ReferenceArea, ReferenceDot,
 } from "recharts";
@@ -535,7 +535,14 @@ const buildDCFHistory=(annData,gr,dr,bondYield,capexRatio)=>{
     const rate=r.fcf?calcDCF_rate({fcf:r.fcf,gr,dr,shares:sh}):0;
     const graham=calcDCF_graham({eps:r.eps,gr,bondYield});
     const roe=calcDCF_roe({roe:r.roe,eps:r.eps});
-    return{year:r.year,fcf:r.fcf||null,owner:owner||null,rate:rate||null,graham:graham||null,roe:roe||null};
+    // 음수 적정주가는 의미 없으므로 null 처리 (FCF 마이너스 연도 등)
+    return{
+      year:r.year, fcf:r.fcf||null,
+      owner: owner>0?owner:null,
+      rate:  rate>0?rate:null,
+      graham:graham>0?graham:null,
+      roe:   roe>0?roe:null,
+    };
   });
 };
 
@@ -3120,10 +3127,14 @@ export default function App(){
                         <ComposedChart data={dcfScaled} margin={{top:4,right:56,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v>=1000?`${(v/10000).toFixed(0)}만`:`${v.toLocaleString()}`} domain={["auto","auto"]}/>
+                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${v.toLocaleString()}`} domain={[0,"auto"]}/>
                           <YAxis yAxisId="right" orientation="right" {...yp(du,48)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
                           <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                          <Bar  yAxisId="right" dataKey="fcf"    name={`FCF(${du})`}   fill={C.teal}   opacity={0.4} maxBarSize={28}/>
+                          <Bar yAxisId="right" dataKey="fcf" name={`FCF(${du})`} maxBarSize={28}>
+                            {dcfScaled.map((entry,i)=>(
+                              <Cell key={i} fill={entry.fcf!=null&&entry.fcf<0?C.red:C.teal} opacity={entry.fcf!=null&&entry.fcf<0?0.6:0.4}/>
+                            ))}
+                          </Bar>
                           <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
                           <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
                           <Line yAxisId="left"  dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
@@ -3133,7 +3144,7 @@ export default function App(){
                         </ComposedChart>
                       </CW>
                       <div style={{color:`${C.muted}66`,fontSize:7,textAlign:"right",marginTop:-4,marginBottom:6}}>
-                        좌축: 적정주가(원) · 우축: FCF({du})
+                        좌축: 적정주가(원) · 우축: FCF({du}) · FCF <span style={{color:C.red}}>■ 음수</span> <span style={{color:C.teal}}>■ 양수</span>
                       </div>
                     </>
                     );
