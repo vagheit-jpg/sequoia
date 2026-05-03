@@ -3394,35 +3394,99 @@ export default function App(){
           const lastPPI=[...(macroData?.ppi||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
           const lastBSI=(macroData?.bsi||[]).slice(-1)[0]?.value??null;
           const lastCPI=[...(macroData?.cpi||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
+          // 신호등 — 미국 지표 먼저, 한국 지표 후
+          const _t10y2y=(macroData?.fredT10Y2Y||[]).slice(-1)[0]?.value??null;
+          const _vix=(macroData?.fredVIX||[]).slice(-1)[0]?.value??null;
+          const _hy=(macroData?.fredHY||[]).slice(-1)[0]?.value??null;
+          const _baml=(macroData?.fredBAML||[]).slice(-1)[0]?.value??null;
+          const _sloos=(macroData?.fredSLOOS||[]).slice(-1)[0]?.value??null;
+          const _lei=(macroData?.fredLEI||[]).slice(-1)[0]?.value??null;
+          const _dxy=(macroData?.yahooDXY||[]).slice(-1)[0]?.value??null;
+          const _cg=(macroData?.copperGold||[]).slice(-1)[0]?.value??null;
+          const _icsa=(macroData?.fredICSA||[]).slice(-1)[0]?.value??null;
+          const _cdsp=(macroData?.yieldSpread||[]).slice(-1)[0]?.cdSpread??
+            (macroData?.defconData?.indicators||[]).find(i=>i.key==="CD스프레드")?.val??null;
           const signals=[
-            {label:"기준금리", val:lastRate!=null?`${lastRate}%`:"-",
-             color:lastRate==null?"#888":lastRate<=2.5?C.green:lastRate<=3.5?C.gold:C.red,
-             tip:lastRate==null?"":lastRate<=2.5?"완화적":lastRate<=3.5?"중립":"긴축적"},
-            {label:"원/달러",  val:lastFX!=null?`${Math.round(lastFX).toLocaleString()}원`:"-",
-             color:lastFX==null?"#888":lastFX<=1200?C.green:lastFX<=1350?C.gold:C.red,
-             tip:lastFX==null?"":lastFX<=1200?"원화강세":lastFX<=1350?"중립":"원화약세"},
-            {label:"일평균수출",val:lastExp!=null?`$${lastExp?.toFixed(0)}M`:"-",
-             color:lastExp==null||prevExp==null?"#888":lastExp>=prevExp?C.green:C.red,
-             tip:lastExp==null||prevExp==null?"":lastExp>=prevExp?"증가↑":"감소↓"},
-            {label:"GDP성장률",val:lastGDP!=null?`${lastGDP}%`:"-",
-             color:lastGDP==null?"#888":lastGDP>=3?C.green:lastGDP>=1?C.gold:C.red,
-             tip:lastGDP==null?"":lastGDP>=3?"견조":lastGDP>=1?"완만":"부진"},
-            {label:"PPI(YoY)",val:lastPPI!=null?`${lastPPI>0?"+":""}${lastPPI}%`:"-",
-             color:lastPPI==null?"#888":lastPPI>4?C.red:lastPPI>2?C.gold:C.green,
-             tip:lastPPI==null?"":lastPPI>4?"원가압력↑":lastPPI>2?"보통":"안정"},
-            {label:"BSI제조업",val:lastBSI!=null?`${lastBSI}`:"-",
-             color:lastBSI==null?"#888":lastBSI>=100?C.green:lastBSI>=90?C.gold:C.red,
-             tip:lastBSI==null?"":lastBSI>=100?"확장":lastBSI>=90?"중립":"수축"},
-            {label:"CPI(YoY)",val:lastCPI!=null?`${lastCPI>0?"+":""}${lastCPI}%`:"-",
-             color:lastCPI==null?"#888":lastCPI>5?C.red:lastCPI>3?C.orange:lastCPI>1?C.gold:C.green,
-             tip:lastCPI==null?"":lastCPI>5?"고인플레":lastCPI>3?"경계":lastCPI>1?"보통":"안정"},
-            {label:"가계신용YoY", val:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
-             color:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;})(),
-             tip:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v>=8?"과열↑":v>=5?"경계":v>=2?"완만":"감소↓";})()},
-            {label:"10Y-3Y금리차", val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
+            // ── 🇺🇸 미국 지표
+            {label:"T10Y2Y", region:"🇺🇸",
+             val:_t10y2y!=null?`${_t10y2y>0?"+":""}${_t10y2y}%p`:"-",
+             color:_t10y2y==null?"#888":_t10y2y<-1?C.red:_t10y2y<-0.5?C.orange:_t10y2y<0.5?C.gold:C.green,
+             tip:_t10y2y==null?"":_t10y2y<-0.5?"역전중":_t10y2y<0?"평탄":_t10y2y<0.5?"보통":"정상"},
+            {label:"VIX", region:"🇺🇸",
+             val:_vix!=null?`${_vix}`:"-",
+             color:_vix==null?"#888":_vix>=35?C.red:_vix>=25?C.orange:_vix>=18?C.gold:C.green,
+             tip:_vix==null?"":_vix>=35?"극단공포":_vix>=25?"공포":_vix>=18?"경계":"안정"},
+            {label:"Baa스프레드", region:"🇺🇸",
+             val:_hy!=null?`${_hy}%p`:"-",
+             color:_hy==null?"#888":_hy>=4?C.red:_hy>=3?C.orange:_hy>=2?C.gold:C.green,
+             tip:_hy==null?"":_hy>=4?"위기":_hy>=3?"경계":_hy>=2?"주의":"안정"},
+            {label:"HY스프레드", region:"🇺🇸",
+             val:_baml!=null?`${_baml}%p`:"-",
+             color:_baml==null?"#888":_baml>=9?C.red:_baml>=6?C.orange:_baml>=4?C.gold:C.green,
+             tip:_baml==null?"":_baml>=9?"위기":_baml>=6?"경계":_baml>=4?"주의":"안정"},
+            {label:"SLOOS미국", region:"🇺🇸",
+             val:_sloos!=null?`${_sloos>0?"+":""}${_sloos}%`:"-",
+             color:_sloos==null?"#888":_sloos>=50?C.red:_sloos>=20?C.orange:_sloos>=-5?C.gold:C.green,
+             tip:_sloos==null?"":_sloos>=50?"극단강화":_sloos>=20?"긴축":_sloos>=-5?"중립":"완화"},
+            {label:"LEI", region:"🇺🇸",
+             val:_lei!=null?`${_lei}`:"-",
+             color:_lei==null?"#888":_lei<98?C.red:_lei<99?C.orange:_lei<100.5?C.gold:C.green,
+             tip:_lei==null?"":_lei<98?"수축":_lei<99?"둔화":_lei<100.5?"보통":"확장"},
+            {label:"DXY", region:"🇺🇸",
+             val:_dxy!=null?`${_dxy}`:"-",
+             color:_dxy==null?"#888":_dxy>=108?C.red:_dxy>=104?C.orange:_dxy>=100?C.gold:C.green,
+             tip:_dxy==null?"":_dxy>=108?"강세위험":_dxy>=104?"압박":_dxy>=100?"보통":"약세"},
+            {label:"구리/금", region:"🇺🇸",
+             val:_cg!=null?`${_cg}`:"-",
+             color:_cg==null?"#888":_cg<0.15?C.red:_cg<0.18?C.orange:_cg<0.25?C.gold:C.green,
+             tip:_cg==null?"":_cg<0.15?"위기":_cg<0.18?"경계":_cg<0.25?"중립":"호조"},
+            {label:"ICSA(천건)", region:"🇺🇸",
+             val:_icsa!=null?`${_icsa}k`:"-",
+             color:_icsa==null?"#888":_icsa>=300?C.red:_icsa>=250?C.orange:_icsa>=210?C.gold:C.green,
+             tip:_icsa==null?"":_icsa>=300?"급등":_icsa>=250?"증가":_icsa>=210?"보통":"안정"},
+            // ── 🇰🇷 한국 지표
+            {label:"기준금리", region:"🇰🇷",
+             val:lastRate!=null?`${lastRate}%`:"-",
+             color:lastRate==null?"#888":lastRate>=4?C.red:lastRate>=3?C.orange:lastRate>=2?C.gold:C.green,
+             tip:lastRate==null?"":lastRate>=4?"긴축":lastRate>=3?"중립":lastRate>=2?"완화":"초완화"},
+            {label:"원/달러", region:"🇰🇷",
+             val:lastFX!=null?`${Math.round(lastFX).toLocaleString()}원`:"-",
+             color:lastFX==null?"#888":lastFX>=1450?C.red:lastFX>=1380?C.orange:lastFX>=1250?C.gold:C.green,
+             tip:lastFX==null?"":lastFX>=1450?"약세위험":lastFX>=1380?"경계":lastFX>=1250?"중립":"강세"},
+            {label:"10Y-3Y금리차", region:"🇰🇷",
+             val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
-            {label:"부채/GDP", val:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
+            {label:"SLOOS한국", region:"🇰🇷",
+             val:(()=>{const v=(macroData?.krSloos||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}`:"-";})(),
+             color:(()=>{const v=(macroData?.krSloos||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=40?C.red:v>=20?C.orange:v>=-5?C.gold:C.green;})(),
+             tip:(()=>{const v=(macroData?.krSloos||[]).slice(-1)[0]?.value??null;return v==null?"":v>=40?"극단강화":v>=20?"긴축":v>=-5?"중립":"완화";})()},
+            {label:"일평균수출", region:"🇰🇷",
+             val:lastExp!=null?`$${lastExp?.toFixed(0)}M`:"-",
+             color:lastExp==null||prevExp==null?"#888":lastExp>=prevExp?C.green:C.red,
+             tip:lastExp==null||prevExp==null?"":lastExp>=prevExp?"증가↑":"감소↓"},
+            {label:"GDP성장률", region:"🇰🇷",
+             val:lastGDP!=null?`${lastGDP}%`:"-",
+             color:lastGDP==null?"#888":lastGDP>=3?C.green:lastGDP>=1?C.gold:C.red,
+             tip:lastGDP==null?"":lastGDP>=3?"견조":lastGDP>=1?"완만":"부진"},
+            {label:"CPI(YoY)", region:"🇰🇷",
+             val:lastCPI!=null?`${lastCPI>0?"+":""}${lastCPI}%`:"-",
+             color:lastCPI==null?"#888":lastCPI>5?C.red:lastCPI>3?C.orange:lastCPI>1?C.gold:C.green,
+             tip:lastCPI==null?"":lastCPI>5?"고인플레":lastCPI>3?"경계":lastCPI>1?"보통":"안정"},
+            {label:"PPI(YoY)", region:"🇰🇷",
+             val:lastPPI!=null?`${lastPPI>0?"+":""}${lastPPI}%`:"-",
+             color:lastPPI==null?"#888":lastPPI>6?C.red:lastPPI>3?C.orange:lastPPI>1?C.gold:C.green,
+             tip:lastPPI==null?"":lastPPI>6?"원가↑급등":lastPPI>3?"압박":lastPPI>1?"보통":"안정"},
+            {label:"BSI제조업", region:"🇰🇷",
+             val:lastBSI!=null?`${lastBSI}`:"-",
+             color:lastBSI==null?"#888":lastBSI>=100?C.green:lastBSI>=90?C.gold:C.red,
+             tip:lastBSI==null?"":lastBSI>=100?"확장":lastBSI>=90?"중립":"수축"},
+            {label:"가계신용YoY", region:"🇰🇷",
+             val:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
+             color:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;})(),
+             tip:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v>=8?"과열↑":v>=5?"경계":v>=2?"완만":"감소↓";})()},
+            {label:"부채/GDP", region:"🇰🇷",
+             val:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
              color:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=82?C.red:v>=75?C.orange:v>=65?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"":v>=82?"위험":v>=75?"경계":v>=65?"주의":"안정";})()},
           ];
@@ -3668,7 +3732,11 @@ export default function App(){
                   </div>
                   {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
                     const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
-                    const inds=dc.indicators.filter(i=>i.cat===cat);
+                    // 미국 key 목록
+                    const US_KEYS=new Set(["미국금리역전","하이일드","HY스프레드","미국SLOOS","VIX","DXY","ICSA","LEI","구리금"]);
+                    const allInds=dc.indicators.filter(i=>i.cat===cat);
+                    // 미국 먼저, 한국 나중 정렬
+                    const inds=[...allInds.filter(i=>US_KEYS.has(i.key)),...allInds.filter(i=>!US_KEYS.has(i.key))];
                     return(
                     <div key={cat} style={{marginBottom:8}}>
                       <div style={{color:cfg.color,fontSize:7,fontWeight:700,
@@ -3681,6 +3749,7 @@ export default function App(){
                           const sc=ind.score;
                           const bc=sc>=2?C.green:sc===1?C.teal:sc===-1?C.orange:sc<=-2?C.red:C.muted;
                           const st=sc>=2?"▲▲ "+ind.good:sc===1?"▲ 양호":sc===-1?"▼ 경계":sc<=-2?"▼▼ "+ind.bad:"— 중립";
+                          const flag=US_KEYS.has(ind.key)?"🇺🇸":"🇰🇷";
                           const vStr=ind.val!=null
                             ?(ind.unit==="원"?Math.round(ind.val).toLocaleString()
                               :ind.unit==="%"||ind.unit==="%p"?(typeof ind.val==="number"&&ind.val>0?"+":"")+ind.val
@@ -3688,7 +3757,10 @@ export default function App(){
                           return(
                           <div key={ind.key} style={{background:C.card2,borderRadius:7,
                             padding:"6px 8px",border:`1px solid ${bc}22`}}>
-                            <div style={{color:`${C.muted}99`,fontSize:7,marginBottom:2}}>{ind.label}</div>
+                            <div style={{display:"flex",alignItems:"center",gap:3,marginBottom:2}}>
+                              <span style={{fontSize:8,lineHeight:1}}>{flag}</span>
+                              <span style={{color:`${C.muted}99`,fontSize:7}}>{ind.label}</span>
+                            </div>
                             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                               <span style={{color:bc,fontSize:10,fontWeight:800,fontFamily:"monospace"}}>{vStr}</span>
                               <span style={{color:bc,fontSize:7,fontWeight:700}}>{st}</span>
@@ -3896,6 +3968,34 @@ export default function App(){
               const tc  = nav.topCrisis;
               const pct = nav.proximityScore;
               const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
+              // distToTop을 퍼센트로 변환 (최대거리 250 기준)
+              const distPct = Math.round((nav.distToTop / 250) * 100);
+              // localStorage로 이전 proximityScore 읽어 속도 계산
+              const SPEED_KEY = "sq_nav_prev";
+              let speedDelta = null;
+              let speedLabel = "";
+              let speedColor = C.muted;
+              try {
+                const raw = localStorage.getItem(SPEED_KEY);
+                if (raw) {
+                  const {score: prevScore, ts} = JSON.parse(raw);
+                  const daysDiff = (Date.now() - ts) / (1000 * 60 * 60 * 24);
+                  if (daysDiff > 0.5 && daysDiff < 60) {
+                    speedDelta = +(pct - prevScore).toFixed(1);
+                    const perDay = +(speedDelta / daysDiff).toFixed(2);
+                    if (speedDelta > 5)       { speedLabel = `▲ +${speedDelta}pt 악화 (${perDay>0?"+":""}${perDay}pt/일)`; speedColor = C.red; }
+                    else if (speedDelta > 1)  { speedLabel = `▲ +${speedDelta}pt 소폭악화`; speedColor = C.orange; }
+                    else if (speedDelta >= -1) { speedLabel = `— ${speedDelta}pt 횡보`; speedColor = C.muted; }
+                    else if (speedDelta >= -5) { speedLabel = `▼ ${speedDelta}pt 소폭개선`; speedColor = C.gold; }
+                    else                      { speedLabel = `▼ ${speedDelta}pt 개선 (${perDay}pt/일)`; speedColor = C.green; }
+                  }
+                }
+                // 현재 값 저장 (최소 6시간 간격으로 갱신)
+                const existing = raw ? JSON.parse(raw) : null;
+                if (!existing || Date.now() - existing.ts > 6*60*60*1000) {
+                  localStorage.setItem(SPEED_KEY, JSON.stringify({score: pct, ts: Date.now()}));
+                }
+              } catch {}
               return(
               <Box>
                 <ST accent={C.cyan}>🧭 Crisis Navigation</ST>
@@ -3909,8 +4009,22 @@ export default function App(){
                     <div style={{flex:1,minWidth:120,background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
                       <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 패턴 진입 경보</div>
                       <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}<span style={{color:C.muted,fontWeight:400,fontSize:9}}> (참고)</span></div>
-                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>정점까지 {nav.distToTop}pt · 속도 미반영</div>
+                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>
+                        정점까지 <span style={{color:barColor,fontWeight:700}}>{distPct}%</span> ({nav.distToTop}pt) 남음
+                      </div>
                     </div>
+                  </div>
+                  {/* 속도 카드 */}
+                  <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${speedColor}33`}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{color:C.muted,fontSize:9}}>악화 속도 (전회 대비)</span>
+                      <span style={{color:speedColor,fontWeight:700,fontSize:9}}>
+                        {speedLabel || "— 기록 없음 (다음 갱신 시 표시)"}
+                      </span>
+                    </div>
+                    {speedDelta!==null&&<div style={{color:`${C.muted}66`,fontSize:7,marginTop:3}}>
+                      ※ 6시간 이상 간격으로 갱신 · 단기 노이즈 있음
+                    </div>}
                   </div>
                   <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
@@ -4076,6 +4190,35 @@ export default function App(){
 
             {/* ══ 매크로 탭 ══ */}
             {marketSub==="macro"&&<>
+            {/* ── 거시경제 신호등 — 맨 위 */}
+            <Box>
+              <ST accent={C.teal}>🚦 거시경제 신호등</ST>
+              {(()=>{
+                const usSignals=signals.filter(s=>s.region==="🇺🇸");
+                const krSignals=signals.filter(s=>s.region==="🇰🇷");
+                const SignalCard=({s})=>(
+                  <div style={{background:C.card2,border:`1px solid ${s.color}44`,borderRadius:10,padding:"8px 5px",textAlign:"center",position:"relative"}}>
+                    <div style={{position:"absolute",top:4,left:5,fontSize:8,lineHeight:1}}>{s.region}</div>
+                    <div style={{color:C.muted,fontSize:7.5,marginBottom:2,marginTop:8,fontWeight:600}}>{s.label}</div>
+                    <div style={{width:8,height:8,borderRadius:"50%",background:s.color,margin:"0 auto 3px",
+                      boxShadow:`0 0 6px ${s.color}99`}}/>
+                    <div style={{color:s.color,fontSize:10,fontWeight:700,fontFamily:"monospace"}}>{s.val}</div>
+                    <div style={{color:C.muted,fontSize:7,marginTop:2}}>{s.tip}</div>
+                  </div>
+                );
+                return(<>
+                  <div style={{color:`${C.muted}88`,fontSize:7,fontWeight:700,marginBottom:4,letterSpacing:"0.08em"}}>🇺🇸 미국 지표</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:10}}>
+                    {usSignals.map(s=><SignalCard key={s.label} s={s}/>)}
+                  </div>
+                  <div style={{height:1,background:`${C.border}`,marginBottom:8}}/>
+                  <div style={{color:`${C.muted}88`,fontSize:7,fontWeight:700,marginBottom:4,letterSpacing:"0.08em"}}>🇰🇷 한국 지표</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                    {krSignals.map(s=><SignalCard key={s.label} s={s}/>)}
+                  </div>
+                </>);
+              })()}
+            </Box>
             {/* ── 미국 장단기 금리차 (T10Y2Y) + 한국 비교 */}
             {(macroData?.fredT10Y2Y||[]).length>0&&(
             <Box>
@@ -4147,7 +4290,7 @@ export default function App(){
             {/* ── 신규: VIX 공포지수 */}
             {(macroData?.fredVIX||[]).length>0&&(
             <Box>
-              <ST accent={C.purple}>😱 VIX 공포지수 — 즉각 충격 감지</ST>
+              <ST accent={C.purple}>😱 🇺🇸 VIX 공포지수 — 즉각 충격 감지</ST>
               {(()=>{
                 const data=(macroData.fredVIX||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4200,7 +4343,7 @@ export default function App(){
             {/* ── 신규: Baa 신용스프레드 (DBAA - DGS10) */}
             {(macroData?.fredHY||[]).length>0&&(
             <Box>
-              <ST accent={C.red}>💀 Baa 신용스프레드 (DBAA−10Y) — 기업 신용위험 선행</ST>
+              <ST accent={C.red}>💀 🇺🇸 Baa 신용스프레드 (DBAA−10Y) — 기업 신용위험 선행</ST>
               {(()=>{
                 const data=(macroData.fredHY||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4253,7 +4396,7 @@ export default function App(){
             {/* ── ICE BofA HY 스프레드 (사모신용 위험 프리미엄 대용) */}
             {(macroData?.fredBAML||[]).length>0&&(
             <Box>
-              <ST accent={C.red}>🔥 ICE BofA HY 스프레드 — 사모신용 위험 프리미엄 대용</ST>
+              <ST accent={C.red}>🔥 🇺🇸 ICE BofA HY 스프레드 — 사모신용 위험 프리미엄 대용</ST>
               {(()=>{
                 const data=(macroData.fredBAML||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4407,7 +4550,7 @@ export default function App(){
             {/* ── DXY 달러인덱스 + 원달러 이중축 */}
             {(macroData?.yahooDXY||[]).length>0&&(
             <Box>
-              <ST accent={C.cyan}>💵 DXY 달러인덱스 — 글로벌 위험회피 바로미터</ST>
+              <ST accent={C.cyan}>💵 🇺🇸 DXY 달러인덱스 — 글로벌 위험회피 바로미터</ST>
               {(()=>{
                 const dxData=(macroData.yahooDXY||[]).slice(-36);
                 const fxData=(macroData.fx||[]).slice(-36);
@@ -4457,7 +4600,7 @@ export default function App(){
             {/* ── 구리/금 비율 */}
             {(macroData?.copperGold||[]).length>0&&(
             <Box>
-              <ST accent={C.gold}>🔴 구리/금 비율 — 경기기대 vs 안전자산 수요</ST>
+              <ST accent={C.gold}>🔴 🇺🇸 구리/금 비율 — 경기기대 vs 안전자산 수요</ST>
               {(()=>{
                 const data=(macroData.copperGold||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4507,7 +4650,7 @@ export default function App(){
             {/* ── 주간 실업청구건수 */}
             {(macroData?.fredICSA||[]).length>0&&(
             <Box>
-              <ST accent={C.purple}>📉 주간 실업청구건수 — 고용 악화 최조기 감지</ST>
+              <ST accent={C.purple}>📉 🇺🇸 주간 실업청구건수 — 고용 악화 최조기 감지</ST>
               {(()=>{
                 const data=(macroData.fredICSA||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4557,7 +4700,7 @@ export default function App(){
             {/* ── BIZD ETF 가격 (참고용 — 지표 계산 미사용) */}
             {(macroData?.yahooBIZD||[]).length>0&&(
             <Box>
-              <ST accent={C.teal}>🏦 BIZD ETF 가격 — 사모신용 시장 체감 참고용</ST>
+              <ST accent={C.teal}>🏦 🇺🇸 BIZD ETF 가격 — 사모신용 시장 체감 참고용</ST>
               {(()=>{
                 const data=(macroData.yahooBIZD||[]).slice(-36);
                 const last=data.slice(-1)[0]?.value??null;
@@ -4611,25 +4754,12 @@ export default function App(){
             </Box>
             )}
 
-            {/* ── 거시 신호등 */}
-            <Box>
-              <ST accent={C.teal}>거시경제 신호등</ST>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:7}}>
-                {signals.map(s=>(
-                  <div key={s.label} style={{background:C.card2,border:`1px solid ${s.color}44`,borderRadius:10,padding:"9px 6px",textAlign:"center"}}>
-                    <div style={{color:C.muted,fontSize:8,marginBottom:3}}>{s.label}</div>
-                    <div style={{width:9,height:9,borderRadius:"50%",background:s.color,margin:"0 auto 3px"}}/>
-                    <div style={{color:s.color,fontSize:10,fontWeight:700,fontFamily:"monospace"}}>{s.val}</div>
-                    <div style={{color:C.muted,fontSize:8,marginTop:2}}>{s.tip}</div>
-                  </div>
-                ))}
-              </div>
-            </Box>
+            {/* ── 거시 신호등 (매크로탭 맨 위로 이동됨) */}
 
             {/* ── 수출+코스피 동행 */}
             {macroMerged.length>0&&(
               <Box>
-                <ST accent={C.teal}>일평균수출 · 코스피 동행 추이 (정규화 비교)</ST>
+                <ST accent={C.teal}>🇰🇷 일평균수출 · 코스피 동행 추이 (정규화 비교)</ST>
                 {(()=>{
                   // Z-Score 정규화 (편차 1.5배 확대)
                   const expVals=macroMerged.map(d=>d.dailyExport).filter(v=>v!=null);
@@ -4690,7 +4820,7 @@ export default function App(){
 
                 {(macroData?.ppi||[]).filter(r=>r.yoy!=null).length>0&&(
                   <>
-                  <ST accent={C.orange} right="생산자물가 전년비%">PPI — 원가 압력 선행지표</ST>
+                  <ST accent={C.orange} right="생산자물가 전년비%">🇰🇷 PPI — 원가 압력 선행지표</ST>
                   <div style={{background:`${C.orange}0e`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                     <div style={{color:C.orange,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
                     <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
@@ -4731,7 +4861,7 @@ export default function App(){
                   const trendColor=trend?.includes("개선")?C.green:C.red;
                   return(<>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <ST accent={C.purple}>BSI 제조업 — 경기 방향성 선행</ST>
+                    <ST accent={C.purple}>🇰🇷 BSI 제조업 — 경기 방향성 선행</ST>
                     {lastMA6&&trend&&(
                       <span style={{fontSize:10,fontWeight:700,color:trendColor,fontFamily:"monospace",marginBottom:4}}>
                         6MA {lastMA6.ma6} {trend}
@@ -4772,7 +4902,7 @@ export default function App(){
             {/* ── 가계신용 증가율 그래프 */}
             {(macroData?.hhCreditYoY||[]).filter(r=>r.yoy!=null).length>0&&(
             <Box>
-              <ST accent={C.orange}>가계신용 증가율 (전년동기비 %)</ST>
+              <ST accent={C.orange}>🇰🇷 가계신용 증가율 (전년동기비 %)</ST>
               {(()=>{
                 const data=(macroData.hhCreditYoY||[]).filter(r=>r.yoy!=null);
                 const last=data.slice(-1)[0];
@@ -4824,7 +4954,7 @@ export default function App(){
             {/* ── 장단기 금리차 그래프 */}
             {(macroData?.yieldSpread||[]).length>0&&(
             <Box>
-              <ST accent={C.teal}>장단기 금리차 — 국고채 10Y − 3Y (%p)</ST>
+              <ST accent={C.teal}>🇰🇷 장단기 금리차 — 국고채 10Y − 3Y (%p)</ST>
               {(()=>{
                 const data=macroData.yieldSpread||[];
                 const last=data.slice(-1)[0];
