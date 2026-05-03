@@ -5746,6 +5746,7 @@ export default function App(){
                     <Tooltip content={<MTip/>} cursor={false}/>
                     <ReferenceLine y={300} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"침체 300k",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={250} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 250k",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={210} stroke={`${C.gold}66`}   strokeDasharray="3 3" label={{value:"주의 210k",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
                     <Area dataKey="value" name="실업청구(k)" stroke={C.purple} strokeWidth={2.5} fill="url(#icsaGrad)" dot={false} connectNulls/>
                   </ComposedChart>
                 </CW>
