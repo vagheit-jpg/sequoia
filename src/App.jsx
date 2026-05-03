@@ -2741,7 +2741,92 @@ export default function App(){
                 </div>
               );
             })()}
+
+            {/* ── 월봉 기술적 종합 전망 카드 */}
+            {(()=>{
+              const lastRSI=withRSI.slice(-1)[0]?.rsi??null;
+              const lastMACD=withMACD.slice(-1)[0];
+              const lastOBV=withOBV.slice(-1)[0]?.obv??null;
+              const prevOBV=withOBV.slice(-2,-1)[0]?.obv??null;
+              const lastMFI=withMFI.slice(-1)[0]?.mfi??null;
+              const {priceZone,gap}=readingEngine;
+              // 각 지표 점수화 (+1 상승 / -1 하락 / 0 중립)
+              const scores={
+                rsi: lastRSI==null?0:lastRSI<30?1:lastRSI>70?-1:lastRSI>55?0.5:lastRSI<45?-0.5:0,
+                macd: lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1,
+                obv: lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5,
+                mfi: lastMFI==null?0:lastMFI<20?1:lastMFI>80?-1:lastMFI>60?-0.5:lastMFI<40?0.5:0,
+                zone: priceZone==="VL"||priceZone==="L"?1:priceZone==="VH"||priceZone==="EH"?-1:0,
+              };
+              const total=Object.values(scores).reduce((a,b)=>a+b,0);
+              const upProb=Math.min(95,Math.max(5,Math.round(50+total*12)));
+              const dnProb=100-upProb;
+              const outlook=upProb>=70?"📈 상승 우세":upProb>=55?"🟡 소폭 상승 우세":upProb<=30?"📉 하락 우세":upProb<=45?"🟠 소폭 하락 우세":"⚖️ 중립";
+              const outColor=upProb>=70?C.green:upProb>=55?C.teal:upProb<=30?C.red:upProb<=45?C.orange:C.muted;
+              const period=upProb>=60||upProb<=40?"1~3개월 이내":"방향성 불분명";
+              return(
+              <div style={{background:`${outColor}0e`,border:`1.5px solid ${outColor}44`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+                <div style={{color:outColor,fontSize:10,fontWeight:800,marginBottom:6}}>🔭 월봉 기술적 종합 전망 (참고용)</div>
+                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
+                  <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"8px 14px",minWidth:80}}>
+                    <div style={{color:C.muted,fontSize:7,marginBottom:2}}>상승 확률</div>
+                    <div style={{color:C.green,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{upProb}%</div>
+                  </div>
+                  <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"8px 14px",minWidth:80}}>
+                    <div style={{color:C.muted,fontSize:7,marginBottom:2}}>하락 확률</div>
+                    <div style={{color:C.red,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{dnProb}%</div>
+                  </div>
+                  <div style={{flex:1,minWidth:120}}>
+                    <div style={{color:outColor,fontSize:13,fontWeight:900,marginBottom:3}}>{outlook}</div>
+                    <div style={{color:C.muted,fontSize:8}}>기대 방향 전환 시점: <span style={{color:outColor,fontWeight:700}}>{period}</span></div>
+                  </div>
+                </div>
+                {/* 확률 바 */}
+                <div style={{display:"flex",height:8,borderRadius:4,overflow:"hidden",marginBottom:6}}>
+                  <div style={{width:`${upProb}%`,background:`linear-gradient(90deg,${C.green}88,${C.green})`,transition:"width 0.5s"}}/>
+                  <div style={{width:`${dnProb}%`,background:`linear-gradient(90deg,${C.red}88,${C.red})`}}/>
+                </div>
+                {/* 지표별 기여 */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:4,marginTop:4}}>
+                  {[
+                    {label:"RSI",v:scores.rsi,raw:lastRSI!=null?lastRSI.toFixed(0):"-"},
+                    {label:"MACD",v:scores.macd,raw:lastMACD?(lastMACD.macd??0)>(lastMACD.signal??0)?"↑크로스":"↓크로스":"-"},
+                    {label:"OBV",v:scores.obv,raw:lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV?"↑증가":"↓감소":"-"},
+                    {label:"MFI",v:scores.mfi,raw:lastMFI!=null?lastMFI.toFixed(0):"-"},
+                    {label:"위치",v:scores.zone,raw:priceZone||"-"},
+                  ].map(({label,v,raw})=>{
+                    const c=v>0?C.green:v<0?C.red:C.muted;
+                    return(
+                    <div key={label} style={{background:C.card2,borderRadius:6,padding:"4px 6px",textAlign:"center"}}>
+                      <div style={{color:C.muted,fontSize:7,marginBottom:1}}>{label}</div>
+                      <div style={{color:c,fontSize:9,fontWeight:800}}>{raw}</div>
+                      <div style={{color:c,fontSize:7}}>{v>0?"▲ 긍정":v<0?"▼ 부정":"— 중립"}</div>
+                    </div>
+                    );
+                  })}
+                </div>
+                <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,lineHeight:1.6}}>
+                  ⚠️ 월봉 5개 기술 지표(RSI·MACD·OBV·MFI·위치밴드) 점수 합산 기준. 재무·거시 요인 미반영. 투자 판단의 보조 참고용으로만 활용하십시오.
+                </div>
+              </div>
+              );
+            })()}
+
             <ST accent={C.green}>RSI (14개월)</ST>
+            <div style={{background:`${C.green}0d`,border:`1px solid ${C.green}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+              <div style={{color:C.green,fontSize:8,fontWeight:700,marginBottom:3}}>📖 RSI란?</div>
+              <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                Relative Strength Index. 최근 14개월간 상승폭 ÷ (상승+하락폭) × 100으로 산출합니다.
+                <span style={{color:C.red,fontWeight:700}}> 70 이상</span>은 과매수(단기 조정 가능성),
+                <span style={{color:C.green,fontWeight:700}}> 30 이하</span>는 과매도(반등 가능성) 신호입니다.
+                월봉 기준이므로 노이즈가 적고 <span style={{color:C.gold,fontWeight:700}}>중장기 추세 전환점</span> 포착에 유리합니다.
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                {[["🔴 70↑","과매수·조정 경고"],["🟡 50~70","상승추세 유지"],["🟢 30~50","하락추세"],["🔵 30↓","과매도·반등 주시"]].map(([r,l])=>(
+                  <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                ))}
+              </div>
+            </div>
             <CW h={148}>
               <ComposedChart data={withRSI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2754,6 +2839,20 @@ export default function App(){
               </ComposedChart>
             </CW>
             <ST accent={C.blueL}>MACD</ST>
+            <div style={{background:`${C.blueL}0d`,border:`1px solid ${C.blueL}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+              <div style={{color:C.blueL,fontSize:8,fontWeight:700,marginBottom:3}}>📖 MACD란?</div>
+              <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                12개월 EMA − 26개월 EMA = MACD선. 9개월 EMA를 Signal선으로 씁니다.
+                <span style={{color:C.green,fontWeight:700}}> MACD가 Signal 상향 돌파(골든크로스)</span>는 상승 전환 신호,
+                <span style={{color:C.red,fontWeight:700}}> 하향 돌파(데드크로스)</span>는 하락 전환 신호입니다.
+                히스토그램이 0선 위에서 확대되면 상승 모멘텀 강화, 축소되면 모멘텀 약화를 의미합니다.
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                {[["🟢 골든크로스","상승 전환"],["🔴 데드크로스","하락 전환"],["📊 히스토 확대","모멘텀 강화"],["📊 히스토 축소","추세 약화"]].map(([r,l])=>(
+                  <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                ))}
+              </div>
+            </div>
             <CW h={148}>
               <ComposedChart data={withMACD} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2766,6 +2865,20 @@ export default function App(){
               </ComposedChart>
             </CW>
             <ST accent={C.teal}>OBV</ST>
+            <div style={{background:`${C.teal}0d`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+              <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 OBV란?</div>
+              <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                On Balance Volume. 상승일 거래량은 누적 더하고, 하락일 거래량은 누적 빼는 방식입니다.
+                <span style={{color:C.green,fontWeight:700}}> OBV가 우상향</span>하면 매수세가 지배적(주가 상승 뒷받침),
+                <span style={{color:C.red,fontWeight:700}}> 우하향</span>하면 매도세 우위(주가 하락 위험) 신호입니다.
+                주가와 OBV의 <span style={{color:C.gold,fontWeight:700}}>다이버전스(방향 불일치)</span>는 추세 전환의 선행 신호로 활용합니다.
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                {[["🟢 OBV 우상향","매수세 우위"],["🔴 OBV 우하향","매도세 우위"],["⚡ 가격↑·OBV↓","상승 다이버전스(하락경고)"],["⚡ 가격↓·OBV↑","하락 다이버전스(반등기대)"]].map(([r,l])=>(
+                  <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                ))}
+              </div>
+            </div>
             <CW h={128}>
               <AreaChart data={withOBV} margin={{top:4,right:20,left:0,bottom:8}}>
                 <defs><linearGradient id="obvG" x1="0" y1="0" x2="0" y2="1">
@@ -2779,6 +2892,20 @@ export default function App(){
               </AreaChart>
             </CW>
             <ST accent={C.pink}>MFI</ST>
+            <div style={{background:`${C.pink}0d`,border:`1px solid ${C.pink}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+              <div style={{color:C.pink,fontSize:8,fontWeight:700,marginBottom:3}}>📖 MFI란?</div>
+              <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                Money Flow Index. RSI에 거래량을 결합한 지표입니다. (고가+저가+종가)÷3의 흐름과 거래량을 14개월 기준으로 계산합니다.
+                <span style={{color:C.red,fontWeight:700}}> 80 이상</span>은 과열(스마트머니 매도 가능성),
+                <span style={{color:C.green,fontWeight:700}}> 20 이하</span>는 과매도(기관 매수 유입 가능성) 구간입니다.
+                RSI보다 거래량 가중이 있어 <span style={{color:C.gold,fontWeight:700}}>기관 자금 흐름 추적</span>에 더 유리합니다.
+              </div>
+              <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                {[["🔴 80↑","과열·매도 경고"],["🟡 50~80","상승 모멘텀"],["🟢 20~50","하락 모멘텀"],["🔵 20↓","과매도·매수 주시"]].map(([r,l])=>(
+                  <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                ))}
+              </div>
+            </div>
             <CW h={128}>
               <ComposedChart data={withMFI} margin={{top:4,right:20,left:0,bottom:8}}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -4069,6 +4196,95 @@ export default function App(){
                     </div>
                   </div>
                   )}
+                  {/* ── SEFCON × Crisis Navigation 해석 매트릭스 */}
+                  {(()=>{
+                    const sefScore = dc?.totalScore??50;
+                    const navScore = pct; // proximityScore 0~100
+                    // SEFCON: 70↑ 양호 / 50~70 중립 / 35~50 경계 / 35↓ 위험
+                    const sefLevel = sefScore>=70?"양호":sefScore>=50?"중립":sefScore>=35?"경계":"위험";
+                    const sefColor = sefScore>=70?C.green:sefScore>=50?C.teal:sefScore>=35?C.orange:C.red;
+                    // Crisis Nav: 75↑ 고위험 / 55~75 경보 / 35~55 주의 / 35↓ 안전
+                    const navLevel = navScore>=75?"고위험":navScore>=55?"경보":navScore>=35?"주의":"안전";
+                    const navColor = navScore>=75?C.red:navScore>=55?C.orange:navScore>=35?C.gold:C.green;
+                    // 시나리오 조합
+                    const isSefGood = sefScore>=50;
+                    const isNavHigh = navScore>=55;
+                    let scenario,scenDesc,scenColor,scenAction;
+                    if(isSefGood && !isNavHigh){
+                      scenario="✅ 실질 안전";scenColor=C.green;
+                      scenDesc="지표 건강도 양호 + 위기 패턴 유사도 낮음. 가장 안전한 구간입니다.";
+                      scenAction="정상 포지션 유지. 기회 포착 집중.";
+                    } else if(isSefGood && isNavHigh){
+                      scenario="⚠️ 패턴 선행 경고";scenColor=C.gold;
+                      scenDesc="현재 지표는 나쁘지 않으나, 과거 위기 직전 패턴과 유사해지는 중. 표면은 괜찮아 보이지만 구조가 위험해지고 있는 상태입니다.";
+                      scenAction="포지션 점검 시작. 방어 자산 비중 소폭 확대 검토.";
+                    } else if(!isSefGood && !isNavHigh){
+                      scenario="🔶 고유 리스크";scenColor=C.orange;
+                      scenDesc="지표는 부진하나 과거 위기 패턴과 다른 양상. 전례 없는 충격이거나 위기 초기 단계일 수 있습니다.";
+                      scenAction="원인 파악 우선. 과거 사례 적용 주의.";
+                    } else {
+                      scenario="🔴 복합 위험";scenColor=C.red;
+                      scenDesc="지표 악화 + 역사적 위기 패턴 동시 진입. 가장 높은 경계 구간입니다.";
+                      scenAction="리스크 관리 최우선. 포지션 방어적 재편 검토.";
+                    }
+                    return(
+                    <div style={{background:`${scenColor}0d`,border:`1.5px solid ${scenColor}44`,borderRadius:12,padding:"12px 14px",marginTop:8}}>
+                      <div style={{color:scenColor,fontSize:10,fontWeight:800,marginBottom:8}}>🗺 SEFCON × Crisis Navigation 교차 해석</div>
+                      {/* 현재 좌표 */}
+                      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+                        <div style={{flex:1,background:C.card2,borderRadius:8,padding:"7px 10px",minWidth:100}}>
+                          <div style={{color:C.muted,fontSize:7,marginBottom:2}}>SEFCON 점수</div>
+                          <div style={{color:sefColor,fontSize:15,fontWeight:900,fontFamily:"monospace"}}>{sefScore}<span style={{fontSize:9}}>pt</span></div>
+                          <div style={{color:sefColor,fontSize:8,fontWeight:700}}>{sefLevel}</div>
+                        </div>
+                        <div style={{flex:1,background:C.card2,borderRadius:8,padding:"7px 10px",minWidth:100}}>
+                          <div style={{color:C.muted,fontSize:7,marginBottom:2}}>Crisis Nav 근접도</div>
+                          <div style={{color:navColor,fontSize:15,fontWeight:900,fontFamily:"monospace"}}>{navScore}<span style={{fontSize:9}}>%</span></div>
+                          <div style={{color:navColor,fontSize:8,fontWeight:700}}>{navLevel}</div>
+                        </div>
+                        <div style={{flex:2,background:`${scenColor}18`,border:`1px solid ${scenColor}44`,borderRadius:8,padding:"7px 10px",minWidth:140}}>
+                          <div style={{color:scenColor,fontSize:11,fontWeight:900,marginBottom:3}}>{scenario}</div>
+                          <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.7}}>{scenDesc}</div>
+                        </div>
+                      </div>
+                      {/* 2×2 매트릭스 시각화 */}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:8}}>
+                        {[
+                          {sef:"양호",nav:"낮음",label:"✅ 실질 안전",c:C.green,  desc:"지표 OK·패턴 무관"},
+                          {sef:"양호",nav:"높음",label:"⚠️ 패턴 경고",c:C.gold,   desc:"표면 OK·구조 주의"},
+                          {sef:"위험",nav:"낮음",label:"🔶 고유 리스크",c:C.orange,desc:"지표 부진·전례 없음"},
+                          {sef:"위험",nav:"높음",label:"🔴 복합 위험",c:C.red,    desc:"최고 경계 구간"},
+                        ].map(cell=>{
+                          const isActive=(cell.sef==="양호"?isSefGood:!isSefGood)&&(cell.nav==="낮음"?!isNavHigh:isNavHigh);
+                          return(
+                          <div key={cell.label} style={{
+                            background:isActive?`${cell.c}22`:C.card2,
+                            border:`${isActive?"2px":"1px"} solid ${isActive?cell.c:C.border}`,
+                            borderRadius:8,padding:"7px 9px",
+                            boxShadow:isActive?`0 0 10px ${cell.c}44`:"none",
+                          }}>
+                            <div style={{fontSize:7,color:C.muted,marginBottom:2}}>
+                              SEFCON <span style={{color:cell.sef==="양호"?C.green:C.red,fontWeight:700}}>{cell.sef}</span>
+                              {" · "}Crisis Nav <span style={{color:cell.nav==="낮음"?C.green:C.red,fontWeight:700}}>{cell.nav}</span>
+                            </div>
+                            <div style={{color:isActive?cell.c:C.muted,fontSize:9,fontWeight:isActive?800:500}}>{cell.label}</div>
+                            <div style={{color:`${C.muted}88`,fontSize:7,marginTop:1}}>{cell.desc}</div>
+                            {isActive&&<div style={{color:cell.c,fontSize:7,fontWeight:700,marginTop:3}}>◀ 현재</div>}
+                          </div>
+                          );
+                        })}
+                      </div>
+                      {/* 권고 행동 */}
+                      <div style={{background:C.card2,borderRadius:8,padding:"7px 10px",borderLeft:`3px solid ${scenColor}`}}>
+                        <div style={{color:C.muted,fontSize:7,marginBottom:2}}>💡 포지션 가이드 (참고용)</div>
+                        <div style={{color:scenColor,fontSize:8,fontWeight:700}}>{scenAction}</div>
+                      </div>
+                      <div style={{color:`${C.muted}44`,fontSize:7,marginTop:5}}>
+                        ※ SEFCON 50pt 이상/이하, Crisis Nav 55% 이상/이하 기준으로 구분. 투자 판단의 보조 참고용.
+                      </div>
+                    </div>
+                    );
+                  })()}
                 </div>
               </Box>
               );
