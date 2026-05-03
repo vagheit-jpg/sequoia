@@ -2491,6 +2491,12 @@ export default function App(){
                   <ViewToggle view={finView} setView={setFinView}/>
                   {(()=>{const {unit:u1,scale:s1}=autoUnit(data,["rev","op","net"]);const d1=scaleData(data,["rev","op","net"],s1);return(<>
                   <ST accent={C.green} right={u1+"원"}>매출·영업이익·순이익</ST>
+                  <div style={{background:`${C.green}0d`,border:`1px solid ${C.green}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      기업의 <span style={{color:C.blue,fontWeight:700}}>외형(매출)</span>과 <span style={{color:C.green,fontWeight:700}}>수익성(영업이익)</span>, <span style={{color:C.purple,fontWeight:700}}>최종 성과(순이익)</span>을 한눈에 비교합니다.
+                      매출은 늘지만 영업이익이 감소하면 원가 부담 증가 신호. 영업이익은 있는데 순이익이 적으면 이자비용·세금 부담 확인이 필요합니다.
+                    </div>
+                  </div>
                   <CW h={240}>
                     <ComposedChart data={d1} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2504,6 +2510,13 @@ export default function App(){
                   </CW></>);})()}
                   {/* 영업이익률·순이익률(막대·좌축) + 성장률 YoY(꺾은선·우축) */}
                   <ST accent={C.gold}>이익률 & 성장률</ST>
+                  <div style={{background:`${C.gold}0d`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      <span style={{color:C.gold,fontWeight:700}}>OPM(영업이익률)</span>은 본업 수익성, <span style={{color:C.purple,fontWeight:700}}>NPM(순이익률)</span>은 최종 수익성입니다.
+                      우축 꺾은선은 전년 대비 성장률(YoY)로, 막대가 낮아도 꺾은선이 상승하면 개선 추세를 의미합니다.
+                      OPM 10% 이상이면 양호, 15% 이상이면 경쟁 우위 신호로 봅니다.
+                    </div>
+                  </div>
                   <CW h={220}>
                     {(()=>{
                       const merged=growthData.map(r=>{
@@ -2529,6 +2542,13 @@ export default function App(){
                     })()}
                   </CW>
                   <ST accent={C.gold} right="%">OPM · ROE · ROA</ST>
+                  <div style={{background:`${C.gold}0d`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      <span style={{color:C.purple,fontWeight:700}}>ROE(자기자본이익률)</span>: 주주 자본 대비 순이익. 버핏 기준 <span style={{color:C.purple,fontWeight:700}}>15% 이상</span>이 우량 기업.
+                      <span style={{color:C.blueL,fontWeight:700}}> ROA(총자산이익률)</span>: 자산 전체 대비 효율성. ROE는 높은데 ROA가 낮으면 레버리지(부채) 의존도가 높다는 신호입니다.
+                      보조선(15%)과 비교해 추세가 우상향 중인지 확인하세요.
+                    </div>
+                  </div>
                   <CW h={230}>
                     {(()=>{
                       const merged=growthData.map(r=>{
@@ -2560,6 +2580,13 @@ export default function App(){
                   {/* 수정 3: 현금흐름 — 막대 4개 + 0선 점선 */}
                   {(()=>{const {unit:uc,scale:sc}=autoUnit(data,["fcf","cfo","cfi","cff"]);const dc=scaleData(data,["fcf","cfo","cfi","cff"],sc);return(<>
                   <ST accent={C.cyan} right={uc+"원"}>현금흐름</ST>
+                  <div style={{background:`${C.cyan}0d`,border:`1px solid ${C.cyan}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      <span style={{color:C.blueL,fontWeight:700}}>FCF(잉여현금흐름)</span>: 영업CF − 유지CAPEX. 주주에게 실제로 돌아갈 수 있는 현금.
+                      <span style={{color:C.pink,fontWeight:700}}> 영업CF</span>가 꾸준히 플러스여야 건강한 사업. <span style={{color:C.gold,fontWeight:700}}>투자CF</span>가 크게 마이너스면 적극 투자 중(성장 or 과잉투자),
+                      <span style={{color:C.green,fontWeight:700}}> 재무CF</span> 마이너스는 부채 상환·자사주 매입 등 주주환원 신호입니다.
+                    </div>
+                  </div>
                   <CW h={230}>
                     <ComposedChart data={dc} margin={{top:4,right:8,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2577,6 +2604,14 @@ export default function App(){
                   {epsPriceData.length>=2&&(
                     <>
                       <ST accent={C.purple}>EPS · 주가 동행 추이</ST>
+                      <div style={{background:`${C.purple}0d`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                        <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                          <span style={{color:"#F97316",fontWeight:700}}>EPS(주당순이익)</span>가 장기적으로 <span style={{color:"#38BDF8",fontWeight:700}}>주가</span>를 이끄는지 확인합니다.
+                          EPS가 우상향하는데 주가가 뒤처지면 <span style={{color:C.green,fontWeight:700}}>저평가</span> 가능성,
+                          주가가 EPS를 크게 앞서면 <span style={{color:C.red,fontWeight:700}}>밸류에이션 부담</span> 신호입니다.
+                          두 선이 함께 우상향하는 기업이 장기 투자에 가장 이상적입니다.
+                        </div>
+                      </div>
                       <CW h={240}>
                         <ComposedChart data={epsPriceData} margin={{top:8,right:8,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2975,6 +3010,53 @@ export default function App(){
               })()}
             </Box>
             <Box style={{border:`2px solid ${C.gold}33`}}>
+              {/* DCF 4가지 방식 설명 */}
+              <div style={{background:`${C.gold}0a`,border:`1px solid ${C.gold}22`,borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+                <div style={{color:C.gold,fontSize:9,fontWeight:800,marginBottom:8,letterSpacing:"0.05em"}}>📖 내재가치 4가지 산출 방식 — 무엇을 보고 어떻게 쓰는가</div>
+                <div style={{display:"flex",flexDirection:"column",gap:7}}>
+                  {[
+                    {
+                      label:"A. DCF (오너이익법)", color:C.orange,
+                      formula:"오너이익 = 순이익 + 감가상각 − 유지CAPEX",
+                      desc:"워런 버핏이 직접 고안한 방식. 회계 이익이 아닌 '주인에게 실제로 귀속되는 현금'을 기준으로 기업 가치를 산출합니다. 유지CAPEX는 사업 현상유지에 필요한 최소 설비투자로, 비율이 높을수록 보수적(낮은 평가). 장기 현금흐름 창출력이 안정적인 기업에 적합합니다.",
+                      when:"✅ 제조업·인프라처럼 설비투자 비중이 명확한 기업에 신뢰도 높음",
+                    },
+                    {
+                      label:"B. DCF (금리기반)", color:C.blue,
+                      formula:"PV = 오너이익 × (1+g)ⁿ ÷ (r−g), r = 국고채 + 리스크프리미엄",
+                      desc:"무위험이자율(국고채)에 리스크 프리미엄을 더해 할인율을 구하고, 미래 현금흐름을 현재가치로 환산합니다. 금리 변화에 가장 민감한 방식으로, 금리 상승기에는 내재가치가 낮아지는 구조. 파라미터 설정이 결과에 큰 영향을 줍니다.",
+                      when:"✅ 금리 민감도 분석, 할인율 시나리오별 비교에 유용",
+                    },
+                    {
+                      label:"C. 그레이엄 멀티플", color:C.purple,
+                      formula:"V = EPS × (8.5 + 2g) × 4.4 ÷ Y  (Y=현재 회사채 금리)",
+                      desc:"벤저민 그레이엄이 제시한 고전적 공식. 8.5는 무성장 기업의 기본 PER, 2g는 성장 프리미엄, 4.4는 1962년 AA 회사채 금리 기준 보정 계수입니다. 현재 금리(Y)가 높을수록 내재가치가 낮아져 금리 환경을 자동 반영합니다. 계산이 단순하고 직관적입니다.",
+                      when:"✅ 성장주·가치주 공통 적용 가능. EPS 변동성이 크면 신뢰도 하락",
+                    },
+                    {
+                      label:"D. ROE 멀티플", color:C.teal,
+                      formula:"적정PER = ROE(%), 적정주가 = 적정PER × EPS",
+                      desc:"ROE가 높은 기업은 그에 걸맞은 PER을 받아야 한다는 논리. 예: ROE 20% → 적정 PER 20배. 자기자본 수익성이 꾸준히 높은 기업(워런 버핏식 해자)을 평가할 때 유용합니다. 단, ROE가 레버리지(부채)에 의해 부풀려진 경우 과대평가 위험이 있습니다.",
+                      when:"✅ ROE가 15% 이상 안정적으로 유지되는 우량주에 적합",
+                    },
+                  ].map(m=>(
+                    <div key={m.label} style={{background:C.card2,borderRadius:8,padding:"8px 10px",borderLeft:`3px solid ${m.color}`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}>
+                        <span style={{color:m.color,fontSize:9,fontWeight:800}}>{m.label}</span>
+                      </div>
+                      <div style={{background:`${m.color}0d`,borderRadius:5,padding:"4px 8px",marginBottom:5}}>
+                        <span style={{color:m.color,fontSize:7,fontFamily:"monospace",fontWeight:600}}>{m.formula}</span>
+                      </div>
+                      <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8,marginBottom:4}}>{m.desc}</div>
+                      <div style={{color:m.color,fontSize:7,fontWeight:700}}>{m.when}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{color:`${C.muted}55`,fontSize:7,marginTop:8,lineHeight:1.6}}>
+                  💡 4가지 방식의 <span style={{color:C.gold,fontWeight:700}}>평균값</span>이 가장 균형 잡힌 추정치입니다. 방식 간 편차가 클수록 불확실성이 높은 기업입니다.
+                  역DCF는 현재 주가에 내재된 시장의 성장 기대치를 역산합니다.
+                </div>
+              </div>
               <ST accent={C.gold}>내재가치 교차검증 ({lastAnn.year||"—"}년 기준)</ST>
               {hasFinData?(
                 <>
@@ -3035,11 +3117,11 @@ export default function App(){
                     <>
                       <ST accent={C.gold}>연도별 적정주가 추이 (4가지 방식)</ST>
                       <CW h={260}>
-                        <ComposedChart data={dcfScaled} margin={{top:4,right:12,left:0,bottom:8}}>
+                        <ComposedChart data={dcfScaled} margin={{top:4,right:56,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v.toLocaleString()}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp(du,44)} tickFormatter={v=>v.toLocaleString()}/>
+                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v>=1000?`${(v/10000).toFixed(0)}만`:`${v.toLocaleString()}`} domain={["auto","auto"]}/>
+                          <YAxis yAxisId="right" orientation="right" {...yp(du,48)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
                           <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
                           <Bar  yAxisId="right" dataKey="fcf"    name={`FCF(${du})`}   fill={C.teal}   opacity={0.4} maxBarSize={28}/>
                           <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
@@ -3050,6 +3132,9 @@ export default function App(){
                             label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
                         </ComposedChart>
                       </CW>
+                      <div style={{color:`${C.muted}66`,fontSize:7,textAlign:"right",marginTop:-4,marginBottom:6}}>
+                        좌축: 적정주가(원) · 우축: FCF({du})
+                      </div>
                     </>
                     );
                   })()}
@@ -3099,6 +3184,13 @@ export default function App(){
                 <>
                   <ViewToggle view={stabView} setView={setStabView}/>
                   <ST accent={C.teal}>자본유보율(좌축) · 부채비율(우축)</ST>
+                  <div style={{background:`${C.teal}0d`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      <span style={{color:C.teal,fontWeight:700}}>자본유보율</span>: 이익잉여금 ÷ 자본금 × 100. 높을수록 내부 축적 자금이 많아 위기 대응력이 강합니다. 1000% 이상이면 매우 우량.
+                      <span style={{color:C.red,fontWeight:700}}> 부채비율</span>: 부채총계 ÷ 자기자본 × 100. <span style={{color:C.orange,fontWeight:700}}>100% 초과</span>시 주의, 200% 이상은 재무 위험 신호.
+                      제조업 기준 100% 이하, IT·서비스업 기준 50% 이하가 건전한 수준입니다.
+                    </div>
+                  </div>
                   <CW h={230}>
                     <ComposedChart data={data} margin={{top:4,right:12,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -3113,6 +3205,14 @@ export default function App(){
                   </CW>
                   {(()=>{const {unit:ua,scale:sa}=autoUnit(data,["assets","liab","equity"]);const da=scaleData(data,["assets","liab","equity"],sa);return(<>
                   <ST accent={C.green}>자산·부채·자본 ({ua}원)</ST>
+                  <div style={{background:`${C.green}0d`,border:`1px solid ${C.green}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      자산 = 부채 + 자본의 관계를 연도별로 추적합니다.
+                      <span style={{color:C.green,fontWeight:700}}>자본(초록)</span>이 꾸준히 성장하면 이익 누적 증거.
+                      <span style={{color:C.red,fontWeight:700}}> 부채(빨강)</span>가 자본보다 빠르게 늘면 레버리지 확대 주의.
+                      <span style={{color:C.blue,fontWeight:700}}> 자산(파랑)</span> 성장이 자본 성장과 비슷한 속도면 건전한 성장입니다.
+                    </div>
+                  </div>
                   <CW h={220}>
                     <ComposedChart data={da} margin={{top:4,right:20,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -3125,6 +3225,13 @@ export default function App(){
                     </ComposedChart>
                   </CW>
                   <ST accent={C.blue}>자본·부채 적층(좌축) + 부채비율 꺾은선(우축)</ST>
+                  <div style={{background:`${C.blue}0d`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      자본(초록)과 부채(빨강)를 쌓아 자산 구성비를 시각화합니다. 초록 비중이 늘수록 자본 건전성 개선.
+                      <span style={{color:C.orange,fontWeight:700}}> 부채비율 꺾은선</span>이 우하향이면 재무구조 개선 추세.
+                      보조선(100%) 위에서 계속 유지되면 부채 의존 경영으로 금리 인상기 취약성이 커집니다.
+                    </div>
+                  </div>
                   <CW h={230}>
                     <ComposedChart data={da} margin={{top:4,right:12,left:0,bottom:8}}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -3152,6 +3259,13 @@ export default function App(){
             {co?.divData?.length?(
               <>
                 <ST accent={C.gold}>배당금 (DPS) 추이</ST>
+                <div style={{background:`${C.gold}0d`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    <span style={{color:C.gold,fontWeight:700}}>DPS(주당배당금)</span>: 주식 1주당 지급되는 현금 배당액입니다.
+                    꾸준한 우상향은 <span style={{color:C.green,fontWeight:700}}>이익 성장 + 주주환원 의지</span>의 신호. 갑작스러운 배당 삭감은 실적 악화나 재무 압박의 선행 경고입니다.
+                    배당 성장률이 EPS 성장률보다 빠르면 지속 가능성을 추가 검토하세요.
+                  </div>
+                </div>
                 <CW h={200}>
                   <ComposedChart data={co.divData} margin={{top:4,right:20,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -3161,6 +3275,14 @@ export default function App(){
                   </ComposedChart>
                 </CW>
                 <ST accent={C.green}>배당수익률(막대·우축) · 배당성향(꺾은선·좌축)</ST>
+                <div style={{background:`${C.green}0d`,border:`1px solid ${C.green}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    <span style={{color:C.green,fontWeight:700}}>배당수익률</span>: DPS ÷ 주가 × 100. 현재 주가 기준 배당 투자 수익률.
+                    <span style={{color:C.purple,fontWeight:700}}> 배당성향</span>: DPS ÷ EPS × 100. 순이익 중 배당으로 지급하는 비율.
+                    배당성향 <span style={{color:C.gold,fontWeight:700}}>30~60%</span>가 지속가능한 적정 구간. 80% 초과면 이익이 줄어도 배당을 유지하려 한다는 신호로 지속가능성을 점검해야 합니다.
+                    배당수익률이 높아도 주가 하락이 원인이면 함정일 수 있습니다.
+                  </div>
+                </div>
                 <CW h={200}>
                   <ComposedChart data={co.divData} margin={{top:4,right:12,left:0,bottom:8}}>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -3496,6 +3618,12 @@ export default function App(){
           const kosdaqMA=kp60(kosdaqMonthly);
           const kospiRSI=calcRSI(kospiMonthly);
           const kosdaqRSI=calcRSI(kosdaqMonthly);
+          const kospiMACD=calcMACD(kospiMonthly);
+          const kosdaqMACD=calcMACD(kosdaqMonthly);
+          const kospiOBV=calcOBV(kospiMonthly);
+          const kosdaqOBV=calcOBV(kosdaqMonthly);
+          const kospiMFI=calcMFI(kospiMonthly);
+          const kosdaqMFI=calcMFI(kosdaqMonthly);
 
           // ── 거시+코스피 병합
           const macroMerged=(()=>{
@@ -3619,13 +3747,43 @@ export default function App(){
           ];
 
           // ── IndexChart — 주가탭 위치밴드 스타일
-          const IndexChart=({title,maData,rsiData,color})=>{
+          const IndexChart=({title,maData,rsiData,macdData,obvData,mfiData,color})=>{
             // 위치밴드 계산 (maData에 price 필드 있음)
             const bandData=calcPositionBands(maData);
             const lastValid=bandData.filter(d=>d.bBase!=null).slice(-1)[0];
             const lastGap=lastValid?.gap60??null;
             const gapColor=lastGap==null?"#888":lastGap>100?C.red:lastGap>50?C.orange:lastGap>0?C.gold:lastGap>-20?C.teal:C.green;
             const gapLabel=lastGap==null?"":lastGap>100?"VH이상":lastGap>50?"H이상":lastGap>0?"QMA위":lastGap>-20?"L위":"VL근접";
+
+            // ── 월봉 기술적 종합 전망 계산
+            const lastRSI=rsiData.slice(-1)[0]?.rsi??null;
+            const lastMACD=(macdData||[]).slice(-1)[0];
+            const lastOBV=(obvData||[]).slice(-1)[0]?.obv??null;
+            const prevOBV=(obvData||[]).slice(-2,-1)[0]?.obv??null;
+            const lastMFI=(mfiData||[]).slice(-1)[0]?.mfi??null;
+            const sRSI  = lastRSI==null?0:lastRSI<30?1:lastRSI>70?-1:lastRSI>55?0.5:lastRSI<45?-0.5:0;
+            const sMACD = lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1;
+            const sOBV  = lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5;
+            const sMFI  = lastMFI==null?0:lastMFI<20?1:lastMFI>80?-1:lastMFI>60?-0.5:lastMFI<40?0.5:0;
+            const sZone = lastGap==null?0:lastGap<-20?1:lastGap>100?-1:lastGap>50?-0.5:lastGap<-10?0.5:0;
+            const techTotal=sRSI+sMACD+sOBV+sMFI+sZone;
+            const upProb=Math.min(95,Math.max(5,Math.round(50+techTotal*12)));
+            const dnProb=100-upProb;
+            const outlook=upProb>=70?"📈 상승 우세":upProb>=58?"🟡 소폭 상승 우세":upProb<=30?"📉 하락 우세":upProb<=42?"🟠 소폭 하락 우세":"⚖️ 중립";
+            const outColor=upProb>=70?C.green:upProb>=58?C.teal:upProb<=30?C.red:upProb<=42?C.orange:C.muted;
+            const period=upProb>=65||upProb<=35?"1~3개월 이내":"방향성 불분명";
+
+            // ── 거시환경 연동 코멘트 (SEFCON × 지수 위치)
+            const sefScore=dc?.totalScore??50;
+            const macroRisk=sefScore<35?"위험":sefScore<50?"경계":sefScore<70?"중립":"양호";
+            let macroComment="";
+            if(sefScore<35&&lastGap>50)       macroComment="⚠️ 거시 위험 + 지수 고평가 — 이중 하방 압력";
+            else if(sefScore<35&&lastGap<-10)  macroComment="⚡ 거시 위험하나 지수 저점권 — 반등 vs 추가 하락 경합";
+            else if(sefScore>=70&&lastGap<-10) macroComment="✅ 거시 양호 + 지수 저평가 — 중기 매수 우호적 환경";
+            else if(sefScore>=70&&lastGap>100) macroComment="🔶 거시 양호하나 지수 과열 — 단기 조정 주의";
+            else if(sefScore<50)               macroComment="🟠 거시 경계 구간 — 지수 방향성 불확실";
+            else                               macroComment="🟡 거시 중립 — 개별 지표 흐름 위주로 판단";
+
             return(
             <>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
@@ -3675,6 +3833,58 @@ export default function App(){
                   ))}
                 </ComposedChart>
               </CW>
+
+              {/* ── 월봉 기술적 종합 전망 카드 */}
+              <div style={{background:`${outColor}0e`,border:`1.5px solid ${outColor}44`,borderRadius:12,padding:"11px 13px",marginBottom:8,marginTop:4}}>
+                <div style={{color:outColor,fontSize:10,fontWeight:800,marginBottom:6}}>🔭 {title} 월봉 기술적 종합 전망 (참고용)</div>
+                <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:7,flexWrap:"wrap"}}>
+                  <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"7px 12px",minWidth:72}}>
+                    <div style={{color:C.muted,fontSize:7,marginBottom:1}}>상승 확률</div>
+                    <div style={{color:C.green,fontSize:19,fontWeight:900,fontFamily:"monospace"}}>{upProb}%</div>
+                  </div>
+                  <div style={{textAlign:"center",background:C.card2,borderRadius:10,padding:"7px 12px",minWidth:72}}>
+                    <div style={{color:C.muted,fontSize:7,marginBottom:1}}>하락 확률</div>
+                    <div style={{color:C.red,fontSize:19,fontWeight:900,fontFamily:"monospace"}}>{dnProb}%</div>
+                  </div>
+                  <div style={{flex:1,minWidth:110}}>
+                    <div style={{color:outColor,fontSize:12,fontWeight:900,marginBottom:2}}>{outlook}</div>
+                    <div style={{color:C.muted,fontSize:7}}>기대 전환: <span style={{color:outColor,fontWeight:700}}>{period}</span></div>
+                  </div>
+                </div>
+                {/* 확률 바 */}
+                <div style={{display:"flex",height:7,borderRadius:4,overflow:"hidden",marginBottom:6}}>
+                  <div style={{width:`${upProb}%`,background:`linear-gradient(90deg,${C.green}88,${C.green})`,transition:"width 0.5s"}}/>
+                  <div style={{width:`${dnProb}%`,background:`linear-gradient(90deg,${C.red}88,${C.red})`}}/>
+                </div>
+                {/* 지표별 기여 미니 카드 */}
+                <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3,marginBottom:6}}>
+                  {[
+                    {label:"RSI",    v:sRSI,  raw:lastRSI!=null?lastRSI.toFixed(0):"-"},
+                    {label:"MACD",   v:sMACD, raw:lastMACD?(lastMACD.macd??0)>(lastMACD.signal??0)?"↑크로스":"↓크로스":"-"},
+                    {label:"OBV",    v:sOBV,  raw:lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV?"↑증가":"↓감소":"-"},
+                    {label:"MFI",    v:sMFI,  raw:lastMFI!=null?lastMFI.toFixed(0):"-"},
+                    {label:"위치",   v:sZone, raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"-"},
+                  ].map(({label,v,raw})=>{
+                    const c=v>0?C.green:v<0?C.red:C.muted;
+                    return(
+                    <div key={label} style={{background:C.card2,borderRadius:6,padding:"4px 5px",textAlign:"center"}}>
+                      <div style={{color:C.muted,fontSize:7,marginBottom:1}}>{label}</div>
+                      <div style={{color:c,fontSize:8,fontWeight:800}}>{raw}</div>
+                      <div style={{color:c,fontSize:7}}>{v>0?"▲":v<0?"▼":"—"}</div>
+                    </div>
+                    );
+                  })}
+                </div>
+                {/* 거시환경 연동 코멘트 */}
+                <div style={{background:C.card2,borderRadius:7,padding:"5px 9px",borderLeft:`3px solid ${outColor}`,marginBottom:4}}>
+                  <div style={{color:C.muted,fontSize:7,marginBottom:1}}>거시환경 연동 (SEFCON {sefScore}pt · {macroRisk})</div>
+                  <div style={{color:outColor,fontSize:8,fontWeight:700}}>{macroComment}</div>
+                </div>
+                <div style={{color:`${C.muted}44`,fontSize:7}}>
+                  ⚠️ RSI·MACD·OBV·MFI·위치밴드 5개 지표 월봉 기준 합산. 보조 참고용.
+                </div>
+              </div>
+
               {/* 이격도 바 차트 */}
               <ST accent={C.teal}>QMA 이격도 (%)</ST>
               <CW h={170}>
@@ -5338,7 +5548,7 @@ export default function App(){
             {/* ── 코스피 기술분석 */}
             {kospiMonthly.length>0?(
               <Box>
-                <IndexChart title="코스피" maData={kospiMA} rsiData={kospiRSI} color="#38BDF8"/>
+                <IndexChart title="코스피" maData={kospiMA} rsiData={kospiRSI} macdData={kospiMACD} obvData={kospiOBV} mfiData={kospiMFI} color="#38BDF8"/>
               </Box>
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스피 데이터 로딩 중...</div></Box>
@@ -5352,7 +5562,7 @@ export default function App(){
             {/* ── 코스닥 기술분석 */}
             {kosdaqMonthly.length>0?(
               <Box>
-                <IndexChart title="코스닥" maData={kosdaqMA} rsiData={kosdaqRSI} color={C.purple}/>
+                <IndexChart title="코스닥" maData={kosdaqMA} rsiData={kosdaqRSI} macdData={kosdaqMACD} obvData={kosdaqOBV} mfiData={kosdaqMFI} color={C.purple}/>
               </Box>
             ):(
               <Box><div style={{color:C.muted,fontSize:11,textAlign:"center",padding:16}}>코스닥 데이터 로딩 중...</div></Box>
