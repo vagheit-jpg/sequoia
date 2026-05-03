@@ -5224,6 +5224,72 @@ export default function App(){
                 </>);
               })()}
             </Box>
+            {/* ── 🇺🇸 미국 M2 통화량 — 유동성 제1지표 */}
+            {(macroData?.usM2YoY||[]).length>0&&(
+            <Box>
+              <ST accent={C.blue}>💧 🇺🇸 미국 M2 통화량 — 유동성 공급의 핵심 선행지표</ST>
+              {(()=>{
+                const usRaw=(macroData.usM2YoY||[]).slice(-48);
+                const lastUsYoY=[...usRaw].reverse().find(r=>r.yoy!=null)?.yoy??null;
+                const sigColor=(v)=>v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;
+                const sigLabel=(v)=>v==null?"-":v<0?"긴축경고":v<=5?"정상":v<=10?"주의":"버블위험";
+                const usChartData=usRaw.filter(r=>r.yoy!=null).map(r=>({date:r.date,절대값:r.value,YoY:r.yoy}));
+                const addMoM=(arr)=>arr.map((d,i)=>{
+                  if(i===0)return{...d,MoM:null};
+                  const prev=arr[i-1].절대값;
+                  return{...d,MoM:prev?+(((d.절대값/prev)-1)*100).toFixed(2):null};
+                });
+                const usChart=addMoM(usChartData);
+                return(<>
+                <div style={{background:`${C.blue}0e`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.blue,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    시중에 풀린 달러의 총량입니다. M2 급증은 자산가격 버블의 연료, M2 급감은 유동성 경색·주가 하락의 신호입니다.<br/>
+                    <span style={{color:C.red,fontWeight:700}}>감소(&lt;0%)</span> → 긴축경고 &nbsp;
+                    <span style={{color:C.green,fontWeight:700}}>정상(0~5%)</span> → 양호 &nbsp;
+                    <span style={{color:C.gold,fontWeight:700}}>주의(5~10%)</span> → 과잉주의 &nbsp;
+                    <span style={{color:C.orange,fontWeight:700}}>급증(&gt;10%)</span> → 버블위험
+                  </div>
+                </div>
+                <div style={{background:C.card2,border:`1px solid ${sigColor(lastUsYoY)}44`,borderRadius:8,padding:"7px 10px",marginBottom:8}}>
+                  <div style={{color:C.muted,fontSize:7,marginBottom:2}}>🇺🇸 미국 M2 YoY</div>
+                  <div style={{color:sigColor(lastUsYoY),fontSize:18,fontWeight:900,fontFamily:"monospace"}}>
+                    {lastUsYoY!=null?`${lastUsYoY>0?"+":""}${lastUsYoY}%`:"-"}
+                  </div>
+                  <div style={{color:sigColor(lastUsYoY),fontSize:8,fontWeight:700,marginTop:1}}>{sigLabel(lastUsYoY)}</div>
+                  <div style={{color:`${C.muted}77`,fontSize:7,marginTop:2}}>FRED M2SL · 십억달러</div>
+                </div>
+                {usChart.length>0&&(<>
+                <div style={{color:C.blue,fontSize:8,fontWeight:700,marginBottom:4}}>🇺🇸 미국 M2 YoY% · MoM% (최근 48개월)</div>
+                <CW h={180}>
+                  <ComposedChart data={usChart} margin={{top:4,right:16,left:0,bottom:4}}>
+                    <defs>
+                      <linearGradient id="usM2Grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.blue} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.blue} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:8}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis yAxisId="yoy" tick={{fill:C.muted,fontSize:8}} width={32} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <YAxis yAxisId="mom" orientation="right" tick={{fill:C.muted,fontSize:8}} width={28} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine yAxisId="yoy" y={0}  stroke={C.muted}         strokeWidth={1} strokeDasharray="4 2"/>
+                    <ReferenceLine yAxisId="yoy" y={10} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"버블 10%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine yAxisId="yoy" y={5}  stroke={`${C.gold}66`}   strokeDasharray="3 3" label={{value:"주의 5%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area yAxisId="yoy" dataKey="YoY" name="YoY%" stroke={C.blue} strokeWidth={2} fill="url(#usM2Grad)" dot={false} connectNulls/>
+                    <Bar  yAxisId="mom" dataKey="MoM" name="MoM%" fill={C.cyan} opacity={0.5} radius={[2,2,0,0]}/>
+                  </ComposedChart>
+                </CW>
+                <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginTop:4}}>
+                  FRED M2SL · 월별 · 십억달러 기준
+                </div>
+                </>)}
+                </>);
+              })()}
+            </Box>
+            )}
+
             {/* ── 미국 장단기 금리차 (T10Y2Y) + 한국 비교 */}
             {(macroData?.fredT10Y2Y||[]).length>0&&(
             <Box>
@@ -5761,6 +5827,72 @@ export default function App(){
 
             {/* ── 거시 신호등 (매크로탭 맨 위로 이동됨) */}
 
+            {/* ── 🇰🇷 한국 M2 통화량 — 유동성 제1지표 */}
+            {(macroData?.krM2YoY||[]).length>0&&(
+            <Box>
+              <ST accent={C.teal}>💧 🇰🇷 한국 M2 통화량 — 유동성 공급의 핵심 선행지표</ST>
+              {(()=>{
+                const krRaw=(macroData.krM2YoY||[]).slice(-48);
+                const lastKrYoY=[...krRaw].reverse().find(r=>r.yoy!=null)?.yoy??null;
+                const sigColor=(v)=>v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;
+                const sigLabel=(v)=>v==null?"-":v<0?"긴축경고":v<=5?"정상":v<=10?"주의":"버블위험";
+                const krChartData=krRaw.filter(r=>r.yoy!=null).map(r=>({date:r.date,절대값:r.value,YoY:r.yoy}));
+                const addMoM=(arr)=>arr.map((d,i)=>{
+                  if(i===0)return{...d,MoM:null};
+                  const prev=arr[i-1].절대값;
+                  return{...d,MoM:prev?+(((d.절대값/prev)-1)*100).toFixed(2):null};
+                });
+                const krChart=addMoM(krChartData);
+                return(<>
+                <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    시중에 풀린 원화의 총량입니다. M2 급증은 자산가격 버블의 연료, M2 급감은 유동성 경색·주가 하락의 신호입니다.<br/>
+                    <span style={{color:C.red,fontWeight:700}}>감소(&lt;0%)</span> → 긴축경고 &nbsp;
+                    <span style={{color:C.green,fontWeight:700}}>정상(0~5%)</span> → 양호 &nbsp;
+                    <span style={{color:C.gold,fontWeight:700}}>주의(5~10%)</span> → 과잉주의 &nbsp;
+                    <span style={{color:C.orange,fontWeight:700}}>급증(&gt;10%)</span> → 버블위험
+                  </div>
+                </div>
+                <div style={{background:C.card2,border:`1px solid ${sigColor(lastKrYoY)}44`,borderRadius:8,padding:"7px 10px",marginBottom:8}}>
+                  <div style={{color:C.muted,fontSize:7,marginBottom:2}}>🇰🇷 한국 M2 YoY</div>
+                  <div style={{color:sigColor(lastKrYoY),fontSize:18,fontWeight:900,fontFamily:"monospace"}}>
+                    {lastKrYoY!=null?`${lastKrYoY>0?"+":""}${lastKrYoY}%`:"-"}
+                  </div>
+                  <div style={{color:sigColor(lastKrYoY),fontSize:8,fontWeight:700,marginTop:1}}>{sigLabel(lastKrYoY)}</div>
+                  <div style={{color:`${C.muted}77`,fontSize:7,marginTop:2}}>ECOS 161Y006 · M2 광의통화 평잔 · 십억원</div>
+                </div>
+                {krChart.length>0&&(<>
+                <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:4}}>🇰🇷 한국 M2 YoY% · MoM% (최근 48개월)</div>
+                <CW h={180}>
+                  <ComposedChart data={krChart} margin={{top:4,right:16,left:0,bottom:4}}>
+                    <defs>
+                      <linearGradient id="krM2Grad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.teal} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.teal} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:8}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,4)||""}/>
+                    <YAxis yAxisId="yoy" tick={{fill:C.muted,fontSize:8}} width={32} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <YAxis yAxisId="mom" orientation="right" tick={{fill:C.muted,fontSize:8}} width={28} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine yAxisId="yoy" y={0}  stroke={C.muted}         strokeWidth={1} strokeDasharray="4 2"/>
+                    <ReferenceLine yAxisId="yoy" y={10} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"버블 10%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine yAxisId="yoy" y={5}  stroke={`${C.gold}66`}   strokeDasharray="3 3" label={{value:"주의 5%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area yAxisId="yoy" dataKey="YoY" name="YoY%" stroke={C.teal} strokeWidth={2} fill="url(#krM2Grad)" dot={false} connectNulls/>
+                    <Bar  yAxisId="mom" dataKey="MoM" name="MoM%" fill={C.green} opacity={0.5} radius={[2,2,0,0]}/>
+                  </ComposedChart>
+                </CW>
+                <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginTop:4}}>
+                  ECOS 161Y006 · M2 광의통화 평잔 원계열 · 십억원 기준
+                </div>
+                </>)}
+                </>);
+              })()}
+            </Box>
+            )}
+
             {/* ── 수출+코스피 동행 */}
             {macroMerged.length>0&&(
               <Box>
@@ -6012,7 +6144,8 @@ export default function App(){
             )}
 
             {/* ── 미국/한국 M2 통화량 — 유동성 제1순위 지표 */}
-            {((macroData?.usM2YoY||[]).length>0||(macroData?.krM2YoY||[]).length>0)&&(
+            {/* M2 블록 분리됨: 미국→미국 섹션 첫번째, 한국→한국 섹션 첫번째 */}
+            {((macroData?.usM2YoY||[]).length>0||(macroData?.krM2YoY||[]).length>0)&&false&&(
             <Box>
               <ST accent={C.blue}>💧 미국/한국 M2 통화량 — 유동성 공급의 핵심 선행지표</ST>
               {(()=>{
