@@ -407,7 +407,8 @@ export default async function handler(req, res) {
            fredSLOOSR, krSloosR, fredLEIR, fredICSAR, fredBAMLR,
            yahooBIZDR, yahooDXYR, yahooHGR, yahooGCR,
            ecosCDR, nominalGdpR,
-           fredM2SLR, ecosKrM2R] =
+           fredM2SLR, ecosKrM2R,
+           fredCAPER, fredWill5000R, ecosKospiMktCapR] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -439,6 +440,9 @@ export default async function handler(req, res) {
         fetchECOS("200Y113", "10106",   `${endY - 10}`, `${endY}`, "A"),// 명목 GDP 연간 (십억원) — 자동 갱신
         fetchFRED("M2SL",             `${endY - 8}-01-01`),             // 미국 M2 통화량 (월별, 십억달러)
         fetchECOS("161Y006", "BBHA00", startDate,  endDate,     "M"),  // 한국 M2 광의통화 평잔 원계열 (월별, 십억원)
+        fetchFRED("CAPE",             `${endY - 30}-01-01`),             // Shiller CAPE (30년)
+        fetchFRED("WILL5000INDFC",    `${endY - 15}-01-01`),             // Wilshire 5000 Full Cap (십억달러)
+        fetchECOS("901Y014", "1040000", startDate,  endDate,     "M"),  // KOSPI 시가총액 (월, 천원)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -474,6 +478,9 @@ export default async function handler(req, res) {
     const nominalGdpArr = ok(nominalGdpR); // 명목 GDP 연간 (십억원)
     const fredM2SLRaw   = ok(fredM2SLR);   // 미국 M2 (십억달러)
     const ecosKrM2Raw   = ok(ecosKrM2R);   // 한국 M2 (십억원)
+    const fredCAPERaw   = ok(fredCAPER);   // Shiller CAPE
+    const fredWill5000Raw = ok(fredWill5000R); // Wilshire 5000 (십억달러)
+    const ecosKospiMktCap = ok(ecosKospiMktCapR); // KOSPI 시가총액 (십억원)
 
     // ── 가공
     // GDP: 이미 전기비% → yoy 필드로 매핑
@@ -570,6 +577,45 @@ export default async function handler(req, res) {
     // 한국 M2: ECOS 월별 (십억원)
     const krM2 = ecosKrM2Raw.map(r => ({ date: r.date, value: r.value })).filter(r=>r.date&&r.value!=null);
     const krM2YoY = calcMonthlyYoY(krM2);
+
+    // ── 거시 과열 지표
+    // Shiller CAPE: FRED는 월별, value 그대로 사용
+    const cape = fredCAPERaw
+      .map(r => ({ date: r.date?.slice(0,6) ?? r.date, value: r.value }))
+      .filter(r => r.date && r.value != null);
+
+    // 미국 버핏지수: Wilshire5000(십억달러) / 미국 명목GDP(FRED GDP, 분기→연간보간)
+    // Wilshire 단위가 포인트(index)이므로 절대 비교보다 역사적 백분위로 과열 판단
+    // 간편 처리: FRED WILL5000INDFC 추세 자체를 역사적 고점 대비 %로 표현
+    const usBuffett = (() => {
+      if (!fredWill5000Raw.length) return [];
+      const vals = fredWill5000Raw.map(r => r.value).filter(v => v != null);
+      const peak = Math.max(...vals);
+      return fredWill5000Raw
+        .filter(r => r.value != null)
+        .map(r => ({
+          date: r.date?.slice(0,6) ?? r.date,
+          value: r.value,
+          pctOfPeak: +((r.value / peak) * 100).toFixed(1),
+        }));
+    })();
+
+    // 한국 버핏지수: KOSPI 시총(천원) / 명목GDP(십억원) × 100
+    // 천원 → 십억원: ÷ 1,000,000
+    const krBuffett = (() => {
+      if (!ecosKospiMktCap.length || !nominalGdpArr.length) return [];
+      const gdpByYear = {};
+      nominalGdpArr.forEach(r => { gdpByYear[r.date] = r.value; });
+      return ecosKospiMktCap
+        .filter(r => r.value != null)
+        .map(r => {
+          const yr = r.date?.slice(0, 4);
+          const gdp = gdpByYear[yr] ?? gdpByYear[String(+yr - 1)] ?? null;
+          if (!gdp) return null;
+          const mktCapBillion = r.value / 1_000_000; // 천원 → 십억원
+          return { date: r.date, value: +((mktCapBillion / gdp) * 100).toFixed(1) };
+        }).filter(Boolean);
+    })();
 
     // ── SEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
@@ -685,6 +731,7 @@ export default async function handler(req, res) {
       yahooBIZD, yahooDXY, copperGold, yahooHG, yahooGC,
       cdSpread, hhDebtGDP,
       usM2YoY, krM2YoY,
+      cape, usBuffett, krBuffett,
       defconData,
       crisisAnalysis,
       updatedAt: Date.now(),
@@ -701,6 +748,8 @@ export default async function handler(req, res) {
         yahooHG:yahooHGRaw.length, yahooGC:yahooGCRaw.length,
         cdSpread:cdSpread.length, hhDebtGDP:hhDebtGDP.length, nominalGdp:nominalGdpArr.length,
         usM2:fredM2SLRaw.length, krM2:ecosKrM2Raw.length,
+        cape:cape.length, usBuffett:usBuffett.length, krBuffett:krBuffett.length,
+        kospiMktCap:ecosKospiMktCap.length,
       }
     };
 
