@@ -3128,11 +3128,11 @@ export default function App(){
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
                           <YAxis {...yp("원",56)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${v.toLocaleString()}`} domain={[0,"auto"]}/>
-                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                          <Line dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
-                          <Line dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
-                          <Line dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
-                          <Line dataKey="roe"    name="ROE멀티플"      stroke={C.pink}   strokeWidth={2}   dot={{r:3,fill:C.pink}}   connectNulls strokeDasharray="2 2"/>
+                          <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10,paddingTop:4}} iconSize={10} iconType="plainline"/>
+                          <Line dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={3}   dot={{r:5,fill:C.orange,strokeWidth:2,stroke:"#fff"}} activeDot={{r:6}} connectNulls/>
+                          <Line dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2.5} dot={{r:4,fill:C.blue,strokeWidth:2,stroke:"#fff"}}   activeDot={{r:5}} connectNulls strokeDasharray="7 3"/>
+                          <Line dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:4,fill:C.purple,strokeWidth:1,stroke:"#fff"}} activeDot={{r:5}} connectNulls strokeDasharray="4 3"/>
+                          <Line dataKey="roe"    name="ROE멀티플"      stroke={C.pink}   strokeWidth={1.5} dot={{r:3,fill:"#fff",strokeWidth:2,stroke:C.pink}}   activeDot={{r:4}} connectNulls strokeDasharray="2 3"/>
                           {price>0&&<ReferenceLine y={price} stroke={C.blueL} strokeDasharray="4 2"
                             label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
                         </ComposedChart>
@@ -3142,13 +3142,13 @@ export default function App(){
                         <span style={{color:C.teal,fontSize:8,fontWeight:700}}>FCF ({du}) — 잉여현금흐름 추이</span>
                         <span style={{color:`${C.muted}88`,fontSize:7}}>음수=적자·투자초과, 양수=현금창출</span>
                       </div>
-                      <CW h={100}>
+                      <CW h={120}>
                         <ComposedChart data={dcfScaled} margin={{top:4,right:16,left:0,bottom:4}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={20}/>
-                          <YAxis {...yp(du,56)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
+                          <YAxis {...yp(du,56)} tickFormatter={v=>v.toLocaleString()} domain={[dataMin=>Math.min(dataMin*1.15,-1),dataMax=>Math.max(dataMax*1.1,1)]}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
-                          <ReferenceLine y={0} stroke={C.muted} strokeDasharray="3 2"/>
+                          <ReferenceLine y={0} stroke={C.muted} strokeWidth={1.5} label={{value:"0",fill:C.muted,fontSize:8,position:"insideTopLeft"}}/>
                           <Bar dataKey="fcf" name={`FCF(${du})`} maxBarSize={36} radius={[3,3,0,0]}>
                             {dcfScaled.map((entry,i)=>(
                               <Cell key={i} fill={entry.fcf!=null&&entry.fcf<0?C.red:C.teal} opacity={0.75}/>
@@ -3159,6 +3159,21 @@ export default function App(){
                       <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginBottom:6}}>
                         FCF <span style={{color:C.teal,fontWeight:700}}>■ 양수(현금창출)</span> <span style={{color:C.red,fontWeight:700}}>■ 음수(현금소진)</span>
                       </div>
+                      {(()=>{
+                        const nullYears=dcfHistory.filter(d=>(d.owner==null||d.rate==null)&&d.fcf!=null).map(d=>d.year);
+                        const negFcfYears=dcfHistory.filter(d=>d.fcf!=null&&d.fcf<0).map(d=>d.year);
+                        if(nullYears.length===0)return null;
+                        return(
+                          <div style={{background:`${C.red}11`,border:`1px solid ${C.red}44`,borderRadius:6,padding:"6px 10px",marginBottom:6,fontSize:8,lineHeight:1.6}}>
+                            <span style={{color:C.red,fontWeight:700}}>⚠️ 일부 연도 DCF 적정주가 미산출</span>
+                            <span style={{color:C.muted,marginLeft:6}}>({nullYears.join("·")}년)</span>
+                            <div style={{color:`${C.muted}cc`,marginTop:3}}>
+                              {negFcfYears.length>0&&<span>• <b>{negFcfYears.join("·")}년</b>: FCF 음수 — 잉여현금흐름 적자·투자초과로 DCF(오너이익)/DCF(금리기반) 산출 불가</span>}
+                              <div>• 그레이엄·ROE 멀티플은 EPS 기반으로 별도 표시되며, 음수 EPS 연도에도 null 처리됩니다</div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </>
                     );
                   })()}
