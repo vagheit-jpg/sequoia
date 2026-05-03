@@ -3230,14 +3230,14 @@ export default function App(){
               const {priceZone,gap}=readingEngine;
               // 각 지표 점수화 (+1 상승 / -1 하락 / 0 중립)
               const scores={
-                rsi: lastRSI==null?0:lastRSI<30?1:lastRSI>70?-1:lastRSI>55?0.5:lastRSI<45?-0.5:0,
+                rsi: lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0,
                 macd: lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1,
                 obv: lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5,
-                mfi: lastMFI==null?0:lastMFI<20?1:lastMFI>80?-1:lastMFI>60?-0.5:lastMFI<40?0.5:0,
-                zone: priceZone==="VL"||priceZone==="L"?1:priceZone==="VH"||priceZone==="EH"?-1:0,
+                mfi: lastMFI==null?0:lastMFI<10?2:lastMFI<20?1:lastMFI>90?-2:lastMFI>80?-1:lastMFI>65?-0.5:lastMFI<35?0.5:0,
+                zone: priceZone==="VL"||priceZone==="L"?1.5:priceZone==="EH"?-1.5:priceZone==="VH"?-1:0,
               };
               const total=Object.values(scores).reduce((a,b)=>a+b,0);
-              const upProb=Math.min(95,Math.max(5,Math.round(50+total*12)));
+              const upProb=Math.min(95,Math.max(5,Math.round(50+total*10)));
               const dnProb=100-upProb;
               const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
               const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
