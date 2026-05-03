@@ -3224,19 +3224,55 @@ export default function App(){
             {(()=>{
               const lastRSI=withRSI.slice(-1)[0]?.rsi??null;
               const lastMACD=withMACD.slice(-1)[0];
+              const prevMACD=withMACD.slice(-2,-1)[0];
               const lastOBV=withOBV.slice(-1)[0]?.obv??null;
               const prevOBV=withOBV.slice(-2,-1)[0]?.obv??null;
               const lastMFI=withMFI.slice(-1)[0]?.mfi??null;
               const {priceZone,gap}=readingEngine;
-              // 각 지표 점수화 (+강할수록 양수 / -강할수록 음수)
-              const gapScore=gap==null?0:gap>300?-2.5:gap>150?-2:gap>80?-1.5:gap>40?-1:gap>20?-0.5:gap<-40?1.5:gap<-20?1:gap<-10?0.5:0;
+              // ── 기본 지표 점수
+              const gapScore=gap==null?0:gap>300?-2.5:gap>150?-2:gap>80?-1.5:gap>40?-1:gap>20?-0.5:gap<-50?2:gap<-30?1.5:gap<-15?1:gap<-5?0.5:0;
+              const zoneScore=(priceZone==="VL"||priceZone==="L"||gap<-30)?1.5:gap<-15?0.8:priceZone==="EH"||gap>200?-1.5:priceZone==="VH"||gap>80?-1:0;
+              const sRSIbase=lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2.5:lastRSI>78?-1.5:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0;
+              const sMACD=lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1;
+              const sOBV=lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5;
+              const sMFI=lastMFI==null?0:lastMFI<10?2:lastMFI<20?1:lastMFI>90?-2:lastMFI>80?-1:lastMFI>65?-0.5:lastMFI<35?0.5:0;
+              // ── RSI 다이버전스 (Wilder 원저)
+              const rsiArr=withRSI.slice(-3);
+              const priceArr=withMACD.slice(-3);
+              let sDivergence=0;
+              if(rsiArr.length===3&&priceArr.length===3){
+                const pH=priceArr[2]?.close??null; const pPH=priceArr[0]?.close??null;
+                const rH=rsiArr[2]?.rsi??null;     const rPH=rsiArr[0]?.rsi??null;
+                if(pH!=null&&pPH!=null&&rH!=null&&rPH!=null){
+                  if(pH>pPH&&rH<rPH) sDivergence=-2;       // 가격 신고가 + RSI 미달 → 하락 다이버전스
+                  else if(pH<pPH&&rH>rPH) sDivergence=2;   // 가격 신저가 + RSI 상회 → 상승 다이버전스
+                }
+              }
+              // ── MACD 히스토그램 기울기 (Gerald Appel 원저)
+              const lastHist=(lastMACD?.macd??0)-(lastMACD?.signal??0);
+              const prevHist=(prevMACD?.macd??0)-(prevMACD?.signal??0);
+              let sHistSlope=0;
+              if(lastMACD&&prevMACD){
+                if(lastHist>0&&lastHist<prevHist) sHistSlope=-0.5;  // 양수 히스토그램 꺾임 → 모멘텀 약화
+                else if(lastHist<0&&lastHist>prevHist) sHistSlope=0.5; // 음수 히스토그램 반등 → 바닥 다지기
+              }
+              // ── 이격도 × MACD 교차 판정
+              const sCross=(gap!=null&&gap<-15&&lastHist>0)?1.5:(gap!=null&&gap>50&&lastHist<0)?-1.5:0;
+              // ── 컨펌 카운트 보너스/패널티 (Elder Triple Screen)
+              const bullSignals=[sRSIbase>0,sMACD>0,sOBV>0,sMFI>0,gapScore>0,zoneScore>0].filter(Boolean).length;
+              const bearSignals=[sRSIbase<0,sMACD<0,sOBV<0,sMFI<0,gapScore<0,zoneScore<0].filter(Boolean).length;
+              const sConfirm=bullSignals>=4?1:bullSignals===3?0.5:bearSignals>=4?-1:bearSignals===3?-0.5:0;
               const scores={
-                rsi: lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2.5:lastRSI>78?-1.5:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0,
-                macd: lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1,
-                obv: lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5,
-                mfi: lastMFI==null?0:lastMFI<10?2:lastMFI<20?1:lastMFI>90?-2:lastMFI>80?-1:lastMFI>65?-0.5:lastMFI<35?0.5:0,
-                zone: priceZone==="VL"||priceZone==="L"?1.5:priceZone==="EH"?-1.5:priceZone==="VH"?-1:0,
+                rsi: sRSIbase,
+                macd: sMACD,
+                obv: sOBV,
+                mfi: sMFI,
+                zone: zoneScore,
                 gap: gapScore,
+                divergence: sDivergence,
+                histSlope: sHistSlope,
+                cross: sCross,
+                confirm: sConfirm,
               };
               const total=Object.values(scores).reduce((a,b)=>a+b,0);
               const upProb=Math.min(95,Math.max(5,Math.round(50+total*8)));
@@ -3275,6 +3311,10 @@ export default function App(){
                     {label:"MFI",v:scores.mfi,raw:lastMFI!=null?lastMFI.toFixed(0):"-"},
                     {label:"위치",v:scores.zone,raw:priceZone||"-"},
                     {label:"이격도",v:scores.gap,raw:gap!=null?`${gap>0?"+":""}${gap.toFixed(0)}%`:"-"},
+                    {label:"RSI다이버",v:scores.divergence,raw:scores.divergence>0?"상승D":scores.divergence<0?"하락D":"없음"},
+                    {label:"MACD기울기",v:scores.histSlope,raw:scores.histSlope>0?"바닥다짐":scores.histSlope<0?"모멘약화":"중립"},
+                    {label:"이격×MACD",v:scores.cross,raw:scores.cross>0?"반등교차":scores.cross<0?"고점확인":"중립"},
+                    {label:"컨펌",v:scores.confirm,raw:scores.confirm>0?`↑${[...Array(Math.round(scores.confirm*2))].map(()=>"●").join("")}`:scores.confirm<0?`↓${[...Array(Math.round(Math.abs(scores.confirm)*2))].map(()=>"●").join("")}`:"—"},
                   ].map(({label,v,raw})=>{
                     const c=v>0?C.green:v<0?C.red:C.muted;
                     return(
@@ -3287,7 +3327,7 @@ export default function App(){
                   })}
                 </div>
                 <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,lineHeight:1.6}}>
-                  ⚠️ 월봉 5개 기술 지표(RSI·MACD·OBV·MFI·위치밴드) 점수 합산 기준. 재무·거시 요인 미반영. 투자 판단의 보조 참고용으로만 활용하십시오.
+                  ⚠️ 월봉 10개 지표(RSI·MACD·OBV·MFI·위치·이격도·RSI다이버전스·MACD기울기·이격×MACD교차·컨펌) 합산 기준. 재무·거시 요인 미반영. 투자 판단의 보조 참고용으로만 활용하십시오.
                 </div>
               </div>
               );
@@ -4236,16 +4276,43 @@ export default function App(){
             // ── 월봉 기술적 종합 전망 계산
             const lastRSI=rsiData.slice(-1)[0]?.rsi??null;
             const lastMACD=(macdData||[]).slice(-1)[0];
+            const prevMACD=(macdData||[]).slice(-2,-1)[0];
             const lastOBV=(obvData||[]).slice(-1)[0]?.obv??null;
             const prevOBV=(obvData||[]).slice(-2,-1)[0]?.obv??null;
             const lastMFI=(mfiData||[]).slice(-1)[0]?.mfi??null;
-            const sRSI  = lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2.5:lastRSI>78?-1.5:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0;
+            const sRSIbase = lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2.5:lastRSI>78?-1.5:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0;
             const sMACD = lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1;
             const sOBV  = lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5;
             const sMFI  = lastMFI==null?0:lastMFI<10?2:lastMFI<20?1:lastMFI>90?-2:lastMFI>80?-1:lastMFI>65?-0.5:lastMFI<35?0.5:0;
-            const sGap  = lastGap==null?0:lastGap>300?-2.5:lastGap>150?-2:lastGap>80?-1.5:lastGap>40?-1:lastGap>20?-0.5:lastGap<-40?1.5:lastGap<-20?1:lastGap<-10?0.5:0;
-            const sZone = lastGap==null?0:lastGap<-20?1.5:lastGap>100?-1.5:lastGap>50?-1:lastGap<-10?0.5:0;
-            const techTotal=sRSI+sMACD+sOBV+sMFI+sGap+sZone;
+            const sGap  = lastGap==null?0:lastGap>300?-2.5:lastGap>150?-2:lastGap>80?-1.5:lastGap>40?-1:lastGap>20?-0.5:lastGap<-50?2:lastGap<-30?1.5:lastGap<-15?1:lastGap<-5?0.5:0;
+            const sZone = lastGap==null?0:lastGap<-30?1.5:lastGap<-15?0.8:lastGap>200?-1.5:lastGap>100?-1.5:lastGap>50?-1:0;
+            // ── RSI 다이버전스 (Wilder 원저)
+            const iRsiArr=(rsiData||[]).slice(-3);
+            const iMaArr=(maData||[]).slice(-3);
+            let sIDivergence=0;
+            if(iRsiArr.length===3&&iMaArr.length===3){
+              const pH=iMaArr[2]?.price??null; const pPH=iMaArr[0]?.price??null;
+              const rH=iRsiArr[2]?.rsi??null;  const rPH=iRsiArr[0]?.rsi??null;
+              if(pH!=null&&pPH!=null&&rH!=null&&rPH!=null){
+                if(pH>pPH&&rH<rPH) sIDivergence=-2;     // 하락 다이버전스
+                else if(pH<pPH&&rH>rPH) sIDivergence=2; // 상승 다이버전스
+              }
+            }
+            // ── MACD 히스토그램 기울기 (Gerald Appel 원저)
+            const iLastHist=(lastMACD?.macd??0)-(lastMACD?.signal??0);
+            const iPrevHist=(prevMACD?.macd??0)-(prevMACD?.signal??0);
+            let sIHistSlope=0;
+            if(lastMACD&&prevMACD){
+              if(iLastHist>0&&iLastHist<iPrevHist) sIHistSlope=-0.5;
+              else if(iLastHist<0&&iLastHist>iPrevHist) sIHistSlope=0.5;
+            }
+            // ── 이격도 × MACD 교차 판정
+            const sICross=(lastGap!=null&&lastGap<-15&&iLastHist>0)?1.5:(lastGap!=null&&lastGap>50&&iLastHist<0)?-1.5:0;
+            // ── 컨펌 카운트 보너스/패널티 (Elder Triple Screen)
+            const iBullSignals=[sRSIbase>0,sMACD>0,sOBV>0,sMFI>0,sGap>0,sZone>0].filter(Boolean).length;
+            const iBearSignals=[sRSIbase<0,sMACD<0,sOBV<0,sMFI<0,sGap<0,sZone<0].filter(Boolean).length;
+            const sIConfirm=iBullSignals>=4?1:iBullSignals===3?0.5:iBearSignals>=4?-1:iBearSignals===3?-0.5:0;
+            const techTotal=sRSIbase+sMACD+sOBV+sMFI+sGap+sZone+sIDivergence+sIHistSlope+sICross+sIConfirm;
             const upProb=Math.min(95,Math.max(5,Math.round(50+techTotal*7)));
             const dnProb=100-upProb;
             const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
@@ -4338,12 +4405,16 @@ export default function App(){
                 {/* 지표별 기여 미니 카드 */}
                 <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:3,marginBottom:6}}>
                   {[
-                    {label:"RSI",    v:sRSI,  raw:lastRSI!=null?lastRSI.toFixed(0):"-"},
+                    {label:"RSI",    v:sRSIbase,  raw:lastRSI!=null?lastRSI.toFixed(0):"-"},
                     {label:"MACD",   v:sMACD, raw:lastMACD?(lastMACD.macd??0)>(lastMACD.signal??0)?"↑크로스":"↓크로스":"-"},
                     {label:"OBV",    v:sOBV,  raw:lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV?"↑증가":"↓감소":"-"},
                     {label:"MFI",    v:sMFI,  raw:lastMFI!=null?lastMFI.toFixed(0):"-"},
-                    {label:"위치",   v:sZone, raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap.toFixed(0)}%`:"-"},
-                    {label:"이격도", v:sGap,  raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap.toFixed(0)}%`:"-"},
+                    {label:"위치",   v:sZone, raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"-"},
+                    {label:"이격도", v:sGap,  raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"-"},
+                    {label:"RSI다이버",v:sIDivergence,raw:sIDivergence>0?"상승D":sIDivergence<0?"하락D":"없음"},
+                    {label:"MACD기울기",v:sIHistSlope,raw:sIHistSlope>0?"바닥다짐":sIHistSlope<0?"모멘약화":"중립"},
+                    {label:"이격×MACD",v:sICross,raw:sICross>0?"반등교차":sICross<0?"고점확인":"중립"},
+                    {label:"컨펌",   v:sIConfirm,raw:sIConfirm>0?`↑${[...Array(Math.round(sIConfirm*2))].map(()=>"●").join("")}`:sIConfirm<0?`↓${[...Array(Math.round(Math.abs(sIConfirm)*2))].map(()=>"●").join("")}`:"—"},
                   ].map(({label,v,raw})=>{
                     const c=v>0?C.green:v<0?C.red:C.muted;
                     return(
@@ -4361,7 +4432,7 @@ export default function App(){
                   <div style={{color:outColor,fontSize:8,fontWeight:700}}>{macroComment}</div>
                 </div>
                 <div style={{color:`${C.muted}44`,fontSize:7}}>
-                  ⚠️ RSI·MACD·OBV·MFI·위치밴드 5개 지표 월봉 기준 합산. 보조 참고용.
+                  ⚠️ 월봉 10개 지표(RSI·MACD·OBV·MFI·위치·이격도·RSI다이버전스·MACD기울기·이격×MACD교차·컨펌) 합산. 보조 참고용.
                 </div>
               </div>
 
@@ -5026,16 +5097,23 @@ export default function App(){
                     <div key={cr.id} style={{background:isTop?`${cr.color}12`:C.card2,
                       border:`1px solid ${isTop?cr.color+"44":C.border}`,
                       borderRadius:8,padding:"8px 10px"}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+                      {/* 제목행: 이름+날짜+유사도 한 줄 */}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+                        <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",flex:1,minWidth:0}}>
                           <div style={{width:8,height:8,borderRadius:"50%",background:cr.color,flexShrink:0}}/>
-                          <span style={{color:isTop?cr.color:C.text,fontSize:9,fontWeight:isTop?800:600}}>
+                          <span style={{color:isTop?cr.color:C.text,fontSize:9,fontWeight:isTop?800:600,whiteSpace:"nowrap"}}>
                             {cr.label}
                           </span>
-                          <span style={{color:`${C.muted}88`,fontSize:7}}>{cr.date}</span>
-                          {isTop&&<span style={{color:cr.color,fontSize:7,fontWeight:700}}>▶ 최근접</span>}
+                          <span style={{color:`${C.muted}88`,fontSize:7,whiteSpace:"nowrap"}}>{cr.date}</span>
+                          {isTop&&<span style={{color:cr.color,fontSize:7,fontWeight:700,whiteSpace:"nowrap"}}>▶ 최근접</span>}
                         </div>
-                        <div style={{color:`${C.muted}bb`,fontSize:7.5,lineHeight:1.6,marginTop:3,marginBottom:1}}>
+                        <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,marginLeft:6}}>
+                          <span style={{color:sc,fontSize:7,whiteSpace:"nowrap"}}>{simLabel(cr.similarity)}</span>
+                          <span style={{color:sc,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:30,textAlign:"right"}}>{cr.similarity}%</span>
+                        </div>
+                      </div>
+                      {/* 설명: 독립 줄 */}
+                      <div style={{color:`${C.muted}bb`,fontSize:7.5,lineHeight:1.6,marginBottom:4}}>
                           {({
                             imf1997:     "한국 외환위기(IMF) — 외환보유고 소진, 원화 폭락. 코스피 -70%, 실업률 폭등. IMF 구제금융 570억 달러.",
                             dotcom2000:  "IT 버블 붕괴 — 인터넷 주식 과열 후 붕괴. 나스닥 -78%. 실물 영향은 제한적이었으나 기술주 완전 초토화.",
@@ -5050,11 +5128,6 @@ export default function App(){
                             china2015:   "중국 충격 — 위안화 절하·중국 증시 폭락. 글로벌 원자재 수요 우려로 신흥국 동반 약세.",
                             fed2018:     "연준 긴축 2018 — 보유자산 축소+금리인상 동시 진행. 12월 나스닥 -20%, 파월 '성장 둔화' 인정 후 피벗.",
                           }[cr.id]||"이 위기 구간의 거시경제 패턴과 현재의 유사도를 5개 카테고리로 분석합니다.")}
-                        </div>
-                        <div style={{display:"flex",alignItems:"center",gap:5}}>
-                          <span style={{color:sc,fontSize:7}}>{simLabel(cr.similarity)}</span>
-                          <span style={{color:sc,fontSize:11,fontWeight:800,fontFamily:"monospace",
-                            minWidth:36,textAlign:"right"}}>{cr.similarity}%</span>
                         </div>
                       </div>
                       <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
