@@ -249,8 +249,8 @@ function calcSimilarity(currentCatScores, crisisCat) {
     const cri = crisisCat[cat] ?? 50;
     sumSq += Math.pow(cur - cri, 2);
   });
-  const dist = Math.sqrt(sumSq); // 최대거리 ≈ sqrt(5*100^2) = 223
-  const similarity = Math.max(0, Math.round((1 - dist / 180) * 100));
+  const dist = Math.sqrt(sumSq); // 최대거리 ≈ sqrt(5*100^2) = 223, proximityScore와 동일 기준
+  const similarity = Math.max(0, Math.round((1 - dist / 250) * 100));
   return similarity;
 }
 
