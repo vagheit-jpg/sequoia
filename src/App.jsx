@@ -740,7 +740,7 @@ const MTip=({active,payload,label})=>{
     <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontFamily:"monospace"}}>{label}</div>
     {payload.map((p,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:2}}>
       <span style={{color:C.muted}}>{p.name}</span>
-      <span style={{color:p.color||C.text,fontFamily:"monospace",fontWeight:700}}>{typeof p.value==="number"?Math.round(p.value).toLocaleString():p.value}</span>
+      <span style={{color:p.color||C.text,fontFamily:"monospace",fontWeight:700}}>{typeof p.value==="number"?(Number.isInteger(p.value)?p.value.toLocaleString():p.value.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})):p.value}</span>
     </div>))}
   </div>);
 };
@@ -972,6 +972,32 @@ function OutsiderTab({annData,hasFinData,price}){
               이들의 공통점은 화려한 비전 발표나 M&A가 아닌, <span style={{color:C.orange,fontWeight:700}}>조용한 자본배분 능력</span>이었습니다.
             </div>
           </div>
+        </div>
+
+        {/* 등급 척도 설명 */}
+        <div style={{fontSize:9,color:C.gold,fontWeight:700,marginBottom:6,letterSpacing:"0.06em"}}>
+          🏅 적합도 등급 척도 (100점 만점)
+        </div>
+        <div style={{display:"flex",gap:4,flexWrap:"wrap",marginBottom:12}}>
+          {[
+            {grade:"A+",score:"85~100",color:C.green, icon:"🏆",desc:"손다이크 8인과 고도로 일치. 자본배분 천재형 — 장기 핵심 보유 적합"},
+            {grade:"A", score:"70~84", color:C.teal,  icon:"🌟",desc:"현금 중심 경영 뚜렷. 장기 복리 투자에 적합한 우수 기업"},
+            {grade:"B", score:"55~69", color:C.gold,  icon:"✅",desc:"부분적 아웃사이더 특성. 세부 항목 점검 후 투자 고려"},
+            {grade:"C", score:"35~54", color:C.orange,icon:"⚠️",desc:"일부 지표만 부합. 성장형·전통 경영 방식 혼재"},
+            {grade:"비해당",score:"~34",color:C.red,  icon:"❌",desc:"아웃사이더 기준과 거리 있음. 자본배분 철학 재확인 필요"},
+          ].map(({grade,score,color,icon,desc})=>(
+            <div key={grade} style={{
+              background:C.card2,borderRadius:7,padding:"6px 9px",
+              border:`1px solid ${color}44`,flex:"1 1 calc(50% - 4px)",minWidth:140,
+            }}>
+              <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:3}}>
+                <span style={{fontSize:11}}>{icon}</span>
+                <span style={{color:color,fontWeight:900,fontSize:10,fontFamily:"monospace"}}>{grade}</span>
+                <span style={{color:`${C.muted}88`,fontSize:8,marginLeft:2}}>({score}점)</span>
+              </div>
+              <div style={{color:C.muted,fontSize:8,lineHeight:1.5}}>{desc}</div>
+            </div>
+          ))}
         </div>
 
         {/* 8인 소개 */}
@@ -3213,9 +3239,9 @@ export default function App(){
               const total=Object.values(scores).reduce((a,b)=>a+b,0);
               const upProb=Math.min(95,Math.max(5,Math.round(50+total*12)));
               const dnProb=100-upProb;
-              const outlook=upProb>=70?"📈 상승 우세":upProb>=55?"🟡 소폭 상승 우세":upProb<=30?"📉 하락 우세":upProb<=45?"🟠 소폭 하락 우세":"⚖️ 중립";
-              const outColor=upProb>=70?C.green:upProb>=55?C.teal:upProb<=30?C.red:upProb<=45?C.orange:C.muted;
-              const period=upProb>=60||upProb<=40?"1~3개월 이내":"방향성 불분명";
+              const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=31?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
+              const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
+              const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=35?"단기 하락 주의":"1~2개월 이내 하락";
               return(
               <div style={{background:`${outColor}0e`,border:`1.5px solid ${outColor}44`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
                 <div style={{color:outColor,fontSize:10,fontWeight:800,marginBottom:6}}>🔭 월봉 기술적 종합 전망 (참고용)</div>
@@ -3543,8 +3569,8 @@ export default function App(){
                           <Line dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2.5} dot={{r:4,fill:C.blue,strokeWidth:2,stroke:"#fff"}}   activeDot={{r:5}} connectNulls strokeDasharray="7 3"/>
                           <Line dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:4,fill:C.purple,strokeWidth:1,stroke:"#fff"}} activeDot={{r:5}} connectNulls strokeDasharray="4 3"/>
                           <Line dataKey="roe"    name="ROE멀티플"      stroke={C.teal}   strokeWidth={1.5} dot={{r:3,fill:"#fff",strokeWidth:2,stroke:C.teal}}   activeDot={{r:4}} connectNulls strokeDasharray="2 3"/>
-                          {price>0&&<ReferenceLine y={price} stroke={C.green} strokeWidth={2}
-                            label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.green,fontSize:9,fontWeight:700,position:"insideTopRight"}}/>}
+                          {price>0&&<ReferenceLine y={price} stroke={C.gold} strokeWidth={2.5}
+                            label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.goldL,fontSize:9,fontWeight:700,position:"insideTopRight"}}/>}
                         </ComposedChart>
                       </CW>
                       {/* FCF 별도 미니 차트 */}
@@ -3556,7 +3582,7 @@ export default function App(){
                         <ComposedChart data={dcfScaled} margin={{top:4,right:16,left:0,bottom:4}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={20}/>
-                          <YAxis {...yp(du,56)} tickFormatter={v=>{const abs=Math.abs(v);if(abs>=10000)return `${(v/10000).toFixed(0)}조`;return `${Math.round(v)}억`;}} domain={[dataMin=>Math.min(dataMin*1.15,-1),dataMax=>Math.max(dataMax*1.1,1)]}/>
+                          <YAxis {...yp("",56)} tickFormatter={v=>{const abs=Math.abs(v);if(abs>=10000)return `${(v/10000).toFixed(1)}조`;return `${Math.round(v)}억`;}} domain={[dataMin=>Math.min(dataMin*1.15,-1),dataMax=>Math.max(dataMax*1.1,1)]}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
                           <ReferenceLine y={0} stroke={C.muted} strokeWidth={1.5} label={{value:"0",fill:C.muted,fontSize:8,position:"insideTopLeft"}}/>
                           <Bar dataKey="fcf" name={`FCF(${du})`} maxBarSize={36} radius={[3,3,0,0]}>
@@ -4218,9 +4244,9 @@ export default function App(){
             const techTotal=sRSI+sMACD+sOBV+sMFI+sZone;
             const upProb=Math.min(95,Math.max(5,Math.round(50+techTotal*12)));
             const dnProb=100-upProb;
-            const outlook=upProb>=70?"📈 상승 우세":upProb>=58?"🟡 소폭 상승 우세":upProb<=30?"📉 하락 우세":upProb<=42?"🟠 소폭 하락 우세":"⚖️ 중립";
-            const outColor=upProb>=70?C.green:upProb>=58?C.teal:upProb<=30?C.red:upProb<=42?C.orange:C.muted;
-            const period=upProb>=65||upProb<=35?"1~3개월 이내":"방향성 불분명";
+            const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=31?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
+            const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
+            const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=35?"단기 하락 주의":"1~2개월 이내 하락";
 
             // ── 거시환경 연동 코멘트 (SEFCON × 지수 위치)
             const sefScore=dc?.totalScore??50;
@@ -4996,13 +5022,29 @@ export default function App(){
                       border:`1px solid ${isTop?cr.color+"44":C.border}`,
                       borderRadius:8,padding:"8px 10px"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                        <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                           <div style={{width:8,height:8,borderRadius:"50%",background:cr.color,flexShrink:0}}/>
                           <span style={{color:isTop?cr.color:C.text,fontSize:9,fontWeight:isTop?800:600}}>
                             {cr.label}
                           </span>
                           <span style={{color:`${C.muted}88`,fontSize:7}}>{cr.date}</span>
                           {isTop&&<span style={{color:cr.color,fontSize:7,fontWeight:700}}>▶ 최근접</span>}
+                        </div>
+                        <div style={{color:`${C.muted}bb`,fontSize:7.5,lineHeight:1.6,marginTop:3,marginBottom:1}}>
+                          {({
+                            imf1997:     "한국 외환위기(IMF) — 외환보유고 소진, 원화 폭락. 코스피 -70%, 실업률 폭등. IMF 구제금융 570억 달러.",
+                            dotcom2000:  "IT 버블 붕괴 — 인터넷 주식 과열 후 붕괴. 나스닥 -78%. 실물 영향은 제한적이었으나 기술주 완전 초토화.",
+                            gfc2008:     "글로벌 금융위기(리먼 쇼크) — 서브프라임 부실이 금융 시스템 전반 붕괴로 확산. 코스피 -54%, 글로벌 동반 침체.",
+                            europe2011:  "유럽 재정위기 — 그리스·스페인 등 남유럽 국채 부실. ECB 개입 전까지 유로존 해체 우려, 이머징 동반 조정.",
+                            covid2020:   "코로나19 팬데믹 — 전 세계 봉쇄령. 코스피 -36% 급락 후 유동성 공급으로 사상 최고 속도 반등.",
+                            tightening2022:"미국 긴축 위기 — 40년 만의 최고 인플레이션 대응. 기준금리 0→5.5%. 채권·성장주·코스닥 동반 급락.",
+                            volcker1979: "볼커 긴축 쇼크 — 인플레 잡기 위해 금리 20%까지 인상. 극심한 경기침체와 달러 초강세. 스태그플레이션 종식.",
+                            japan1990:   "일본 버블 붕괴 — 부동산·주식 동반 붕괴. 닛케이 -80%, 이후 '잃어버린 30년' 장기 침체의 출발점.",
+                            bond1994:    "채권 대학살 — 연준 금리 인상에 채권 시장 급락. 멕시코 페소 위기와 맞물려 이머징 시장 연쇄 타격.",
+                            ltcm1998:    "러시아 디폴트·LTCM 붕괴 — 러시아 국채 디폴트로 헤지펀드 LTCM 붕괴 위기. 연준 긴급 구제로 시스템 리스크 차단.",
+                            china2015:   "중국 충격 — 위안화 절하·중국 증시 폭락. 글로벌 원자재 수요 우려로 신흥국 동반 약세.",
+                            fed2018:     "연준 긴축 2018 — 보유자산 축소+금리인상 동시 진행. 12월 나스닥 -20%, 파월 '성장 둔화' 인정 후 피벗.",
+                          }[cr.id]||"이 위기 구간의 거시경제 패턴과 현재의 유사도를 5개 카테고리로 분석합니다.")}
                         </div>
                         <div style={{display:"flex",alignItems:"center",gap:5}}>
                           <span style={{color:sc,fontSize:7}}>{simLabel(cr.similarity)}</span>
@@ -5695,7 +5737,7 @@ export default function App(){
 
                 {(macroData?.ppi||[]).filter(r=>r.yoy!=null).length>0&&(
                   <>
-                  <ST accent={C.orange} right="생산자물가 전년비%">🇰🇷 PPI — 원가 압력 선행지표</ST>
+                  {(()=>{const ppiJudge=lastPPI==null?{t:"—",c:C.muted}:lastPPI>6?{t:`+${lastPPI}% 🔴 원가위기`,c:C.red}:lastPPI>3?{t:`+${lastPPI}% 🟠 압박`,c:C.orange}:lastPPI>0?{t:`+${lastPPI}% 🟡 안정`,c:C.gold}:lastPPI>-3?{t:`${lastPPI}% 🟢 디플레`,c:C.green}:{t:`${lastPPI}% 🔵 급디플레`,c:C.cyan};return(<ST accent={C.orange} right={<span style={{color:ppiJudge.c,fontWeight:700,fontFamily:"monospace",fontSize:10}}>{ppiJudge.t}</span>}>🇰🇷 PPI — 원가 압력 선행지표</ST>);})()}
                   <div style={{background:`${C.orange}0e`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                     <div style={{color:C.orange,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
                     <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
@@ -6032,6 +6074,25 @@ export default function App(){
             <Tag color={C.purple} size={8}>DB:Supabase</Tag>
             <Tag color={C.gold}  size={8}>투자참고용</Tag>
           </div>
+        </div>
+      </div>
+
+      {/* ── Copyright Footer */}
+      <div style={{
+        textAlign:"center",padding:"20px 16px 28px",
+        borderTop:`1px solid ${C.border}`,marginTop:24,
+      }}>
+        <div style={{
+          color:`${C.muted}99`,fontSize:10,fontWeight:700,
+          letterSpacing:"0.08em",fontFamily:"monospace",marginBottom:4,
+        }}>
+          Copyright © 2026 SEQUOIA QUANTUM™. All Rights Reserved.
+        </div>
+        <div style={{
+          color:`${C.muted}55`,fontSize:7.5,fontWeight:400,
+          fontFamily:"monospace",letterSpacing:"0.04em",
+        }}>
+          Any violation of data integrity or unauthorized access will be subject to immediate legal action and system exclusion.
         </div>
       </div>
 
