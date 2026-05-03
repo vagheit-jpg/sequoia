@@ -3228,16 +3228,18 @@ export default function App(){
               const prevOBV=withOBV.slice(-2,-1)[0]?.obv??null;
               const lastMFI=withMFI.slice(-1)[0]?.mfi??null;
               const {priceZone,gap}=readingEngine;
-              // 각 지표 점수화 (+1 상승 / -1 하락 / 0 중립)
+              // 각 지표 점수화 (+강할수록 양수 / -강할수록 음수)
+              const gapScore=gap==null?0:gap>300?-2.5:gap>150?-2:gap>80?-1.5:gap>40?-1:gap>20?-0.5:gap<-40?1.5:gap<-20?1:gap<-10?0.5:0;
               const scores={
-                rsi: lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0,
+                rsi: lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2.5:lastRSI>78?-1.5:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0,
                 macd: lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1,
                 obv: lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5,
                 mfi: lastMFI==null?0:lastMFI<10?2:lastMFI<20?1:lastMFI>90?-2:lastMFI>80?-1:lastMFI>65?-0.5:lastMFI<35?0.5:0,
                 zone: priceZone==="VL"||priceZone==="L"?1.5:priceZone==="EH"?-1.5:priceZone==="VH"?-1:0,
+                gap: gapScore,
               };
               const total=Object.values(scores).reduce((a,b)=>a+b,0);
-              const upProb=Math.min(95,Math.max(5,Math.round(50+total*10)));
+              const upProb=Math.min(95,Math.max(5,Math.round(50+total*8)));
               const dnProb=100-upProb;
               const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
               const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
@@ -3272,6 +3274,7 @@ export default function App(){
                     {label:"OBV",v:scores.obv,raw:lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV?"↑증가":"↓감소":"-"},
                     {label:"MFI",v:scores.mfi,raw:lastMFI!=null?lastMFI.toFixed(0):"-"},
                     {label:"위치",v:scores.zone,raw:priceZone||"-"},
+                    {label:"이격도",v:scores.gap,raw:gap!=null?`${gap>0?"+":""}${gap.toFixed(0)}%`:"-"},
                   ].map(({label,v,raw})=>{
                     const c=v>0?C.green:v<0?C.red:C.muted;
                     return(
@@ -4236,13 +4239,14 @@ export default function App(){
             const lastOBV=(obvData||[]).slice(-1)[0]?.obv??null;
             const prevOBV=(obvData||[]).slice(-2,-1)[0]?.obv??null;
             const lastMFI=(mfiData||[]).slice(-1)[0]?.mfi??null;
-            const sRSI  = lastRSI==null?0:lastRSI<30?1:lastRSI>70?-1:lastRSI>55?0.5:lastRSI<45?-0.5:0;
+            const sRSI  = lastRSI==null?0:lastRSI<20?2:lastRSI<30?1:lastRSI>85?-2.5:lastRSI>78?-1.5:lastRSI>70?-1:lastRSI>60?-0.5:lastRSI<40?0.5:0;
             const sMACD = lastMACD==null?0:(lastMACD.macd??0)>(lastMACD.signal??0)?1:-1;
             const sOBV  = lastOBV==null||prevOBV==null?0:lastOBV>prevOBV?0.5:-0.5;
-            const sMFI  = lastMFI==null?0:lastMFI<20?1:lastMFI>80?-1:lastMFI>60?-0.5:lastMFI<40?0.5:0;
-            const sZone = lastGap==null?0:lastGap<-20?1:lastGap>100?-1:lastGap>50?-0.5:lastGap<-10?0.5:0;
-            const techTotal=sRSI+sMACD+sOBV+sMFI+sZone;
-            const upProb=Math.min(95,Math.max(5,Math.round(50+techTotal*12)));
+            const sMFI  = lastMFI==null?0:lastMFI<10?2:lastMFI<20?1:lastMFI>90?-2:lastMFI>80?-1:lastMFI>65?-0.5:lastMFI<35?0.5:0;
+            const sGap  = lastGap==null?0:lastGap>300?-2.5:lastGap>150?-2:lastGap>80?-1.5:lastGap>40?-1:lastGap>20?-0.5:lastGap<-40?1.5:lastGap<-20?1:lastGap<-10?0.5:0;
+            const sZone = lastGap==null?0:lastGap<-20?1.5:lastGap>100?-1.5:lastGap>50?-1:lastGap<-10?0.5:0;
+            const techTotal=sRSI+sMACD+sOBV+sMFI+sGap+sZone;
+            const upProb=Math.min(95,Math.max(5,Math.round(50+techTotal*7)));
             const dnProb=100-upProb;
             const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
             const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
@@ -4338,7 +4342,8 @@ export default function App(){
                     {label:"MACD",   v:sMACD, raw:lastMACD?(lastMACD.macd??0)>(lastMACD.signal??0)?"↑크로스":"↓크로스":"-"},
                     {label:"OBV",    v:sOBV,  raw:lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV?"↑증가":"↓감소":"-"},
                     {label:"MFI",    v:sMFI,  raw:lastMFI!=null?lastMFI.toFixed(0):"-"},
-                    {label:"위치",   v:sZone, raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"-"},
+                    {label:"위치",   v:sZone, raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap.toFixed(0)}%`:"-"},
+                    {label:"이격도", v:sGap,  raw:lastGap!=null?`${lastGap>0?"+":""}${lastGap.toFixed(0)}%`:"-"},
                   ].map(({label,v,raw})=>{
                     const c=v>0?C.green:v<0?C.red:C.muted;
                     return(
