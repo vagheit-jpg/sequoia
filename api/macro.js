@@ -438,7 +438,7 @@ export default async function handler(req, res) {
         fetchECOS("721Y001", "5010000", startDate,  endDate,     "M"),  // CD 91일물 수익률
         fetchECOS("200Y113", "10106",   `${endY - 10}`, `${endY}`, "A"),// 명목 GDP 연간 (십억원) — 자동 갱신
         fetchFRED("M2SL",             `${endY - 8}-01-01`),             // 미국 M2 통화량 (월별, 십억달러)
-        fetchECOS("101Y004", "BBHA00", startDate,  endDate,     "M"),  // 한국 M2 광의통화 (월별, 십억원)
+        fetchECOS("161Y006", "BBHA00", startDate,  endDate,     "M"),  // 한국 M2 광의통화 평잔 원계열 (월별, 십억원)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
