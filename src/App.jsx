@@ -1006,14 +1006,14 @@ function OutsiderTab({annData,hasFinData,price}){
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:10}}>
           {[
-            {ceo:"워런 버핏",company:"버크셔 해서웨이",ret:"S&P 대비 ×100+",color:C.gold},
+            {ceo:"워런 버핏",company:"버크셔 해서웨이",ret:"S&P 대비 ×135",color:C.gold},
             {ceo:"헨리 싱글턴",company:"텔레다인",ret:"S&P 대비 ×12",color:C.teal},
-            {ceo:"존 맬론",company:"TCI/리버티 미디어",ret:"S&P 대비 ×900",color:C.purple},
-            {ceo:"톰 머피",company:"캐피털 시티즈/ABC",ret:"S&P 대비 ×16",color:C.blue},
-            {ceo:"딕 스미스",company:"제너럴 시네마",ret:"S&P 대비 ×16",color:C.orange},
+            {ceo:"존 맬론",company:"TCI/리버티 미디어",ret:"S&P 대비 ×40 (절대 ×900)",color:C.purple},
+            {ceo:"톰 머피",company:"캐피털 시티즈/ABC",ret:"S&P 대비 ×16.7",color:C.blue},
+            {ceo:"딕 스미스",company:"제너럴 시네마",ret:"S&P 대비 ×15.8",color:C.orange},
             {ceo:"캐서린 그레이엄",company:"워싱턴 포스트",ret:"S&P 대비 ×18",color:C.cyan},
-            {ceo:"빌 스털링",company:"애리스토크래프트",ret:"S&P 대비 ×18",color:C.green},
-            {ceo:"닉 채피",company:"이그나이트",ret:"S&P 대비 ×8",color:C.pink},
+            {ceo:"빌 스털링",company:"랠스턴 퓨리나",ret:"S&P 대비 ×2.5",color:C.green},
+            {ceo:"빌 앤더스",company:"제너럴 다이나믹스",ret:"S&P 대비 ×6.7",color:C.pink},
           ].map(({ceo,company,ret,color})=>(
             <div key={ceo} style={{
               background:C.card2,borderRadius:6,padding:"5px 8px",
@@ -1768,7 +1768,7 @@ function BuffettTabInner({Q,todayQ,CATS,CAT_COLOR,CAT_ICON}){
 }
 
 export default function App(){
-  const [darkMode,setDarkMode]=useState(true);
+  const [darkMode,setDarkMode]=useState(false);
   C=darkMode?DARK:LIGHT;
 
   const [stocks,setStocks]=useState([]);
@@ -3258,7 +3258,7 @@ export default function App(){
               }
               // ── 이격도 × MACD 교차 판정
               const sCross=(gap!=null&&gap<-15&&lastHist>0)?1.5:(gap!=null&&gap>50&&lastHist<0)?-1.5:0;
-              // ── 컨펌 카운트 보너스/패널티 (Elder Triple Screen)
+              // ── 신호증폭 보너스/패널티 (Elder Triple Screen)
               const bullSignals=[sRSIbase>0,sMACD>0,sOBV>0,sMFI>0,gapScore>0,zoneScore>0].filter(Boolean).length;
               const bearSignals=[sRSIbase<0,sMACD<0,sOBV<0,sMFI<0,gapScore<0,zoneScore<0].filter(Boolean).length;
               const sConfirm=bullSignals>=4?1:bullSignals===3?0.5:bearSignals>=4?-1:bearSignals===3?-0.5:0;
@@ -3314,7 +3314,7 @@ export default function App(){
                     {label:"RSI다이버",v:scores.divergence,raw:scores.divergence>0?"상승D":scores.divergence<0?"하락D":"없음"},
                     {label:"MACD기울기",v:scores.histSlope,raw:scores.histSlope>0?"바닥다짐":scores.histSlope<0?"모멘약화":"중립"},
                     {label:"이격×MACD",v:scores.cross,raw:scores.cross>0?"반등교차":scores.cross<0?"고점확인":"중립"},
-                    {label:"컨펌",v:scores.confirm,raw:scores.confirm>0?`↑${[...Array(Math.round(scores.confirm*2))].map(()=>"●").join("")}`:scores.confirm<0?`↓${[...Array(Math.round(Math.abs(scores.confirm)*2))].map(()=>"●").join("")}`:"—"},
+                    {label:"신호증폭",v:scores.confirm,raw:scores.confirm>0?`↑${[...Array(Math.round(scores.confirm*2))].map(()=>"●").join("")}`:scores.confirm<0?`↓${[...Array(Math.round(Math.abs(scores.confirm)*2))].map(()=>"●").join("")}`:"—"},
                   ].map(({label,v,raw})=>{
                     const c=v>0?C.green:v<0?C.red:C.muted;
                     return(
@@ -3327,7 +3327,7 @@ export default function App(){
                   })}
                 </div>
                 <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,lineHeight:1.6}}>
-                  ⚠️ 월봉 10개 지표(RSI·MACD·OBV·MFI·위치·이격도·RSI다이버전스·MACD기울기·이격×MACD교차·컨펌) 합산 기준. 재무·거시 요인 미반영. 투자 판단의 보조 참고용으로만 활용하십시오.
+                  ⚠️ 월봉 10개 지표(RSI·MACD·OBV·MFI·위치·이격도·RSI다이버전스·MACD기울기·이격×MACD교차·신호증폭) 합산 기준. 재무·거시 요인 미반영. 투자 판단의 보조 참고용으로만 활용하십시오.
                 </div>
               </div>
               );
@@ -3502,7 +3502,7 @@ export default function App(){
                 <div style={{display:"flex",flexDirection:"column",gap:7}}>
                   {[
                     {
-                      label:"A. DCF (오너이익법)", color:C.orange,
+                      label:"A. DCF (오너이익)", color:C.orange,
                       formula:"오너이익 = 순이익 + 감가상각 − 유지CAPEX",
                       desc:"워런 버핏이 직접 고안한 방식. 회계 이익이 아닌 '주인에게 실제로 귀속되는 현금'을 기준으로 기업 가치를 산출합니다. 유지CAPEX는 사업 현상유지에 필요한 최소 설비투자로, 비율이 높을수록 보수적(낮은 평가). 장기 현금흐름 창출력이 안정적인 기업에 적합합니다.",
                       when:"✅ 제조업·인프라처럼 설비투자 비중이 명확한 기업에 신뢰도 높음",
@@ -4202,15 +4202,15 @@ export default function App(){
              color:_sloos==null?"#888":_sloos>=50?C.red:_sloos>=20?C.orange:_sloos>=-5?C.gold:C.green,
              tip:_sloos==null?"":_sloos>=50?"극단강화":_sloos>=20?"긴축":_sloos>=-5?"중립":"완화"},
             {label:"LEI", region:"🇺🇸",
-             val:_lei!=null?`${_lei}`:"-",
+             val:_lei!=null?`${Number(_lei).toFixed(2)}`:"-",
              color:_lei==null?"#888":_lei<98?C.red:_lei<99?C.orange:_lei<100.5?C.gold:C.green,
              tip:_lei==null?"":_lei<98?"수축":_lei<99?"둔화":_lei<100.5?"보통":"확장"},
             {label:"DXY", region:"🇺🇸",
-             val:_dxy!=null?`${_dxy}`:"-",
+             val:_dxy!=null?`${Number(_dxy).toFixed(2)}`:"-",
              color:_dxy==null?"#888":_dxy>=108?C.red:_dxy>=104?C.orange:_dxy>=100?C.gold:C.green,
              tip:_dxy==null?"":_dxy>=108?"강세위험":_dxy>=104?"압박":_dxy>=100?"보통":"약세"},
             {label:"구리/금", region:"🇺🇸",
-             val:_cg!=null?`${_cg}`:"-",
+             val:_cg!=null?`${Number(_cg).toFixed(2)}`:"-",
              color:_cg==null?"#888":_cg<0.15?C.red:_cg<0.18?C.orange:_cg<0.25?C.gold:C.green,
              tip:_cg==null?"":_cg<0.15?"위기":_cg<0.18?"경계":_cg<0.25?"중립":"호조"},
             {label:"ICSA(천건)", region:"🇺🇸",
@@ -4308,7 +4308,7 @@ export default function App(){
             }
             // ── 이격도 × MACD 교차 판정
             const sICross=(lastGap!=null&&lastGap<-15&&iLastHist>0)?1.5:(lastGap!=null&&lastGap>50&&iLastHist<0)?-1.5:0;
-            // ── 컨펌 카운트 보너스/패널티 (Elder Triple Screen)
+            // ── 신호증폭 보너스/패널티 (Elder Triple Screen)
             const iBullSignals=[sRSIbase>0,sMACD>0,sOBV>0,sMFI>0,sGap>0,sZone>0].filter(Boolean).length;
             const iBearSignals=[sRSIbase<0,sMACD<0,sOBV<0,sMFI<0,sGap<0,sZone<0].filter(Boolean).length;
             const sIConfirm=iBullSignals>=4?1:iBullSignals===3?0.5:iBearSignals>=4?-1:iBearSignals===3?-0.5:0;
@@ -4414,7 +4414,7 @@ export default function App(){
                     {label:"RSI다이버",v:sIDivergence,raw:sIDivergence>0?"상승D":sIDivergence<0?"하락D":"없음"},
                     {label:"MACD기울기",v:sIHistSlope,raw:sIHistSlope>0?"바닥다짐":sIHistSlope<0?"모멘약화":"중립"},
                     {label:"이격×MACD",v:sICross,raw:sICross>0?"반등교차":sICross<0?"고점확인":"중립"},
-                    {label:"컨펌",   v:sIConfirm,raw:sIConfirm>0?`↑${[...Array(Math.round(sIConfirm*2))].map(()=>"●").join("")}`:sIConfirm<0?`↓${[...Array(Math.round(Math.abs(sIConfirm)*2))].map(()=>"●").join("")}`:"—"},
+                    {label:"신호증폭",   v:sIConfirm,raw:sIConfirm>0?`↑${[...Array(Math.round(sIConfirm*2))].map(()=>"●").join("")}`:sIConfirm<0?`↓${[...Array(Math.round(Math.abs(sIConfirm)*2))].map(()=>"●").join("")}`:"—"},
                   ].map(({label,v,raw})=>{
                     const c=v>0?C.green:v<0?C.red:C.muted;
                     return(
@@ -4432,7 +4432,7 @@ export default function App(){
                   <div style={{color:outColor,fontSize:8,fontWeight:700}}>{macroComment}</div>
                 </div>
                 <div style={{color:`${C.muted}44`,fontSize:7}}>
-                  ⚠️ 월봉 10개 지표(RSI·MACD·OBV·MFI·위치·이격도·RSI다이버전스·MACD기울기·이격×MACD교차·컨펌) 합산. 보조 참고용.
+                  ⚠️ 월봉 10개 지표(RSI·MACD·OBV·MFI·위치·이격도·RSI다이버전스·MACD기울기·이격×MACD교차·신호증폭) 합산. 보조 참고용.
                 </div>
               </div>
 
@@ -5517,7 +5517,7 @@ export default function App(){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>OECD 복합선행지수 · 100 기준 · 99이하 둔화신호</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{Number(last).toFixed(2)} {vl}</span>}
                 </div>
                 <CW h={200}>
                   <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
@@ -5571,7 +5571,7 @@ export default function App(){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>DXY강세 = 신흥국 압박·자금이탈 / 원달러와 동행</span>
-                  {lastDX!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{lastDX} {vl}</span>}
+                  {lastDX!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{Number(lastDX).toFixed(2)} {vl}</span>}
                 </div>
                 <CW h={210}>
                   <ComposedChart data={merged} margin={{top:8,right:4,left:0,bottom:8}}>
@@ -5618,7 +5618,7 @@ export default function App(){
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>구리(산업)/금(안전) 비율 상승 = 경기낙관 / 하락 = 위기회피</span>
-                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last} {vl}</span>}
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{Number(last).toFixed(2)} {vl}</span>}
                 </div>
                 <CW h={200}>
                   <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
