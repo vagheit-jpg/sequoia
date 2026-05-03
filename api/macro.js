@@ -406,7 +406,8 @@ export default async function handler(req, res) {
            fredT10Y2YR, fredHYR, fredDGS10R, fredVIXR, fredUNRATER,
            fredSLOOSR, krSloosR, fredLEIR, fredICSAR, fredBAMLR,
            yahooBIZDR, yahooDXYR, yahooHGR, yahooGCR,
-           ecosCDR, nominalGdpR] =
+           ecosCDR, nominalGdpR,
+           fredM2SLR, ecosKrM2R] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -436,6 +437,8 @@ export default async function handler(req, res) {
         fetchYahooMonthly("GC=F", 5),                                    // 금 선물
         fetchECOS("721Y001", "5010000", startDate,  endDate,     "M"),  // CD 91일물 수익률
         fetchECOS("200Y113", "10106",   `${endY - 10}`, `${endY}`, "A"),// 명목 GDP 연간 (십억원) — 자동 갱신
+        fetchFRED("M2SL",             `${endY - 8}-01-01`),             // 미국 M2 통화량 (월별, 십억달러)
+        fetchECOS("101Y004", "BBHA00", startDate,  endDate,     "M"),  // 한국 M2 광의통화 (월별, 십억원)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -469,6 +472,8 @@ export default async function handler(req, res) {
     const yahooGCRaw    = ok(yahooGCR);
     const ecosCDRaw     = ok(ecosCDR);
     const nominalGdpArr = ok(nominalGdpR); // 명목 GDP 연간 (십억원)
+    const fredM2SLRaw   = ok(fredM2SLR);   // 미국 M2 (십억달러)
+    const ecosKrM2Raw   = ok(ecosKrM2R);   // 한국 M2 (십억원)
 
     // ── 가공
     // GDP: 이미 전기비% → yoy 필드로 매핑
@@ -558,6 +563,14 @@ export default async function handler(req, res) {
       return { date: r.date, value: +(r.value / gdpAnnual * 100).toFixed(1) };
     }).filter(Boolean);
 
+    // ── 미국/한국 M2 통화량 YoY 계산
+    // M2SL은 FRED 월별 데이터 (단위: 십억달러) — dailyToMonthly 불필요, 이미 월별
+    const usM2 = fredM2SLRaw.map(r => ({ date: r.date?.slice(0,7)?.replace("-","."), value: r.value })).filter(r=>r.date&&r.value!=null);
+    const usM2YoY = calcMonthlyYoY(usM2); // { date, value(절대값), yoy }
+    // 한국 M2: ECOS 월별 (십억원)
+    const krM2 = ecosKrM2Raw.map(r => ({ date: r.date, value: r.value })).filter(r=>r.date&&r.value!=null);
+    const krM2YoY = calcMonthlyYoY(krM2);
+
     // ── SEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
@@ -593,7 +606,14 @@ export default async function handler(req, res) {
         good:"완화", warn:"중립", bad:"강화",
         score: scoreV(last(krSloos),        [40, 20, -5, -20], 1) },
 
-      // ── 유동성 (4개)
+      // ── 유동성 (6개 — M2 2개 추가)
+      { cat:"유동성", key:"미국M2", label:"미국 M2 통화량 YoY", val:lastYoy(usM2YoY), unit:"%",
+        good:"양호", warn:"주의", bad:"긴축/버블",
+        // 급감(<0%) 위험, 정상(0~5%) 양호, 급증(>10%) 과잉(버블위험이나 위기는 아님 → 중립처리)
+        score: (()=>{const v=lastYoy(usM2YoY);if(v==null)return 0;if(v<-2)return -2;if(v<0)return -1;if(v<=5)return 0;if(v<=10)return +1;return 0;})() },
+      { cat:"유동성", key:"한국M2", label:"한국 M2 통화량 YoY", val:lastYoy(krM2YoY), unit:"%",
+        good:"양호", warn:"주의", bad:"긴축/버블",
+        score: (()=>{const v=lastYoy(krM2YoY);if(v==null)return 0;if(v<-2)return -2;if(v<0)return -1;if(v<=5)return 0;if(v<=10)return +1;return 0;})() },
       { cat:"유동성", key:"기준금리", label:"한국 기준금리", val:last(rate), unit:"%",
         good:"완화적", warn:"중립", bad:"긴축",
         score: scoreV(last(rate), [4.0, 3.0, 2.0, 1.0], 1) },
@@ -664,6 +684,7 @@ export default async function handler(req, res) {
       fredSLOOS, krSloos, fredLEI, fredICSA, fredBAML,
       yahooBIZD, yahooDXY, copperGold, yahooHG, yahooGC,
       cdSpread, hhDebtGDP,
+      usM2YoY, krM2YoY,
       defconData,
       crisisAnalysis,
       updatedAt: Date.now(),
@@ -679,6 +700,7 @@ export default async function handler(req, res) {
         yahooBIZD:yahooBIZDRaw.length, yahooDXY:yahooDXYRaw.length,
         yahooHG:yahooHGRaw.length, yahooGC:yahooGCRaw.length,
         cdSpread:cdSpread.length, hhDebtGDP:hhDebtGDP.length, nominalGdp:nominalGdpArr.length,
+        usM2:fredM2SLRaw.length, krM2:ecosKrM2Raw.length,
       }
     };
 
