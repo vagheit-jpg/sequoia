@@ -4625,12 +4625,12 @@ export default function App(){
                 {/* ── 지표 상세 그리드 */}
                 <div style={{marginBottom:8}}>
                   <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
-                    📋 지표별 상세 (21개)
+                    📋 지표별 상세 (23개)
                   </div>
                   {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
                     const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
                     // 미국 key 목록
-                    const US_KEYS=new Set(["미국금리역전","하이일드","HY스프레드","미국SLOOS","VIX","DXY","ICSA","LEI","구리금"]);
+                    const US_KEYS=new Set(["미국금리역전","하이일드","HY스프레드","미국SLOOS","VIX","DXY","ICSA","LEI","구리금","미국M2"]);
                     const allInds=dc.indicators.filter(i=>i.cat===cat);
                     // 미국 먼저, 한국 나중 정렬
                     const inds=[...allInds.filter(i=>US_KEYS.has(i.key)),...allInds.filter(i=>!US_KEYS.has(i.key))];
