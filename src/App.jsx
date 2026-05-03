@@ -3239,9 +3239,9 @@ export default function App(){
               const total=Object.values(scores).reduce((a,b)=>a+b,0);
               const upProb=Math.min(95,Math.max(5,Math.round(50+total*12)));
               const dnProb=100-upProb;
-              const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=31?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
+              const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
               const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
-              const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=35?"단기 하락 주의":"1~2개월 이내 하락";
+              const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=36?"단기 하락 주의":"1~2개월 이내 하락";
               return(
               <div style={{background:`${outColor}0e`,border:`1.5px solid ${outColor}44`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
                 <div style={{color:outColor,fontSize:10,fontWeight:800,marginBottom:6}}>🔭 월봉 기술적 종합 전망 (참고용)</div>
@@ -4244,9 +4244,9 @@ export default function App(){
             const techTotal=sRSI+sMACD+sOBV+sMFI+sZone;
             const upProb=Math.min(95,Math.max(5,Math.round(50+techTotal*12)));
             const dnProb=100-upProb;
-            const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=31?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
+            const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
             const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
-            const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=35?"단기 하락 주의":"1~2개월 이내 하락";
+            const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=36?"단기 하락 주의":"1~2개월 이내 하락";
 
             // ── 거시환경 연동 코멘트 (SEFCON × 지수 위치)
             const sefScore=dc?.totalScore??50;
