@@ -759,130 +759,6 @@ const ViewToggle=({view,setView})=>(
 // BuffettTabInner — 버핏의 말 탭 컴포넌트
 // ══════════════════════════════════════════════════════════════
 
-// ══════════════════════════════════════════════════════════════
-// OvheatPanel — 거시 과열 온도계 (SEFCON 탭 보조패널)
-// ══════════════════════════════════════════════════════════════
-function OvheatPanel({macroData,C,Box,ST}){
-  const [tab,setTab]=useState("us");
-
-  // ── 미국 지표
-  // S&P500 고점대비%: usBuffett.pctOfPeak (Wilshire 기반)
-  const buffettUs = [...(macroData?.usBuffett||[])].slice(-1)[0]?.pctOfPeak??null;
-  const usM2Val   = [...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
-  // CAPE: fredCAPERaw → cape 배열
-  const capeVal   = [...(macroData?.cape||[])].reverse().find(r=>r.value!=null)?.value??null;
-
-  // ── 한국 지표
-  const krBuffettVal = [...(macroData?.krBuffett||[])].slice(-1)[0]?.value??null;
-  const krM2Val      = [...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
-  const hhDebtVal    = [...(macroData?.hhDebtGDP||[])].slice(-1)[0]?.value??null;
-
-  // ── 과열 점수 (지표당 0~2점, 최대 6점)
-  const scoreUS=(()=>{let s=0;
-    if(capeVal!=null)   s+=capeVal>35?2:capeVal>27?1:0;
-    if(buffettUs!=null) s+=buffettUs>90?2:buffettUs>75?1:0;
-    if(usM2Val!=null)   s+=usM2Val>10?2:usM2Val>5?1:0;
-    return s;})();
-  const scoreKR=(()=>{let s=0;
-    if(krBuffettVal!=null) s+=krBuffettVal>140?2:krBuffettVal>100?1:0;
-    if(krM2Val!=null)      s+=krM2Val>10?2:krM2Val>5?1:0;
-    if(hhDebtVal!=null)    s+=hhDebtVal>82?2:hhDebtVal>75?1:0;
-    return s;})();
-
-  const score=tab==="us"?scoreUS:scoreKR;
-  const heatColor=s=>s>=5?C.red:s>=3?C.orange:s>=1?C.gold:C.green;
-  const heatLabel=s=>s>=5?"매우 높음":s>=3?"높음":s>=1?"보통":"낮음";
-
-  // 신호등: ●●●○○○
-  const heatDots=(s,max)=>Array.from({length:max},(_,i)=>(
-    <span key={i} style={{display:"inline-block",width:9,height:9,borderRadius:"50%",
-      background:i<s?heatColor(s):`${heatColor(s)}28`,marginRight:2}}/>));
-
-  const Row=({label,val,unit,color,tip})=>(
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-      padding:"5px 0",borderBottom:`1px solid ${C.border}33`}}>
-      <span style={{color:C.muted,fontSize:9}}>{label}</span>
-      <div style={{display:"flex",alignItems:"center",gap:6}}>
-        <span style={{color:tip?color:C.muted,fontSize:9,fontWeight:600}}>{tip||"-"}</span>
-        <span style={{color:color,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:56,textAlign:"right"}}>
-          {val??"-"}{val!=null?unit:""}
-        </span>
-      </div>
-    </div>);
-
-  return(
-    <Box style={{marginTop:8}}>
-      {/* 헤더 + 토글 */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-        <ST accent={C.orange} style={{marginBottom:0}}>📊 거시 과열 온도계</ST>
-        <div style={{display:"flex",gap:4}}>
-          {[["us","🇺🇸 미국"],["kr","🇰🇷 한국"]].map(([k,lbl])=>(
-            <button key={k} onClick={()=>setTab(k)} style={{
-              fontSize:9,padding:"2px 8px",borderRadius:4,cursor:"pointer",
-              border:`1.5px solid ${tab===k?C.orange:C.border}`,
-              background:tab===k?`${C.orange}18`:C.card2,
-              color:tab===k?C.orange:C.muted,fontWeight:tab===k?700:400}}>
-              {lbl}
-            </button>))}
-        </div>
-      </div>
-
-      {/* 미국 패널 */}
-      {tab==="us"&&<>
-        <Row label="Shiller CAPE (S&P500 경기조정 PER)"
-          val={capeVal!=null?capeVal.toFixed(1):null} unit=""
-          color={capeVal==null?C.muted:capeVal>35?C.red:capeVal>27?C.orange:capeVal>20?C.gold:C.green}
-          tip={capeVal==null?"":capeVal>35?"극단 과열":capeVal>27?"과열":capeVal>20?"보통":"저평가"}/>
-        <Row label="Wilshire5000 (역사적 고점 대비 %)"
-          val={buffettUs!=null?buffettUs.toFixed(1):null} unit="%"
-          color={buffettUs==null?C.muted:buffettUs>95?C.red:buffettUs>80?C.orange:buffettUs>65?C.gold:C.green}
-          tip={buffettUs==null?"":buffettUs>95?"극단 과열":buffettUs>80?"과열":buffettUs>65?"보통":"저평가"}/>
-        <Row label="미국 M2 통화량 YoY"
-          val={usM2Val!=null?`${usM2Val>0?"+":""}${usM2Val.toFixed(1)}`:null} unit="%"
-          color={usM2Val==null?C.muted:usM2Val<0?C.red:usM2Val<=5?C.green:usM2Val<=10?C.gold:C.orange}
-          tip={usM2Val==null?"":usM2Val<0?"긴축":usM2Val<=5?"정상":usM2Val<=10?"주의":"버블위험"}/>
-      </>}
-
-      {/* 한국 패널 */}
-      {tab==="kr"&&<>
-        <Row label="KOSPI 버핏지수 (시총/GDP)"
-          val={krBuffettVal!=null?krBuffettVal.toFixed(1):null} unit="%"
-          color={krBuffettVal==null?C.muted:krBuffettVal>140?C.red:krBuffettVal>110?C.orange:krBuffettVal>85?C.gold:C.green}
-          tip={krBuffettVal==null?"":krBuffettVal>140?"극단 과열":krBuffettVal>110?"과열":krBuffettVal>85?"보통":"저평가"}/>
-        <Row label="한국 M2 통화량 YoY"
-          val={krM2Val!=null?`${krM2Val>0?"+":""}${krM2Val.toFixed(1)}`:null} unit="%"
-          color={krM2Val==null?C.muted:krM2Val<0?C.red:krM2Val<=5?C.green:krM2Val<=10?C.gold:C.orange}
-          tip={krM2Val==null?"":krM2Val<0?"긴축":krM2Val<=5?"정상":krM2Val<=10?"주의":"버블위험"}/>
-        <Row label="가계부채/GDP (ECOS협의)"
-          val={hhDebtVal!=null?hhDebtVal.toFixed(1):null} unit="%"
-          color={hhDebtVal==null?C.muted:hhDebtVal>=82?C.red:hhDebtVal>=75?C.orange:hhDebtVal>=65?C.gold:C.green}
-          tip={hhDebtVal==null?"":hhDebtVal>=82?"위험":hhDebtVal>=75?"경계":hhDebtVal>=65?"주의":"안정"}/>
-      </>}
-
-      {/* 종합 과열도 — 신호등 */}
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,
-        padding:"7px 10px",borderRadius:6,background:`${heatColor(score)}12`,
-        border:`1px solid ${heatColor(score)}44`}}>
-        <div>
-          <div style={{display:"flex",alignItems:"center",gap:6}}>
-            <span style={{color:heatColor(score),fontSize:9,fontWeight:700}}>종합 과열도</span>
-            <span style={{color:heatColor(score),fontSize:10,fontWeight:900}}>{heatLabel(score)}</span>
-          </div>
-          <div style={{color:C.muted,fontSize:8,marginTop:2}}>
-            {score===0?"정상 밸류에이션 구간":score<=2?"일부 고평가 — 주의":score<=4?"과열 구간 — 신중":"역사적 고과열 — 경계"}
-          </div>
-        </div>
-        <div style={{display:"flex",alignItems:"center",gap:1}}>
-          {heatDots(Math.min(score,6),6)}
-        </div>
-      </div>
-
-      <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,textAlign:"right"}}>
-        FRED(CAPE·Wilshire5000) · ECOS · 투자 참고용
-      </div>
-    </Box>
-  );
-}
 
 // ══════════════════════════════════════════════════════════════
 // OutsiderTab — 아웃사이더 CEO 경영방식 적합도 (현금의 재발견)
@@ -4913,19 +4789,9 @@ export default function App(){
                 },
               };
 
-              const CRISIS_ADJUST = {
-                gfc2008:      { label:"08년형 신용붕괴", adj:["금융주 즉시 전량 매도","달러 현금 +10%p 추가","미국 장기채 TLT 편입"] },
-                imf1997:      { label:"외환위기형",       adj:["원화 현금 → 달러 즉시 전환","한국 자산 비중 최소화","해외 자산 확대"] },
-                covid2020:    { label:"V자 반등 가능",    adj:["현금 확보 후 저점 대기","필수소비재/헬스케어 방어","저점 확인 시 공격적 매수"] },
-                europe2011:   { label:"유럽발 전염",      adj:["유럽 자산 회피","미국/달러 자산 집중","달러 피난처 활용"] },
-                tightening2022:{ label:"금리급등형",      adj:["채권 듀레이션 단축","장기채→단기채 전환","부동산 관련주 회피"] },
-              };
-
               const g = AEGIS_GUIDE[level];
               if (!g) return null;
 
-              // 역사 유사도 연동 경보
-              const crisisAdj = ca?.results?.find(r => r.similarity >= 60 && CRISIS_ADJUST[r.id]);
 
               return(
               <div style={{background:C.card,border:`2px solid ${g.color}44`,borderRadius:16,padding:"14px 14px",marginBottom:10,
@@ -4961,26 +4827,10 @@ export default function App(){
 
                 {/* 행동 가이드 */}
                 <div style={{background:`${g.color}10`,border:`1px solid ${g.color}33`,borderRadius:8,
-                  padding:"8px 10px",marginTop:4,marginBottom:crisisAdj?8:0}}>
+                  padding:"8px 10px",marginTop:4,marginBottom:0}}>
                   <div style={{color:g.color,fontSize:8,fontWeight:700,lineHeight:1.6}}>{g.guide}</div>
                 </div>
 
-                {/* 역사 유사도 연동 경보 */}
-                {crisisAdj&&(
-                <div style={{background:`${ca.results.find(r=>r.id===crisisAdj.id)?.color??C.red}18`,
-                  border:`1.5px solid ${ca.results.find(r=>r.id===crisisAdj.id)?.color??C.red}55`,
-                  borderRadius:8,padding:"8px 10px"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,marginBottom:5}}>
-                    <span style={{fontSize:10}}>⚠️</span>
-                    <span style={{color:ca.results.find(r=>r.id===crisisAdj.id)?.color??C.red,fontSize:9,fontWeight:800}}>
-                      {crisisAdj.label} 패턴 {ca.results.find(r=>r.id===crisisAdj.id)?.similarity}% 유사 — 추가 조정
-                    </span>
-                  </div>
-                  {CRISIS_ADJUST[crisisAdj.id].adj.map(t=>(
-                  <div key={t} style={{color:`${C.muted}cc`,fontSize:7,paddingLeft:4,marginBottom:2}}>→ {t}</div>
-                  ))}
-                </div>
-                )}
 
                 <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
                   본 가이드는 투자 참고용이며 실제 투자 결정은 본인 책임. SEQUOIA QUANTUM AEGIS system
@@ -4988,9 +4838,6 @@ export default function App(){
               </div>
               );
             })()}
-
-            {/* ══ 거시 과열 보조패널 ══ */}
-            <OvheatPanel macroData={macroData} C={C} Box={Box} ST={ST}/>
 
             {/* ══ Crisis Navigation ══ */}
             {macroData?.crisisAnalysis?.navigation&&(()=>{
