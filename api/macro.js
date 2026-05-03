@@ -292,11 +292,14 @@ function calcCrisisAnalysis(defconData) {
     ? Math.round((dangerCount / indicators.length) * 100)
     : 0;
 
-  // ③ estimatedMonths: 위기 도달 예상 시간
-  const estimatedMonths = proximityScore >= 80 ? "3개월 이내"
-    : proximityScore >= 60 ? "6개월 이내"
-    : proximityScore >= 40 ? "12개월 이내"
-    : "안전구간";
+  // ③ estimatedMonths: 위기 패턴 진입 경보 단계
+  // proximityScore(위치 60%) + dangerDensity(밀도 40%) 복합 판단
+  // 시간 예측은 모멘텀 데이터 없이 불가 → 단계 레이블로 표현
+  const composite = proximityScore * 0.6 + dangerDensity * 0.4;
+  const estimatedMonths = composite >= 72 ? "🔴 위기 패턴 진입"
+    : composite >= 54 ? "🟠 경보 단계"
+    : composite >= 36 ? "🟡 주의 단계"
+    : "🟢 안정 구간";
 
   const navigation = {
     proximityScore,
