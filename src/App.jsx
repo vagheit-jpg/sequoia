@@ -5129,7 +5129,6 @@ export default function App(){
                             fed2018:     "연준 긴축 2018 — 보유자산 축소+금리인상 동시 진행. 12월 나스닥 -20%, 파월 '성장 둔화' 인정 후 피벗.",
                           }[cr.id]||"이 위기 구간의 거시경제 패턴과 현재의 유사도를 5개 카테고리로 분석합니다.")}
                         </div>
-                      </div>
                       <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
                         <div style={{width:`${cr.similarity}%`,height:"100%",borderRadius:4,
                           background:`linear-gradient(90deg,${cr.color}66,${cr.color})`,
