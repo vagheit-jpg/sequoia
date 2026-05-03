@@ -3123,28 +3123,41 @@ export default function App(){
                     return(
                     <>
                       <ST accent={C.gold}>연도별 적정주가 추이 (4가지 방식)</ST>
-                      <CW h={260}>
-                        <ComposedChart data={dcfScaled} margin={{top:4,right:56,left:0,bottom:8}}>
+                      <CW h={240}>
+                        <ComposedChart data={dcfScaled} margin={{top:4,right:16,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left" {...yp("원",56)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${v.toLocaleString()}`} domain={[0,"auto"]}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp(du,48)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
+                          <YAxis {...yp("원",56)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${v.toLocaleString()}`} domain={[0,"auto"]}/>
                           <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10}}/>
-                          <Bar yAxisId="right" dataKey="fcf" name={`FCF(${du})`} maxBarSize={28}>
-                            {dcfScaled.map((entry,i)=>(
-                              <Cell key={i} fill={entry.fcf!=null&&entry.fcf<0?C.red:C.teal} opacity={entry.fcf!=null&&entry.fcf<0?0.6:0.4}/>
-                            ))}
-                          </Bar>
-                          <Line yAxisId="left"  dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
-                          <Line yAxisId="left"  dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
-                          <Line yAxisId="left"  dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
-                          <Line yAxisId="left"  dataKey="roe"    name="ROE멀티플"      stroke={C.pink}   strokeWidth={2}   dot={{r:3,fill:C.pink}}   connectNulls strokeDasharray="2 2"/>
-                          {price>0&&<ReferenceLine yAxisId="left" y={price} stroke={C.blueL} strokeDasharray="4 2"
+                          <Line dataKey="owner"  name="DCF(오너이익)"  stroke={C.orange} strokeWidth={2.5} dot={{r:4,fill:C.orange}} connectNulls/>
+                          <Line dataKey="rate"   name="DCF(금리기반)"  stroke={C.blue}   strokeWidth={2}   dot={{r:3,fill:C.blue}}   connectNulls strokeDasharray="5 2"/>
+                          <Line dataKey="graham" name="그레이엄멀티플" stroke={C.purple} strokeWidth={2}   dot={{r:3,fill:C.purple}} connectNulls strokeDasharray="3 2"/>
+                          <Line dataKey="roe"    name="ROE멀티플"      stroke={C.pink}   strokeWidth={2}   dot={{r:3,fill:C.pink}}   connectNulls strokeDasharray="2 2"/>
+                          {price>0&&<ReferenceLine y={price} stroke={C.blueL} strokeDasharray="4 2"
                             label={{value:`현재가 ${price.toLocaleString()}원`,fill:C.blueL,fontSize:9,position:"insideTopRight"}}/>}
                         </ComposedChart>
                       </CW>
-                      <div style={{color:`${C.muted}66`,fontSize:7,textAlign:"right",marginTop:-4,marginBottom:6}}>
-                        좌축: 적정주가(원) · 우축: FCF({du}) · FCF <span style={{color:C.red}}>■ 음수</span> <span style={{color:C.teal}}>■ 양수</span>
+                      {/* FCF 별도 미니 차트 */}
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginTop:6,marginBottom:3}}>
+                        <span style={{color:C.teal,fontSize:8,fontWeight:700}}>FCF ({du}) — 잉여현금흐름 추이</span>
+                        <span style={{color:`${C.muted}88`,fontSize:7}}>음수=적자·투자초과, 양수=현금창출</span>
+                      </div>
+                      <CW h={100}>
+                        <ComposedChart data={dcfScaled} margin={{top:4,right:16,left:0,bottom:4}}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                          <XAxis dataKey="year" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={20}/>
+                          <YAxis {...yp(du,56)} tickFormatter={v=>v.toLocaleString()} domain={["auto","auto"]}/>
+                          <Tooltip content={<MTip/>} cursor={false}/>
+                          <ReferenceLine y={0} stroke={C.muted} strokeDasharray="3 2"/>
+                          <Bar dataKey="fcf" name={`FCF(${du})`} maxBarSize={36} radius={[3,3,0,0]}>
+                            {dcfScaled.map((entry,i)=>(
+                              <Cell key={i} fill={entry.fcf!=null&&entry.fcf<0?C.red:C.teal} opacity={0.75}/>
+                            ))}
+                          </Bar>
+                        </ComposedChart>
+                      </CW>
+                      <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginBottom:6}}>
+                        FCF <span style={{color:C.teal,fontWeight:700}}>■ 양수(현금창출)</span> <span style={{color:C.red,fontWeight:700}}>■ 음수(현금소진)</span>
                       </div>
                     </>
                     );
