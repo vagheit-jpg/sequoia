@@ -3423,8 +3423,8 @@ export default function App(){
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
             {label:"부채/GDP", val:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
-             color:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=110?C.red:v>=100?C.orange:v>=85?C.gold:C.green;})(),
-             tip:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"":v>=110?"위험":v>=100?"경계":v>=85?"주의":"안정";})()},
+             color:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=82?C.red:v>=75?C.orange:v>=65?C.gold:C.green;})(),
+             tip:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"":v>=82?"위험":v>=75?"경계":v>=65?"주의":"안정";})()},
           ];
 
           // ── IndexChart — 주가탭 위치밴드 스타일
@@ -3907,9 +3907,9 @@ export default function App(){
                       <div style={{color:C.muted,fontSize:8,marginTop:1}}>{tc?.date} · SEFCON {tc?.defcon}</div>
                     </div>
                     <div style={{flex:1,minWidth:120,background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 예상 도달</div>
-                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}</div>
-                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>거리 {nav.distToTop}pt 남음</div>
+                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 패턴 진입 경보</div>
+                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}<span style={{color:C.muted,fontWeight:400,fontSize:9}}> (참고)</span></div>
+                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>정점까지 {nav.distToTop}pt · 속도 미반영</div>
                     </div>
                   </div>
                   <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
@@ -4879,30 +4879,30 @@ export default function App(){
             {/* ── 한국 가계부채/GDP 비율 */}
             {(macroData?.hhDebtGDP||[]).length>0&&(
             <Box>
-              <ST accent={C.orange}>📊 한국 가계부채/GDP 비율 — BIS 기준 부채 건전성</ST>
+              <ST accent={C.orange}>📊 한국 가계부채/GDP 비율 — ECOS 협의 기준 부채 건전성</ST>
               {(()=>{
                 const data=(macroData.hhDebtGDP||[]).slice(-20);
                 const last=data.slice(-1)[0]?.value??null;
-                const vc=last==null?"#888":last>=110?C.red:last>=100?C.orange:last>=85?C.gold:C.green;
-                const vl=last==null?"":last>=110?"위험":last>=100?"경계":last>=85?"주의":"안정";
+                const vc=last==null?"#888":last>=82?C.red:last>=75?C.orange:last>=65?C.gold:C.green;
+                const vl=last==null?"":last>=82?"위험":last>=75?"경계":last>=65?"주의":"안정";
                 return(<>
                 <div style={{background:`${C.orange}0e`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                   <div style={{color:C.orange,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
                   <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
                     한국 가계가 진 빚(가계신용 잔액)이 국내총생산(GDP) 대비 얼마나 되는지를 나타냅니다.
-                    BIS(국제결제은행)가 금융 안정성 평가에 쓰는 핵심 지표입니다.<br/>
-                    한국은 <span style={{color:C.red,fontWeight:700}}>OECD 최고 수준</span>으로 2022년 기준 약 105% 수준입니다.
+                    ECOS 가계신용(151Y001) ÷ 연간 명목GDP(200Y113) 기준으로 산출한 협의 지표입니다.<br/>
+                    BIS 광의 기준(~105%)과 정의가 다릅니다. 현재 약 77%는 <span style={{color:C.gold,fontWeight:700}}>주의 구간</span>으로,
                     높을수록 금리 인상 시 가계 부실 위험이 커집니다.
                   </div>
                   <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
-                    {[["🟢 85% 미만","안정"],["🟡 85~100%","주의"],["🟠 100~110%","경계"],["🔴 110%↑","위험"]].map(([r,l])=>(
+                    {[["🟢 65% 미만","안정"],["🟡 65~75%","주의"],["🟠 75~82%","경계"],["🔴 82%↑","위험"]].map(([r,l])=>(
                       <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
                     ))}
                   </div>
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>가계신용잔액 ÷ 연간 명목GDP × 100 · BIS 기준</span>
+                  <span style={{fontSize:8,color:C.muted}}>가계신용잔액 ÷ 연간 명목GDP × 100 · ECOS 협의 기준</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
                 </div>
                 <CW h={210}>
@@ -4917,16 +4917,16 @@ export default function App(){
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={3} tickFormatter={v=>v?.slice(0,4)||""}/>
                     <YAxis tick={{fill:C.muted,fontSize:9}} width={40} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
-                    <ReferenceArea y1={100} y2={130} fill={`${C.red}08`}/>
-                    <ReferenceLine y={110} stroke={`${C.red}77`}    strokeDasharray="3 3" label={{value:"위험 110%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={100} stroke={`${C.orange}77`} strokeDasharray="3 3" label={{value:"경계 100%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
-                    <ReferenceLine y={85}  stroke={`${C.gold}77`}   strokeDasharray="3 3" label={{value:"주의 85%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceArea y1={82} y2={120} fill={`${C.red}08`}/>
+                    <ReferenceLine y={82} stroke={`${C.red}77`}    strokeDasharray="3 3" label={{value:"위험 82%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={75} stroke={`${C.orange}77`} strokeDasharray="3 3" label={{value:"경계 75%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={65} stroke={`${C.gold}77`}   strokeDasharray="3 3" label={{value:"주의 65%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
                     <Area dataKey="value" name="가계부채/GDP" stroke={C.orange} strokeWidth={2.5}
                       fill="url(#debtGdpGrad)" dot={{fill:C.orange,r:3}} connectNulls/>
                   </ComposedChart>
                 </CW>
                 <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right",marginTop:4}}>
-                  산출: 가계신용잔액(ECOS 151Y001) ÷ 연간명목GDP(ECOS 200Y113) × 100
+                  산출: 가계신용잔액(ECOS 151Y001) ÷ 연간명목GDP(ECOS 200Y113) × 100 · BIS 광의 기준(~105%)과 정의 상이
                 </div>
                 </>);
               })()}
