@@ -429,7 +429,7 @@ export default async function handler(req, res) {
         fetchFRED("DRTSCILM",         `${endY - 5}-01-01`),             // 미국 SLOOS 은행대출 기준강화 (복원)
         fetchECOS("514Y001", "AA",      startDateQ, `${endY}Q4`, "Q"),  // 한국 대출행태서베이 — 대출태도
         fetchFRED("USALOLITONOSTSAM", `${endY - 5}-01-01`),             // 미국 LEI 경기선행지수
-        fetchFRED("ICSA",             `${endY - 3}-01-01`),             // 주간 실업청구건수
+        fetchFRED("IC4WSA",           `${endY - 3}-01-01`),             // 주간 실업청구 4주이동평균(천건)
         fetchFRED("BAMLH0A0HYM2",     `${endY - 5}-01-01`),             // ICE BofA HY 스프레드 (사모신용 대용)
         fetchYahooMonthly("BIZD", 5),                                    // BIZD ETF 가격 (그래프 참고용)
         fetchYahooMonthly("DX-Y.NYB", 5),                               // DXY 달러인덱스
@@ -520,7 +520,7 @@ export default async function handler(req, res) {
     const krSloos = krSloosRaw;  // ECOS 분기 데이터 그대로 사용
     // LEI: 일별 → 월별 (OECD 선행지수, 100 기준)
     const fredLEI = dailyToMonthly(fredLEIRaw);
-    // ICSA: 주간 실업청구 → 월별 (천명 단위)
+    // IC4WSA: 주간 실업청구 4주이동평균 → 월별 (천건 단위)
     const fredICSA = dailyToMonthly(fredICSARaw.map(r => ({ ...r, value: +(r.value / 1000).toFixed(1) })));
     // ICE BofA HY 스프레드 — 일별 → 월별 (사모신용 위험 프리미엄 대용)
     const fredBAML = dailyToMonthly(fredBAMLRaw);
