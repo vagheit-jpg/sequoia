@@ -4181,6 +4181,10 @@ export default function App(){
             (macroData?.defconData?.indicators||[]).find(i=>i.key==="CD스프레드")?.val??null;
           const signals=[
             // ── 🇺🇸 미국 지표
+            {label:"미국M2 YoY", region:"🇺🇸",
+             val:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
+             color:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;})(),
+             tip:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v<0?"긴축경고":v<=5?"정상":v<=10?"주의":"버블위험";})()},
             {label:"T10Y2Y", region:"🇺🇸",
              val:_t10y2y!=null?`${_t10y2y>0?"+":""}${_t10y2y}%p`:"-",
              color:_t10y2y==null?"#888":_t10y2y<-1?C.red:_t10y2y<-0.5?C.orange:_t10y2y<0.5?C.gold:C.green,
@@ -4218,10 +4222,6 @@ export default function App(){
              color:_icsa==null?"#888":_icsa>=300?C.red:_icsa>=250?C.orange:_icsa>=210?C.gold:C.green,
              tip:_icsa==null?"":_icsa>=300?"급등":_icsa>=250?"증가":_icsa>=210?"보통":"안정"},
             // ── 🇰🇷 한국 지표
-            {label:"미국M2 YoY", region:"🇺🇸",
-             val:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
-             color:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;})(),
-             tip:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v<0?"긴축경고":v<=5?"정상":v<=10?"주의":"버블위험";})()},
             {label:"한국M2 YoY", region:"🇰🇷",
              val:(()=>{const v=[...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
              color:(()=>{const v=[...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;})(),
@@ -5261,6 +5261,14 @@ export default function App(){
                 </div>
                 {usChart.length>0&&(<>
                 <div style={{color:C.blue,fontSize:8,fontWeight:700,marginBottom:4}}>🇺🇸 미국 M2 YoY% · MoM% (최근 48개월)</div>
+                <div style={{display:"flex",gap:12,marginBottom:6,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7,color:`${C.muted}cc`}}>
+                    <span style={{color:C.blue,fontWeight:700}}>── YoY%</span> 전년동월 대비 증가율 · 추세 방향 (버블/긴축 판단)
+                  </span>
+                  <span style={{fontSize:7,color:`${C.muted}cc`}}>
+                    <span style={{color:C.cyan,fontWeight:700}}>▌MoM%</span> 전월 대비 증가율 · 속도 변화 (꺾임/반등 감지)
+                  </span>
+                </div>
                 <CW h={180}>
                   <ComposedChart data={usChart} margin={{top:4,right:16,left:0,bottom:4}}>
                     <defs>
@@ -5864,6 +5872,14 @@ export default function App(){
                 </div>
                 {krChart.length>0&&(<>
                 <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:4}}>🇰🇷 한국 M2 YoY% · MoM% (최근 48개월)</div>
+                <div style={{display:"flex",gap:12,marginBottom:6,flexWrap:"wrap"}}>
+                  <span style={{fontSize:7,color:`${C.muted}cc`}}>
+                    <span style={{color:C.teal,fontWeight:700}}>── YoY%</span> 전년동월 대비 증가율 · 추세 방향 (버블/긴축 판단)
+                  </span>
+                  <span style={{fontSize:7,color:`${C.muted}cc`}}>
+                    <span style={{color:C.green,fontWeight:700}}>▌MoM%</span> 전월 대비 증가율 · 속도 변화 (꺾임/반등 감지)
+                  </span>
+                </div>
                 <CW h={180}>
                   <ComposedChart data={krChart} margin={{top:4,right:16,left:0,bottom:4}}>
                     <defs>
