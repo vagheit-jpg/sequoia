@@ -762,16 +762,22 @@ const ViewToggle=({view,setView})=>(
 // ══════════════════════════════════════════════════════════════
 // OvheatPanel — 거시 과열 온도계 (SEFCON 탭 보조패널)
 // ══════════════════════════════════════════════════════════════
-function OvheatPanel({macroData,dc,C,Box,ST}){
+function OvheatPanel({macroData,C,Box,ST}){
   const [tab,setTab]=useState("us");
 
-  const capeVal      = [...(macroData?.cape||[])].reverse().find(r=>r.value!=null)?.value??null;
-  const buffettUs    = [...(macroData?.usBuffett||[])].slice(-1)[0]?.pctOfPeak??null;
-  const usM2Val      = [...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
+  // ── 미국 지표
+  // S&P500 고점대비%: usBuffett.pctOfPeak (Wilshire 기반)
+  const buffettUs = [...(macroData?.usBuffett||[])].slice(-1)[0]?.pctOfPeak??null;
+  const usM2Val   = [...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
+  // CAPE: fredCAPERaw → cape 배열
+  const capeVal   = [...(macroData?.cape||[])].reverse().find(r=>r.value!=null)?.value??null;
+
+  // ── 한국 지표
   const krBuffettVal = [...(macroData?.krBuffett||[])].slice(-1)[0]?.value??null;
   const krM2Val      = [...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
   const hhDebtVal    = [...(macroData?.hhDebtGDP||[])].slice(-1)[0]?.value??null;
 
+  // ── 과열 점수 (지표당 0~2점, 최대 6점)
   const scoreUS=(()=>{let s=0;
     if(capeVal!=null)   s+=capeVal>35?2:capeVal>27?1:0;
     if(buffettUs!=null) s+=buffettUs>90?2:buffettUs>75?1:0;
@@ -783,10 +789,14 @@ function OvheatPanel({macroData,dc,C,Box,ST}){
     if(hhDebtVal!=null)    s+=hhDebtVal>82?2:hhDebtVal>75?1:0;
     return s;})();
 
+  const score=tab==="us"?scoreUS:scoreKR;
   const heatColor=s=>s>=5?C.red:s>=3?C.orange:s>=1?C.gold:C.green;
-  const heatDots=(s,max)=>Array.from({length:max},(_,i)=>
-    <span key={i} style={{display:"inline-block",width:8,height:8,borderRadius:"50%",
-      background:i<s?heatColor(s):`${heatColor(s)}30`,marginRight:2}}/>);
+  const heatLabel=s=>s>=5?"매우 높음":s>=3?"높음":s>=1?"보통":"낮음";
+
+  // 신호등: ●●●○○○
+  const heatDots=(s,max)=>Array.from({length:max},(_,i)=>(
+    <span key={i} style={{display:"inline-block",width:9,height:9,borderRadius:"50%",
+      background:i<s?heatColor(s):`${heatColor(s)}28`,marginRight:2}}/>));
 
   const Row=({label,val,unit,color,tip})=>(
     <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
@@ -794,22 +804,15 @@ function OvheatPanel({macroData,dc,C,Box,ST}){
       <span style={{color:C.muted,fontSize:9}}>{label}</span>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
         <span style={{color:tip?color:C.muted,fontSize:9,fontWeight:600}}>{tip||"-"}</span>
-        <span style={{color:color,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:52,textAlign:"right"}}>
-          {val!=null?`${val}${unit}`:"-"}
+        <span style={{color:color,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:56,textAlign:"right"}}>
+          {val??"-"}{val!=null?unit:""}
         </span>
       </div>
     </div>);
 
-  const score=tab==="us"?scoreUS:scoreKR;
-  const sef=dc?.totalScore??50;
-  const sefHigh=sef>=60, ovhHigh=score>=3;
-  const [xIcon,xColor,xMsg]=sefHigh&&!ovhHigh?["🟢",C.green,"안전·저평가 — 적극 매수 고려"]
-    :sefHigh&&ovhHigh?["🟡",C.gold,"유동성 양호하나 고점 경계 — 신중"]
-    :!sefHigh&&!ovhHigh?["🔵",C.blue,"위기 속 저평가 — 역발상 기회"]
-    :["🔴",C.red,"버블 붕괴 진행 가능 — 방어 우선"];
-
   return(
     <Box style={{marginTop:8}}>
+      {/* 헤더 + 토글 */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
         <ST accent={C.orange} style={{marginBottom:0}}>📊 거시 과열 온도계</ST>
         <div style={{display:"flex",gap:4}}>
@@ -824,54 +827,58 @@ function OvheatPanel({macroData,dc,C,Box,ST}){
         </div>
       </div>
 
+      {/* 미국 패널 */}
       {tab==="us"&&<>
-        <Row label="Shiller CAPE" val={capeVal!=null?capeVal.toFixed(1):null} unit=""
+        <Row label="Shiller CAPE (S&P500 경기조정 PER)"
+          val={capeVal!=null?capeVal.toFixed(1):null} unit=""
           color={capeVal==null?C.muted:capeVal>35?C.red:capeVal>27?C.orange:capeVal>20?C.gold:C.green}
           tip={capeVal==null?"":capeVal>35?"극단 과열":capeVal>27?"과열":capeVal>20?"보통":"저평가"}/>
-        <Row label="버핏지수 (역사적 고점 대비)" val={buffettUs!=null?buffettUs.toFixed(1):null} unit="%"
+        <Row label="Wilshire5000 (역사적 고점 대비 %)"
+          val={buffettUs!=null?buffettUs.toFixed(1):null} unit="%"
           color={buffettUs==null?C.muted:buffettUs>95?C.red:buffettUs>80?C.orange:buffettUs>65?C.gold:C.green}
           tip={buffettUs==null?"":buffettUs>95?"극단 과열":buffettUs>80?"과열":buffettUs>65?"보통":"저평가"}/>
-        <Row label="미국 M2 YoY" val={usM2Val!=null?`${usM2Val>0?"+":""}${usM2Val.toFixed(1)}`:null} unit="%"
+        <Row label="미국 M2 통화량 YoY"
+          val={usM2Val!=null?`${usM2Val>0?"+":""}${usM2Val.toFixed(1)}`:null} unit="%"
           color={usM2Val==null?C.muted:usM2Val<0?C.red:usM2Val<=5?C.green:usM2Val<=10?C.gold:C.orange}
           tip={usM2Val==null?"":usM2Val<0?"긴축":usM2Val<=5?"정상":usM2Val<=10?"주의":"버블위험"}/>
       </>}
 
+      {/* 한국 패널 */}
       {tab==="kr"&&<>
-        <Row label="KOSPI 버핏지수 (시총/GDP)" val={krBuffettVal!=null?krBuffettVal.toFixed(1):null} unit="%"
+        <Row label="KOSPI 버핏지수 (시총/GDP)"
+          val={krBuffettVal!=null?krBuffettVal.toFixed(1):null} unit="%"
           color={krBuffettVal==null?C.muted:krBuffettVal>140?C.red:krBuffettVal>110?C.orange:krBuffettVal>85?C.gold:C.green}
           tip={krBuffettVal==null?"":krBuffettVal>140?"극단 과열":krBuffettVal>110?"과열":krBuffettVal>85?"보통":"저평가"}/>
-        <Row label="한국 M2 YoY" val={krM2Val!=null?`${krM2Val>0?"+":""}${krM2Val.toFixed(1)}`:null} unit="%"
+        <Row label="한국 M2 통화량 YoY"
+          val={krM2Val!=null?`${krM2Val>0?"+":""}${krM2Val.toFixed(1)}`:null} unit="%"
           color={krM2Val==null?C.muted:krM2Val<0?C.red:krM2Val<=5?C.green:krM2Val<=10?C.gold:C.orange}
           tip={krM2Val==null?"":krM2Val<0?"긴축":krM2Val<=5?"정상":krM2Val<=10?"주의":"버블위험"}/>
-        <Row label="가계부채/GDP" val={hhDebtVal!=null?hhDebtVal.toFixed(1):null} unit="%"
+        <Row label="가계부채/GDP (ECOS협의)"
+          val={hhDebtVal!=null?hhDebtVal.toFixed(1):null} unit="%"
           color={hhDebtVal==null?C.muted:hhDebtVal>=82?C.red:hhDebtVal>=75?C.orange:hhDebtVal>=65?C.gold:C.green}
           tip={hhDebtVal==null?"":hhDebtVal>=82?"위험":hhDebtVal>=75?"경계":hhDebtVal>=65?"주의":"안정"}/>
       </>}
 
+      {/* 종합 과열도 — 신호등 */}
       <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,
-        padding:"6px 8px",borderRadius:6,background:`${heatColor(score)}12`,
-        border:`1px solid ${heatColor(score)}33`}}>
+        padding:"7px 10px",borderRadius:6,background:`${heatColor(score)}12`,
+        border:`1px solid ${heatColor(score)}44`}}>
         <div>
-          <div style={{color:heatColor(score),fontSize:9,fontWeight:700}}>종합 과열도</div>
-          <div style={{color:C.muted,fontSize:8,marginTop:1}}>
-            {score<=1?"정상 밸류에이션":score<=2?"고평가 주의":score<=4?"과열 구간, 신중":score<=5?"강한 과열":"역사적 극단 과열"}
+          <div style={{display:"flex",alignItems:"center",gap:6}}>
+            <span style={{color:heatColor(score),fontSize:9,fontWeight:700}}>종합 과열도</span>
+            <span style={{color:heatColor(score),fontSize:10,fontWeight:900}}>{heatLabel(score)}</span>
+          </div>
+          <div style={{color:C.muted,fontSize:8,marginTop:2}}>
+            {score===0?"정상 밸류에이션 구간":score<=2?"일부 고평가 — 주의":score<=4?"과열 구간 — 신중":"역사적 고과열 — 경계"}
           </div>
         </div>
-        <div style={{display:"flex",alignItems:"center",gap:2}}>{heatDots(Math.min(score,6),6)}</div>
-      </div>
-
-      <div style={{marginTop:6,padding:"5px 8px",borderRadius:5,
-        background:`${xColor}10`,border:`1px solid ${xColor}33`,
-        display:"flex",alignItems:"center",gap:6}}>
-        <span style={{fontSize:12}}>{xIcon}</span>
-        <div>
-          <span style={{color:C.muted,fontSize:7}}>SEFCON × {tab==="us"?"미국":"한국"} 과열 교차</span>
-          <div style={{color:xColor,fontSize:9,fontWeight:700}}>{xMsg}</div>
+        <div style={{display:"flex",alignItems:"center",gap:1}}>
+          {heatDots(Math.min(score,6),6)}
         </div>
       </div>
 
       <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,textAlign:"right"}}>
-        FRED(CAPE·Wilshire) · ECOS · 투자 참고용
+        FRED(CAPE·Wilshire5000) · ECOS · 투자 참고용
       </div>
     </Box>
   );
@@ -4299,93 +4306,96 @@ export default function App(){
             (macroData?.defconData?.indicators||[]).find(i=>i.key==="CD스프레드")?.val??null;
           const signals=[
             // ── 🇺🇸 미국 지표
-            {label:"미국M2 YoY", region:"🇺🇸",
+            {label:"미국 M2 통화량 YoY", region:"🇺🇸",
              val:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
              color:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;})(),
              tip:(()=>{const v=[...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v<0?"긴축경고":v<=5?"정상":v<=10?"주의":"버블위험";})()},
-            {label:"T10Y2Y", region:"🇺🇸",
+            {label:"미국 장단기금리차(T10Y2Y)", region:"🇺🇸",
              val:_t10y2y!=null?`${_t10y2y>0?"+":""}${_t10y2y}%p`:"-",
              color:_t10y2y==null?"#888":_t10y2y<-1?C.red:_t10y2y<-0.5?C.orange:_t10y2y<0.5?C.gold:C.green,
              tip:_t10y2y==null?"":_t10y2y<-0.5?"역전중":_t10y2y<0?"평탄":_t10y2y<0.5?"보통":"정상"},
-            {label:"VIX", region:"🇺🇸",
+            {label:"VIX 공포지수", region:"🇺🇸",
              val:_vix!=null?`${_vix}`:"-",
              color:_vix==null?"#888":_vix>=35?C.red:_vix>=25?C.orange:_vix>=18?C.gold:C.green,
              tip:_vix==null?"":_vix>=35?"극단공포":_vix>=25?"공포":_vix>=18?"경계":"안정"},
-            {label:"Baa스프레드", region:"🇺🇸",
+            {label:"미국 Baa 신용스프레드", region:"🇺🇸",
              val:_hy!=null?`${_hy}%p`:"-",
              color:_hy==null?"#888":_hy>=4?C.red:_hy>=3?C.orange:_hy>=2?C.gold:C.green,
              tip:_hy==null?"":_hy>=4?"위기":_hy>=3?"경계":_hy>=2?"주의":"안정"},
-            {label:"HY스프레드", region:"🇺🇸",
+            {label:"ICE BofA HY 스프레드", region:"🇺🇸",
              val:_baml!=null?`${_baml}%p`:"-",
              color:_baml==null?"#888":_baml>=9?C.red:_baml>=6?C.orange:_baml>=4?C.gold:C.green,
              tip:_baml==null?"":_baml>=9?"위기":_baml>=6?"경계":_baml>=4?"주의":"안정"},
-            {label:"SLOOS미국", region:"🇺🇸",
+            {label:"미국 SLOOS 대출기준강화", region:"🇺🇸",
              val:_sloos!=null?`${_sloos>0?"+":""}${_sloos}%`:"-",
              color:_sloos==null?"#888":_sloos>=50?C.red:_sloos>=20?C.orange:_sloos>=-5?C.gold:C.green,
              tip:_sloos==null?"":_sloos>=50?"극단강화":_sloos>=20?"긴축":_sloos>=-5?"중립":"완화"},
-            {label:"LEI", region:"🇺🇸",
+            {label:"미국 LEI 경기선행지수", region:"🇺🇸",
              val:_lei!=null?`${Number(_lei).toFixed(2)}`:"-",
              color:_lei==null?"#888":_lei<98?C.red:_lei<99?C.orange:_lei<100.5?C.gold:C.green,
              tip:_lei==null?"":_lei<98?"수축":_lei<99?"둔화":_lei<100.5?"보통":"확장"},
-            {label:"DXY", region:"🇺🇸",
+            {label:"DXY 달러인덱스", region:"🇺🇸",
              val:_dxy!=null?`${Number(_dxy).toFixed(2)}`:"-",
              color:_dxy==null?"#888":_dxy>=108?C.red:_dxy>=104?C.orange:_dxy>=100?C.gold:C.green,
              tip:_dxy==null?"":_dxy>=108?"강세위험":_dxy>=104?"압박":_dxy>=100?"보통":"약세"},
-            {label:"구리/금", region:"🇺🇸",
+            {label:"구리/금 비율(×1000)", region:"🇺🇸",
              val:_cg!=null?`${Number(_cg).toFixed(2)}`:"-",
              color:_cg==null?"#888":_cg<0.15?C.red:_cg<0.18?C.orange:_cg<0.25?C.gold:C.green,
              tip:_cg==null?"":_cg<0.15?"위기":_cg<0.18?"경계":_cg<0.25?"중립":"호조"},
-            {label:"ICSA(천건)", region:"🇺🇸",
+            {label:"주간 실업청구(천건)", region:"🇺🇸",
              val:_icsa!=null?`${_icsa}k`:"-",
              color:_icsa==null?"#888":_icsa>=300?C.red:_icsa>=250?C.orange:_icsa>=210?C.gold:C.green,
              tip:_icsa==null?"":_icsa>=300?"급등":_icsa>=250?"증가":_icsa>=210?"보통":"안정"},
             // ── 🇰🇷 한국 지표
-            {label:"한국M2 YoY", region:"🇰🇷",
+            {label:"한국 M2 통화량 YoY", region:"🇰🇷",
              val:(()=>{const v=[...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
              color:(()=>{const v=[...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v<0?C.red:v<=5?C.green:v<=10?C.gold:C.orange;})(),
              tip:(()=>{const v=[...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v<0?"긴축경고":v<=5?"정상":v<=10?"주의":"버블위험";})()},
-            // ── 🇰🇷 한국 지표
-            {label:"기준금리", region:"🇰🇷",
+            {label:"한국 기준금리", region:"🇰🇷",
              val:lastRate!=null?`${lastRate}%`:"-",
              color:lastRate==null?"#888":lastRate>=4?C.red:lastRate>=3?C.orange:lastRate>=2?C.gold:C.green,
              tip:lastRate==null?"":lastRate>=4?"긴축":lastRate>=3?"중립":lastRate>=2?"완화":"초완화"},
-            {label:"원/달러", region:"🇰🇷",
+            {label:"원/달러 환율", region:"🇰🇷",
              val:lastFX!=null?`${Math.round(lastFX).toLocaleString()}원`:"-",
              color:lastFX==null?"#888":lastFX>=1450?C.red:lastFX>=1380?C.orange:lastFX>=1250?C.gold:C.green,
              tip:lastFX==null?"":lastFX>=1450?"약세위험":lastFX>=1380?"경계":lastFX>=1250?"중립":"강세"},
-            {label:"10Y-3Y금리차", region:"🇰🇷",
+            {label:"한국 10Y-3Y 금리차", region:"🇰🇷",
              val:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
              color:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"#888":v<-0.5?C.red:v<0?C.orange:v<0.5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.yieldSpread||[]).slice(-1)[0]?.value??null;return v==null?"":v<-0.5?"역전↓":v<0?"평탄":v<0.5?"보통":"정상화↑";})()},
-            {label:"SLOOS한국", region:"🇰🇷",
+            {label:"CD금리-기준금리 스프레드", region:"🇰🇷",
+             val:(()=>{const v=_cdsp;return v!=null?`${v>0?"+":""}${v}%p`:"-";})(),
+             color:(()=>{const v=_cdsp;return v==null?"#888":v>=1.5?C.red:v>=1.0?C.orange:v>=0.3?C.gold:C.green;})(),
+             tip:(()=>{const v=_cdsp;return v==null?"":v>=1.5?"확대위험":v>=1.0?"경계":v>=0.3?"주의":"안정";})()},
+            {label:"한국 은행 대출태도지수", region:"🇰🇷",
              val:(()=>{const v=(macroData?.krSloos||[]).slice(-1)[0]?.value??null;return v!=null?`${v>0?"+":""}${v}`:"-";})(),
              color:(()=>{const v=(macroData?.krSloos||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=40?C.red:v>=20?C.orange:v>=-5?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.krSloos||[]).slice(-1)[0]?.value??null;return v==null?"":v>=40?"극단강화":v>=20?"긴축":v>=-5?"중립":"완화";})()},
-            {label:"일평균수출", region:"🇰🇷",
-             val:lastExp!=null?`$${lastExp?.toFixed(0)}M`:"-",
-             color:lastExp==null||prevExp==null?"#888":lastExp>=prevExp?C.green:C.red,
-             tip:lastExp==null||prevExp==null?"":lastExp>=prevExp?"증가↑":"감소↓"},
-            {label:"GDP성장률", region:"🇰🇷",
+            {label:"한국 수출 YoY", region:"🇰🇷",
+             val:(()=>{const v=[...(macroData?.exportYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
+             color:(()=>{const v=[...(macroData?.exportYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v<=-15?C.red:v<=-5?C.orange:v<=5?C.gold:C.green;})(),
+             tip:(()=>{const v=[...(macroData?.exportYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v<=-15?"감소":v<=-5?"둔화":v<=5?"보합":"증가";})()},
+            {label:"한국 GDP성장률", region:"🇰🇷",
              val:lastGDP!=null?`${lastGDP}%`:"-",
              color:lastGDP==null?"#888":lastGDP>=3?C.green:lastGDP>=1?C.gold:C.red,
              tip:lastGDP==null?"":lastGDP>=3?"견조":lastGDP>=1?"완만":"부진"},
-            {label:"CPI(YoY)", region:"🇰🇷",
+            {label:"한국 CPI YoY", region:"🇰🇷",
              val:lastCPI!=null?`${lastCPI>0?"+":""}${lastCPI}%`:"-",
              color:lastCPI==null?"#888":lastCPI>5?C.red:lastCPI>3?C.orange:lastCPI>1?C.gold:C.green,
              tip:lastCPI==null?"":lastCPI>5?"고인플레":lastCPI>3?"경계":lastCPI>1?"보통":"안정"},
-            {label:"PPI(YoY)", region:"🇰🇷",
+            {label:"한국 PPI YoY", region:"🇰🇷",
              val:lastPPI!=null?`${lastPPI>0?"+":""}${lastPPI}%`:"-",
              color:lastPPI==null?"#888":lastPPI>6?C.red:lastPPI>3?C.orange:lastPPI>1?C.gold:C.green,
              tip:lastPPI==null?"":lastPPI>6?"원가↑급등":lastPPI>3?"압박":lastPPI>1?"보통":"안정"},
-            {label:"BSI제조업", region:"🇰🇷",
+            {label:"BSI 제조업", region:"🇰🇷",
              val:lastBSI!=null?`${lastBSI}`:"-",
              color:lastBSI==null?"#888":lastBSI>=100?C.green:lastBSI>=90?C.gold:C.red,
              tip:lastBSI==null?"":lastBSI>=100?"확장":lastBSI>=90?"중립":"수축"},
-            {label:"가계신용YoY", region:"🇰🇷",
+            {label:"가계신용 YoY", region:"🇰🇷",
              val:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
              color:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;})(),
              tip:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v>=8?"과열↑":v>=5?"경계":v>=2?"완만":"감소↓";})()},
-            {label:"부채/GDP", region:"🇰🇷",
+            {label:"가계부채/GDP (ECOS협의)", region:"🇰🇷",
              val:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
              color:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=82?C.red:v>=75?C.orange:v>=65?C.gold:C.green;})(),
              tip:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"":v>=82?"위험":v>=75?"경계":v>=65?"주의":"안정";})()},
@@ -4979,6 +4989,9 @@ export default function App(){
               );
             })()}
 
+            {/* ══ 거시 과열 보조패널 ══ */}
+            <OvheatPanel macroData={macroData} C={C} Box={Box} ST={ST}/>
+
             {/* ══ Crisis Navigation ══ */}
             {macroData?.crisisAnalysis?.navigation&&(()=>{
               const nav = macroData.crisisAnalysis.navigation;
@@ -5308,9 +5321,6 @@ export default function App(){
               </Box>
               );
             })()}
-
-            {/* ══ 거시 과열 보조패널 ══ */}
-            <OvheatPanel macroData={macroData} dc={dc} C={C} Box={Box} ST={ST}/>
 
             </> /* defcon 탭 끝 */}
 
