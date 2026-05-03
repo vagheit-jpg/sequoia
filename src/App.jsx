@@ -760,6 +760,124 @@ const ViewToggle=({view,setView})=>(
 // ══════════════════════════════════════════════════════════════
 
 // ══════════════════════════════════════════════════════════════
+// OvheatPanel — 거시 과열 온도계 (SEFCON 탭 보조패널)
+// ══════════════════════════════════════════════════════════════
+function OvheatPanel({macroData,dc,C,Box,ST}){
+  const [tab,setTab]=useState("us");
+
+  const capeVal      = [...(macroData?.cape||[])].reverse().find(r=>r.value!=null)?.value??null;
+  const buffettUs    = [...(macroData?.usBuffett||[])].slice(-1)[0]?.pctOfPeak??null;
+  const usM2Val      = [...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
+  const krBuffettVal = [...(macroData?.krBuffett||[])].slice(-1)[0]?.value??null;
+  const krM2Val      = [...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
+  const hhDebtVal    = [...(macroData?.hhDebtGDP||[])].slice(-1)[0]?.value??null;
+
+  const scoreUS=(()=>{let s=0;
+    if(capeVal!=null)   s+=capeVal>35?2:capeVal>27?1:0;
+    if(buffettUs!=null) s+=buffettUs>90?2:buffettUs>75?1:0;
+    if(usM2Val!=null)   s+=usM2Val>10?2:usM2Val>5?1:0;
+    return s;})();
+  const scoreKR=(()=>{let s=0;
+    if(krBuffettVal!=null) s+=krBuffettVal>140?2:krBuffettVal>100?1:0;
+    if(krM2Val!=null)      s+=krM2Val>10?2:krM2Val>5?1:0;
+    if(hhDebtVal!=null)    s+=hhDebtVal>82?2:hhDebtVal>75?1:0;
+    return s;})();
+
+  const heatColor=s=>s>=5?C.red:s>=3?C.orange:s>=1?C.gold:C.green;
+  const heatDots=(s,max)=>Array.from({length:max},(_,i)=>
+    <span key={i} style={{display:"inline-block",width:8,height:8,borderRadius:"50%",
+      background:i<s?heatColor(s):`${heatColor(s)}30`,marginRight:2}}/>);
+
+  const Row=({label,val,unit,color,tip})=>(
+    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
+      padding:"5px 0",borderBottom:`1px solid ${C.border}33`}}>
+      <span style={{color:C.muted,fontSize:9}}>{label}</span>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <span style={{color:tip?color:C.muted,fontSize:9,fontWeight:600}}>{tip||"-"}</span>
+        <span style={{color:color,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:52,textAlign:"right"}}>
+          {val!=null?`${val}${unit}`:"-"}
+        </span>
+      </div>
+    </div>);
+
+  const score=tab==="us"?scoreUS:scoreKR;
+  const sef=dc?.totalScore??50;
+  const sefHigh=sef>=60, ovhHigh=score>=3;
+  const [xIcon,xColor,xMsg]=sefHigh&&!ovhHigh?["🟢",C.green,"안전·저평가 — 적극 매수 고려"]
+    :sefHigh&&ovhHigh?["🟡",C.gold,"유동성 양호하나 고점 경계 — 신중"]
+    :!sefHigh&&!ovhHigh?["🔵",C.blue,"위기 속 저평가 — 역발상 기회"]
+    :["🔴",C.red,"버블 붕괴 진행 가능 — 방어 우선"];
+
+  return(
+    <Box style={{marginTop:8}}>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
+        <ST accent={C.orange} style={{marginBottom:0}}>📊 거시 과열 온도계</ST>
+        <div style={{display:"flex",gap:4}}>
+          {[["us","🇺🇸 미국"],["kr","🇰🇷 한국"]].map(([k,lbl])=>(
+            <button key={k} onClick={()=>setTab(k)} style={{
+              fontSize:9,padding:"2px 8px",borderRadius:4,cursor:"pointer",
+              border:`1.5px solid ${tab===k?C.orange:C.border}`,
+              background:tab===k?`${C.orange}18`:C.card2,
+              color:tab===k?C.orange:C.muted,fontWeight:tab===k?700:400}}>
+              {lbl}
+            </button>))}
+        </div>
+      </div>
+
+      {tab==="us"&&<>
+        <Row label="Shiller CAPE" val={capeVal!=null?capeVal.toFixed(1):null} unit=""
+          color={capeVal==null?C.muted:capeVal>35?C.red:capeVal>27?C.orange:capeVal>20?C.gold:C.green}
+          tip={capeVal==null?"":capeVal>35?"극단 과열":capeVal>27?"과열":capeVal>20?"보통":"저평가"}/>
+        <Row label="버핏지수 (역사적 고점 대비)" val={buffettUs!=null?buffettUs.toFixed(1):null} unit="%"
+          color={buffettUs==null?C.muted:buffettUs>95?C.red:buffettUs>80?C.orange:buffettUs>65?C.gold:C.green}
+          tip={buffettUs==null?"":buffettUs>95?"극단 과열":buffettUs>80?"과열":buffettUs>65?"보통":"저평가"}/>
+        <Row label="미국 M2 YoY" val={usM2Val!=null?`${usM2Val>0?"+":""}${usM2Val.toFixed(1)}`:null} unit="%"
+          color={usM2Val==null?C.muted:usM2Val<0?C.red:usM2Val<=5?C.green:usM2Val<=10?C.gold:C.orange}
+          tip={usM2Val==null?"":usM2Val<0?"긴축":usM2Val<=5?"정상":usM2Val<=10?"주의":"버블위험"}/>
+      </>}
+
+      {tab==="kr"&&<>
+        <Row label="KOSPI 버핏지수 (시총/GDP)" val={krBuffettVal!=null?krBuffettVal.toFixed(1):null} unit="%"
+          color={krBuffettVal==null?C.muted:krBuffettVal>140?C.red:krBuffettVal>110?C.orange:krBuffettVal>85?C.gold:C.green}
+          tip={krBuffettVal==null?"":krBuffettVal>140?"극단 과열":krBuffettVal>110?"과열":krBuffettVal>85?"보통":"저평가"}/>
+        <Row label="한국 M2 YoY" val={krM2Val!=null?`${krM2Val>0?"+":""}${krM2Val.toFixed(1)}`:null} unit="%"
+          color={krM2Val==null?C.muted:krM2Val<0?C.red:krM2Val<=5?C.green:krM2Val<=10?C.gold:C.orange}
+          tip={krM2Val==null?"":krM2Val<0?"긴축":krM2Val<=5?"정상":krM2Val<=10?"주의":"버블위험"}/>
+        <Row label="가계부채/GDP" val={hhDebtVal!=null?hhDebtVal.toFixed(1):null} unit="%"
+          color={hhDebtVal==null?C.muted:hhDebtVal>=82?C.red:hhDebtVal>=75?C.orange:hhDebtVal>=65?C.gold:C.green}
+          tip={hhDebtVal==null?"":hhDebtVal>=82?"위험":hhDebtVal>=75?"경계":hhDebtVal>=65?"주의":"안정"}/>
+      </>}
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,
+        padding:"6px 8px",borderRadius:6,background:`${heatColor(score)}12`,
+        border:`1px solid ${heatColor(score)}33`}}>
+        <div>
+          <div style={{color:heatColor(score),fontSize:9,fontWeight:700}}>종합 과열도</div>
+          <div style={{color:C.muted,fontSize:8,marginTop:1}}>
+            {score<=1?"정상 밸류에이션":score<=2?"고평가 주의":score<=4?"과열 구간, 신중":score<=5?"강한 과열":"역사적 극단 과열"}
+          </div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:2}}>{heatDots(Math.min(score,6),6)}</div>
+      </div>
+
+      <div style={{marginTop:6,padding:"5px 8px",borderRadius:5,
+        background:`${xColor}10`,border:`1px solid ${xColor}33`,
+        display:"flex",alignItems:"center",gap:6}}>
+        <span style={{fontSize:12}}>{xIcon}</span>
+        <div>
+          <span style={{color:C.muted,fontSize:7}}>SEFCON × {tab==="us"?"미국":"한국"} 과열 교차</span>
+          <div style={{color:xColor,fontSize:9,fontWeight:700}}>{xMsg}</div>
+        </div>
+      </div>
+
+      <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,textAlign:"right"}}>
+        FRED(CAPE·Wilshire) · ECOS · 투자 참고용
+      </div>
+    </Box>
+  );
+}
+
+// ══════════════════════════════════════════════════════════════
 // OutsiderTab — 아웃사이더 CEO 경영방식 적합도 (현금의 재발견)
 // ══════════════════════════════════════════════════════════════
 function OutsiderTab({annData,hasFinData,price}){
@@ -5192,161 +5310,7 @@ export default function App(){
             })()}
 
             {/* ══ 거시 과열 보조패널 ══ */}
-            {(()=>{
-              const [ovheatTab, setOvheatTab] = React.useState("us");
-
-              // ── 미국 지표
-              const capeVal   = [...(macroData?.cape||[])].reverse().find(r=>r.value!=null)?.value??null;
-              const buffettUs = [...(macroData?.usBuffett||[])].slice(-1)[0]?.pctOfPeak??null;
-              const usM2Val   = [...(macroData?.usM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
-
-              // ── 한국 지표
-              const krBuffettVal = [...(macroData?.krBuffett||[])].slice(-1)[0]?.value??null;
-              const krM2Val      = [...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;
-              const hhDebtVal    = [...(macroData?.hhDebtGDP||[])].slice(-1)[0]?.value??null;
-
-              // ── 과열 점수 계산 (0~2: 낮음, 3~4: 보통, 5~6: 높음)
-              const scoreUS = (()=>{
-                let s=0;
-                if(capeVal!=null)   s += capeVal>35?2:capeVal>27?1:0;
-                if(buffettUs!=null) s += buffettUs>90?2:buffettUs>75?1:0;
-                if(usM2Val!=null)   s += usM2Val>10?2:usM2Val>5?1:0;
-                return s;
-              })();
-              const scoreKR = (()=>{
-                let s=0;
-                if(krBuffettVal!=null) s += krBuffettVal>140?2:krBuffettVal>100?1:0;
-                if(krM2Val!=null)      s += krM2Val>10?2:krM2Val>5?1:0;
-                if(hhDebtVal!=null)    s += hhDebtVal>82?2:hhDebtVal>75?1:0;
-                return s;
-              })();
-
-              const heatColor = s => s>=5?C.red:s>=3?C.orange:s>=1?C.gold:C.green;
-              const heatLabel = s => s>=5?"매우 높음":s>=3?"높음":s>=1?"보통":"낮음";
-              const heatDots  = (s,max) => Array.from({length:max},(_,i)=>
-                <span key={i} style={{display:"inline-block",width:8,height:8,borderRadius:"50%",
-                  background:i<s?heatColor(s):`${heatColor(s)}30`,marginRight:2}}/>
-              );
-
-              const Row = ({label,val,unit,color,tip})=>(
-                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",
-                  padding:"5px 0",borderBottom:`1px solid ${C.border}33`}}>
-                  <span style={{color:C.muted,fontSize:9}}>{label}</span>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <span style={{color:tip?color:C.muted,fontSize:9,fontWeight:600}}>{tip||"-"}</span>
-                    <span style={{color:color,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:52,textAlign:"right"}}>
-                      {val!=null?`${val}${unit}`:"-"}
-                    </span>
-                  </div>
-                </div>
-              );
-
-              return (
-                <Box style={{marginTop:8}}>
-                  {/* 헤더 + 토글 */}
-                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:8}}>
-                    <ST accent={C.orange} style={{marginBottom:0}}>📊 거시 과열 온도계</ST>
-                    <div style={{display:"flex",gap:4}}>
-                      {[["us","🇺🇸 미국"],["kr","🇰🇷 한국"]].map(([k,lbl])=>(
-                        <button key={k} onClick={()=>setOvheatTab(k)} style={{
-                          fontSize:9,padding:"2px 8px",borderRadius:4,cursor:"pointer",
-                          border:`1.5px solid ${ovheatTab===k?C.orange:C.border}`,
-                          background:ovheatTab===k?`${C.orange}18`:C.card2,
-                          color:ovheatTab===k?C.orange:C.muted,fontWeight:ovheatTab===k?700:400}}>
-                          {lbl}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 미국 패널 */}
-                  {ovheatTab==="us"&&<>
-                    <Row label="Shiller CAPE"
-                      val={capeVal!=null?capeVal.toFixed(1):null} unit=""
-                      color={capeVal==null?C.muted:capeVal>35?C.red:capeVal>27?C.orange:capeVal>20?C.gold:C.green}
-                      tip={capeVal==null?"":capeVal>35?"극단 과열":capeVal>27?"과열":capeVal>20?"보통":"저평가"}/>
-                    <Row label="버핏지수 (역사적 고점 대비)"
-                      val={buffettUs!=null?buffettUs.toFixed(1):null} unit="%"
-                      color={buffettUs==null?C.muted:buffettUs>95?C.red:buffettUs>80?C.orange:buffettUs>65?C.gold:C.green}
-                      tip={buffettUs==null?"":buffettUs>95?"극단 과열":buffettUs>80?"과열":buffettUs>65?"보통":"저평가"}/>
-                    <Row label="미국 M2 YoY"
-                      val={usM2Val!=null?`${usM2Val>0?"+":""}${usM2Val.toFixed(1)}`:null} unit="%"
-                      color={usM2Val==null?C.muted:usM2Val<0?C.red:usM2Val<=5?C.green:usM2Val<=10?C.gold:C.orange}
-                      tip={usM2Val==null?"":usM2Val<0?"긴축":usM2Val<=5?"정상":usM2Val<=10?"주의":"버블위험"}/>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,
-                      padding:"6px 8px",borderRadius:6,background:`${heatColor(scoreUS)}12`,
-                      border:`1px solid ${heatColor(scoreUS)}33`}}>
-                      <div>
-                        <div style={{color:heatColor(scoreUS),fontSize:9,fontWeight:700}}>종합 과열도</div>
-                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>
-                          {scoreUS<=1?"정상 밸류에이션":scoreUS<=2?"고평가 주의":scoreUS<=4?"과열 구간, 신중":scoreUS<=5?"강한 과열":"역사적 극단 과열"}
-                        </div>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:2}}>
-                        {heatDots(Math.min(scoreUS,6),6)}
-                      </div>
-                    </div>
-                  </>}
-
-                  {/* 한국 패널 */}
-                  {ovheatTab==="kr"&&<>
-                    <Row label="KOSPI 버핏지수 (시총/GDP)"
-                      val={krBuffettVal!=null?krBuffettVal.toFixed(1):null} unit="%"
-                      color={krBuffettVal==null?C.muted:krBuffettVal>140?C.red:krBuffettVal>110?C.orange:krBuffettVal>85?C.gold:C.green}
-                      tip={krBuffettVal==null?"":krBuffettVal>140?"극단 과열":krBuffettVal>110?"과열":krBuffettVal>85?"보통":"저평가"}/>
-                    <Row label="한국 M2 YoY"
-                      val={krM2Val!=null?`${krM2Val>0?"+":""}${krM2Val.toFixed(1)}`:null} unit="%"
-                      color={krM2Val==null?C.muted:krM2Val<0?C.red:krM2Val<=5?C.green:krM2Val<=10?C.gold:C.orange}
-                      tip={krM2Val==null?"":krM2Val<0?"긴축":krM2Val<=5?"정상":krM2Val<=10?"주의":"버블위험"}/>
-                    <Row label="가계부채/GDP"
-                      val={hhDebtVal!=null?hhDebtVal.toFixed(1):null} unit="%"
-                      color={hhDebtVal==null?C.muted:hhDebtVal>=82?C.red:hhDebtVal>=75?C.orange:hhDebtVal>=65?C.gold:C.green}
-                      tip={hhDebtVal==null?"":hhDebtVal>=82?"위험":hhDebtVal>=75?"경계":hhDebtVal>=65?"주의":"안정"}/>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,
-                      padding:"6px 8px",borderRadius:6,background:`${heatColor(scoreKR)}12`,
-                      border:`1px solid ${heatColor(scoreKR)}33`}}>
-                      <div>
-                        <div style={{color:heatColor(scoreKR),fontSize:9,fontWeight:700}}>종합 과열도</div>
-                        <div style={{color:C.muted,fontSize:8,marginTop:1}}>
-                          {scoreKR<=1?"국내 시장 정상":scoreKR<=2?"고평가 주의":scoreKR<=4?"과열 구간, 신중":scoreKR<=5?"강한 과열":"역사적 극단 과열"}
-                        </div>
-                      </div>
-                      <div style={{display:"flex",alignItems:"center",gap:2}}>
-                        {heatDots(Math.min(scoreKR,6),6)}
-                      </div>
-                    </div>
-                  </>}
-
-                  {/* SEFCON × 과열 교차 해석 */}
-                  {(()=>{
-                    const sefOk = dc?.totalScore!=null;
-                    const sef   = sefOk ? dc.totalScore : 50;
-                    const ovh   = ovheatTab==="us"?scoreUS:scoreKR;
-                    const sefHigh = sef >= 60;
-                    const ovhHigh = ovh >= 3;
-                    const [icon,color,msg] = sefHigh&&!ovhHigh ? ["🟢",C.green,"안전·저평가 — 적극 매수 고려"]
-                      : sefHigh&&ovhHigh  ? ["🟡",C.gold, "유동성 양호하나 고점 경계 — 신중"]
-                      : !sefHigh&&!ovhHigh? ["🔵",C.blue, "위기 속 저평가 — 역발상 기회"]
-                      :                     ["🔴",C.red,  "버블 붕괴 진행 가능 — 방어 우선"];
-                    return (
-                      <div style={{marginTop:6,padding:"5px 8px",borderRadius:5,
-                        background:`${color}10`,border:`1px solid ${color}33`,
-                        display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{fontSize:12}}>{icon}</span>
-                        <div>
-                          <span style={{color:C.muted,fontSize:7}}>SEFCON × {ovheatTab==="us"?"미국":"한국"} 과열 교차</span>
-                          <div style={{color:color,fontSize:9,fontWeight:700}}>{msg}</div>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div style={{color:`${C.muted}55`,fontSize:7,marginTop:6,textAlign:"right"}}>
-                    FRED(CAPE·Wilshire) · ECOS · 투자 참고용
-                  </div>
-                </Box>
-              );
-            })()}
+            <OvheatPanel macroData={macroData} dc={dc} C={C} Box={Box} ST={ST}/>
 
             </> /* defcon 탭 끝 */}
 
