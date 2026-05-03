@@ -4638,9 +4638,11 @@ export default function App(){
                           const bc=sc>=2?C.green:sc===1?C.teal:sc===-1?C.orange:sc<=-2?C.red:C.muted;
                           const st=sc>=2?"▲▲ "+ind.good:sc===1?"▲ 양호":sc===-1?"▼ 경계":sc<=-2?"▼▼ "+ind.bad:"— 중립";
                           const flag=US_KEYS.has(ind.key)?"🇺🇸":"🇰🇷";
+                          const FIXED2_KEYS=new Set(["DXY","LEI","구리금"]);
                           const vStr=ind.val!=null
                             ?(ind.unit==="원"?Math.round(ind.val).toLocaleString()
                               :ind.unit==="%"||ind.unit==="%p"?(typeof ind.val==="number"&&ind.val>0?"+":"")+ind.val
+                              :FIXED2_KEYS.has(ind.key)?Number(ind.val).toFixed(2)
                               :ind.val)+(ind.unit||""):"—";
                           return(
                           <div key={ind.key} style={{background:C.card2,borderRadius:7,
