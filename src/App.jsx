@@ -6146,10 +6146,11 @@ export default function App(){
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
           <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 Sequoia Economic & Financial CONdition</div>
           <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
-            <Tag color={C.blue}  size={8}>주가:한투API</Tag>
-            <Tag color={C.green} size={8}>재무:엑셀입력</Tag>
-            <Tag color={C.purple} size={8}>DB:Supabase</Tag>
-            <Tag color={C.gold}  size={8}>투자참고용</Tag>
+            <Tag color={C.blue}   size={8}>FRED · Federal Reserve</Tag>
+            <Tag color={C.teal}   size={8}>ECOS · 한국은행</Tag>
+            <Tag color={C.green}  size={8}>DART · 금융감독원</Tag>
+            <Tag color={C.purple} size={8}>Yahoo Finance</Tag>
+            <Tag color={C.gold}   size={8}>투자참고용</Tag>
           </div>
         </div>
       </div>
