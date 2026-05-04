@@ -522,6 +522,10 @@ export default async function handler(req, res) {
     const fredLEI = dailyToMonthly(fredLEIRaw);
     // IC4WSA: 주간 실업청구 4주이동평균 → 월별 (천건 단위)
     const fredICSA = dailyToMonthly(fredICSARaw.map(r => ({ ...r, value: +(r.value / 1000).toFixed(1) })));
+    // UNRATE: 미국 실업률 (월별, %) — 이미 월별이므로 dailyToMonthly 불필요
+    const fredUNRATEMonthly = fredUNRATE
+      .map(r => ({ date: r.date.slice(0,6), value: r.value }))
+      .filter(r => r.date && r.value != null);
     // ICE BofA HY 스프레드 — 일별 → 월별 (사모신용 위험 프리미엄 대용)
     const fredBAML = dailyToMonthly(fredBAMLRaw);
     // BIZD ETF 가격 (그래프 참고용만 — 지표 계산 미사용)
@@ -648,6 +652,9 @@ export default async function handler(req, res) {
       { cat:"실물경기", key:"ICSA",   label:"주간 실업청구(천건)",  val:lastFRED(fredICSA),  unit:"k",
         good:"안정", warn:"증가", bad:"급등",
         score: scoreV(lastFRED(fredICSA),   [300, 250, 210, 180], 1) },
+      { cat:"실물경기", key:"UNRATE", label:"미국 실업률",           val:fredUNRATEMonthly.slice(-1)[0]?.value??null, unit:"%",
+        good:"호조", warn:"상승", bad:"침체",
+        score: scoreV(fredUNRATEMonthly.slice(-1)[0]?.value??null, [5.5, 4.5, 4.0, 3.5], 1) },
       { cat:"실물경기", key:"GDP",    label:"한국 GDP성장률",       val:lastYoy(gdp),         unit:"%",
         good:"견조", warn:"완만", bad:"침체",
         score: scoreV(lastYoy(gdp),         [-1, 1, 3, 4], -1) },
@@ -680,7 +687,7 @@ export default async function handler(req, res) {
       rate, fx, ppi, cpi, bsi,
       kospiMonthly, kosdaqMonthly,
       hhCreditYoY, yieldSpread,
-      fredT10Y2Y, fredHY, fredVIX, fredUNRATE,
+      fredT10Y2Y, fredHY, fredVIX, fredUNRATE, fredUNRATEMonthly,
       fredSLOOS, krSloos, fredLEI, fredICSA, fredBAML,
       yahooBIZD, yahooDXY, copperGold, yahooHG, yahooGC,
       cdSpread, hhDebtGDP,
