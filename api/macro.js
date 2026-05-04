@@ -807,8 +807,8 @@ function calcSequoiaCIndex(defconData) {
   ].filter(Boolean).length;
 
   let clusterPenalty = 0;
-  if (clusterCount >= 2) clusterPenalty += 4;
-  if (clusterCount >= 3) clusterPenalty += 7;
+  if (clusterCount >= 2) clusterPenalty += 3;
+  if (clusterCount >= 3) clusterPenalty += 6;
   if (clusterCount >= 4) clusterPenalty += 10;
   if (clusterCount >= 5) clusterPenalty += 14;
 
