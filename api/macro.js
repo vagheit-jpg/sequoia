@@ -616,16 +616,29 @@ export default async function handler(req, res) {
     });
     const lastForeignNet3M = foreignNet3M.filter(r => r.ma3 != null).slice(-1)[0]?.ma3 ?? null;
     // 최근 3개월 연속 방향 판단
-    const foreignNetTrend = (() => {
-      const recent = foreignNet.slice(-3).map(r => r.value);
-      if (recent.length < 3) return null;
-      if (recent.every(v => v < 0)) return -2;  // 3개월 연속 순매도
-      if (recent.filter(v => v < 0).length >= 2) return -1; // 2개월 순매도
-      if (recent.every(v => v > 0)) return +2;  // 3개월 연속 순매수
-      if (recent.filter(v => v > 0).length >= 2) return +1; // 2개월 순매수
-      return 0;
-    })();
+ const foreignNetTrend = (() => {
+  const recent = foreignNet.slice(-3).map(r => r.value);
+  if (recent.length < 3) return null;
 
+  const avg = recent.reduce((a,b)=>a+b,0) / 3; // 3개월 평균 (억원)
+
+  // 🔥 규모 기준 (먼저 체크)
+  if (avg <= -100000) return -2; // -10조 이상 매도 → 매물폭탄
+  if (avg <= -30000)  return -1; // -3조 이상 매도
+
+  if (avg >= 100000) return +2; // +10조 이상 매수
+  if (avg >= 30000)  return +1; // +3조 이상 매수
+
+  // 📉 방향 기준 (보조)
+  if (recent.every(v => v < 0)) return -2;
+  if (recent.filter(v => v < 0).length >= 2) return -1;
+
+  if (recent.every(v => v > 0)) return +2;
+  if (recent.filter(v => v > 0).length >= 2) return +1;
+
+  return 0;
+})();
+    
     // ── SEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
