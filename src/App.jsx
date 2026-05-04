@@ -4281,7 +4281,7 @@ export default function App(){
                const v=arr.filter(r=>r.ma3!=null).slice(-1)[0]?.ma3??null;
                if(v==null) return "-";
                const a=Math.abs(v);const s=v>=0?"+":"-";
-               return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${a.toLocaleString()}억`;
+               return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${Math.round(a).toLocaleString()}억`;
              })(),
              color:(()=>{
                const arr=macroData?.foreignNet||[];
