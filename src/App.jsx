@@ -6382,7 +6382,7 @@ export default function App(){
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={44} tickFormatter={v=>{const a=Math.abs(v);const s=v<0?"-":"";return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${Math.round(a/100)*100}억`;}} domain={["auto","auto"]}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={44} tickFormatter={v=>{const a=Math.abs(v);const s=v<0?"-":"";return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${Math.round(a).toLocaleString()}억`;}} domain={["auto","auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
                     <ReferenceLine y={0} stroke={`${C.muted}66`} strokeDasharray="3 3" label={{value:"기준선",fill:C.muted,fontSize:7,position:"insideTopRight"}}/>
                     <Bar dataKey="ma3" name="외국인순매수(억)" fill={C.teal} opacity={0.6} radius={[2,2,0,0]}
