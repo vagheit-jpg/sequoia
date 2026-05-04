@@ -751,9 +751,167 @@ export default async function handler(req, res) {
         score: scoreV(lastYoy(hhCreditYoY), [8, 5, 2, 0], 1) },
     ];
 
-    const defconData = calcDefcon(indicators);
-    const crisisAnalysis = calcCrisisAnalysis(defconData);
+const defconData = calcDefcon(indicators);
 
+// SEFCON v2.0 핵심엔진 적용 — 기존 점수와 단계를 실제로 보정
+const enhancedRisk = calcSequoiaCIndex(defconData);
+
+defconData.originalScore = enhancedRisk.originalScore;
+defconData.adjustedScore = enhancedRisk.adjustedScore;
+defconData.totalScore = enhancedRisk.adjustedScore;
+defconData.defcon = enhancedRisk.defcon;
+defconData.defconLabel = enhancedRisk.defconLabel;
+defconData.defconColor = enhancedRisk.defconColor;
+defconData.defconDesc = enhancedRisk.defconDesc;
+defconData.enhancedRisk = enhancedRisk;
+
+const crisisAnalysis = calcCrisisAnalysis(defconData);
+
+// ─────────────────────────────────────────────
+// SEFCON v2.0 Core Engine
+// 기존 SEFCON 점수를 실제로 보정하여 최종 단계를 바꾸는 핵심엔진
+// ─────────────────────────────────────────────
+function calcSequoiaCIndex(defconData) {
+  const indicators = defconData.indicators || [];
+
+  const getScore = (keyword) =>
+    indicators.find(i =>
+      i.key?.includes(keyword) ||
+      i.label?.includes(keyword)
+    )?.score ?? 0;
+
+  const hasRisk = (keyword, threshold = -1) => getScore(keyword) <= threshold;
+
+  // 핵심 위험 신호
+  const foreignSell  = hasRisk("외국인", -2);
+  const fxStress     = hasRisk("환율", -1);
+  const vixStress    = hasRisk("VIX", -1);
+  const hyStress     = hasRisk("HY", -1) || hasRisk("하이일드", -1);
+  const cdStress     = hasRisk("CD", -1);
+  const creditStress = hyStress || cdStress;
+  const dxyStress    = hasRisk("DXY", -1);
+  const sloosStress  = hasRisk("SLOOS", -1);
+  const leiStress    = hasRisk("LEI", -1);
+  const exportStress = hasRisk("수출", -1);
+
+  // 1) 클러스터 페널티: 위험 신호가 동시에 켜질수록 점수 차감
+  const clusterCount = [
+    foreignSell,
+    fxStress,
+    vixStress,
+    creditStress,
+    dxyStress,
+    sloosStress,
+    leiStress,
+    exportStress
+  ].filter(Boolean).length;
+
+  let clusterPenalty = 0;
+  if (clusterCount >= 2) clusterPenalty += 4;
+  if (clusterCount >= 3) clusterPenalty += 7;
+  if (clusterCount >= 4) clusterPenalty += 10;
+  if (clusterCount >= 5) clusterPenalty += 14;
+
+  // 2) 조합 페널티: 금융위기형 조합은 추가 차감
+  let triggerPenalty = 0;
+
+  if (foreignSell && fxStress) triggerPenalty += 6;              // 외국인 이탈 + 환율
+  if (vixStress && creditStress) triggerPenalty += 7;            // 공포 + 신용경색
+  if (fxStress && dxyStress) triggerPenalty += 4;                // 달러 강세 + 원화 약세
+  if (foreignSell && fxStress && vixStress) triggerPenalty += 5; // 리스크오프 클러스터
+  if (creditStress && sloosStress) triggerPenalty += 5;          // 신용조건 악화
+
+  // 3) 확인 페널티: 실물까지 꺾이면 추가 차감
+  let confirmationPenalty = 0;
+  if (leiStress) confirmationPenalty += 3;
+  if (exportStress) confirmationPenalty += 3;
+  if (leiStress && exportStress) confirmationPenalty += 3;
+
+  // 총 페널티
+  const totalPenalty = Math.min(
+    30,
+    clusterPenalty + triggerPenalty + confirmationPenalty
+  );
+
+  // 기존 SEFCON 점수 보정
+  const originalScore = defconData.totalScore;
+  const adjustedScore = Math.max(0, Math.min(100, originalScore - totalPenalty));
+
+  // C-Index: 위험도 지수. 높을수록 위험
+  const cIndex = Math.max(0, Math.min(100, 100 - adjustedScore));
+
+  // 보정된 SEFCON 단계 재산출
+  let defcon, defconLabel, defconColor, defconDesc;
+
+  if (adjustedScore <= 30) {
+    defcon = 1;
+    defconLabel = "SEFCON 1  붕괴임박";
+    defconColor = "#FF1A1A";
+    defconDesc = "복수의 위기 신호가 동시 발생. 현금 비중 최우선. 시스템 리스크 구간";
+  } else if (adjustedScore <= 45) {
+    defcon = 2;
+    defconLabel = "SEFCON 2  위기";
+    defconColor = "#FF6B00";
+    defconDesc = "선행지표와 트리거가 동시 악화. 리스크 자산 비중 축소 검토";
+  } else if (adjustedScore <= 58) {
+    defcon = 3;
+    defconLabel = "SEFCON 3  경계";
+    defconColor = "#F0C800";
+    defconDesc = "일부 위기 조합 감지. 포트폴리오 방어 태세 필요";
+  } else if (adjustedScore <= 72) {
+    defcon = 4;
+    defconLabel = "SEFCON 4  관망";
+    defconColor = "#38BDF8";
+    defconDesc = "대체로 양호하나 일부 위험 신호 관찰";
+  } else {
+    defcon = 5;
+    defconLabel = "SEFCON 5  안정";
+    defconColor = "#00C878";
+    defconDesc = "전반적 위험 신호 제한적. 적극적 투자 환경";
+  }
+
+  // 위기 유형
+  let crisisType = "혼합형";
+  if (foreignSell && fxStress && vixStress) crisisType = "외국인 이탈형 / 환율 스트레스형";
+  else if (vixStress && creditStress) crisisType = "신용경색형";
+  else if (fxStress && dxyStress) crisisType = "달러 유동성 압박형";
+  else if (leiStress && exportStress) crisisType = "실물경기 둔화형";
+  else if (foreignSell && fxStress) crisisType = "외국인 이탈형";
+
+  const confidence = Math.min(
+    95,
+    Math.max(45, 50 + clusterCount * 5 + Math.round(totalPenalty / 2))
+  );
+
+  const topDrivers = [];
+  if (foreignSell) topDrivers.push("외국인 순매도 압력");
+  if (fxStress) topDrivers.push("원/달러 환율 스트레스");
+  if (vixStress) topDrivers.push("시장공포 확대");
+  if (creditStress) topDrivers.push("신용스프레드 악화");
+  if (dxyStress) topDrivers.push("달러 강세 압력");
+  if (sloosStress) topDrivers.push("대출기준 강화");
+  if (leiStress) topDrivers.push("경기선행지수 둔화");
+  if (exportStress) topDrivers.push("수출 둔화");
+
+  return {
+    originalScore,
+    adjustedScore,
+    cIndex,
+    totalPenalty,
+    clusterPenalty,
+    triggerPenalty,
+    confirmationPenalty,
+    clusterCount,
+    crisisType,
+    confidence,
+    topDrivers,
+    defcon,
+    defconLabel,
+    defconColor,
+    defconDesc
+  };
+}
+    
     const data = {
       gdp, gdpLevel, dailyExport, exportYoY,
       rate, fx, ppi, cpi, bsi,
