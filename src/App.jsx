@@ -4275,6 +4275,27 @@ export default function App(){
              val:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
              color:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"#888":v>=8?C.red:v>=5?C.orange:v>=2?C.gold:C.green;})(),
              tip:(()=>{const v=[...(macroData?.hhCreditYoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v==null?"":v>=8?"과열↑":v>=5?"경계":v>=2?"완만":"감소↓";})()},
+            {label:"외국인 KOSPI 순매수 추이", region:"🇰🇷",
+             val:(()=>{
+               const arr=macroData?.foreignNet3M||[];
+               const v=arr.filter(r=>r.ma3!=null).slice(-1)[0]?.ma3??null;
+               if(v==null) return "-";
+               return v>=0?`+${(v/1000).toFixed(0)}억`:`${(v/1000).toFixed(0)}억`;
+             })(),
+             color:(()=>{
+               const arr=macroData?.foreignNet||[];
+               const recent=arr.slice(-3).map(r=>r.value);
+               if(recent.length<3) return "#888";
+               const negCnt=recent.filter(v=>v<0).length;
+               return negCnt>=3?C.red:negCnt>=2?C.orange:negCnt===0?C.green:C.gold;
+             })(),
+             tip:(()=>{
+               const arr=macroData?.foreignNet||[];
+               const recent=arr.slice(-3).map(r=>r.value);
+               if(recent.length<3) return "";
+               const negCnt=recent.filter(v=>v<0).length;
+               return negCnt>=3?"3개월연속매도":negCnt>=2?"매도우세":negCnt===0?"3개월연속매수":"혼조";
+             })()},
             {label:"가계부채/GDP (ECOS협의)", region:"🇰🇷",
              val:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
              color:(()=>{const v=(macroData?.hhDebtGDP||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=82?C.red:v>=75?C.orange:v>=65?C.gold:C.green;})(),
@@ -4674,7 +4695,7 @@ export default function App(){
                 {/* ── 지표 상세 그리드 */}
                 <div style={{marginBottom:8}}>
                   <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
-                    📋 지표별 상세 (24개)
+                    📋 지표별 상세 (25개)
                   </div>
                   {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
                     const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
@@ -6309,6 +6330,68 @@ export default function App(){
                   미국: FRED M2SL (십억달러) · 한국: ECOS 101Y004 광의통화 M2 (십억원)
                 </div>
                 </>)}
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 외국인 KOSPI 순매수 */}
+            {(macroData?.foreignNet3M||[]).length>0&&(
+            <Box>
+              <ST accent={C.teal}>🌏 🇰🇷 외국인 KOSPI 순매수 — 자금 이탈 조기 감지</ST>
+              {(()=>{
+                const data=(macroData.foreignNet3M||[]).filter(r=>r.ma3!=null).slice(-36);
+                const raw=(macroData.foreignNet||[]).slice(-3);
+                const negCnt=raw.filter(r=>r.value<0).length;
+                const last=data.slice(-1)[0]?.ma3??null;
+                const vc=negCnt>=3?C.red:negCnt>=2?C.orange:negCnt===0?C.green:C.gold;
+                const vl=negCnt>=3?"3개월 연속 순매도":negCnt>=2?"매도 우세":negCnt===0?"3개월 연속 순매수":"혼조";
+                return(<>
+                <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    외국인이 KOSPI에서 사고판 차이(순매수)의 3개월 이동평균입니다.
+                    외국인은 KOSPI 시총의 <span style={{color:C.teal,fontWeight:700}}>30%+를 보유</span>해 이들의 이탈은 즉각적인 하락 압력으로 이어집니다.<br/>
+                    3개월 연속 순매도는 위험 신호, 3개월 연속 순매수는 안정 신호입니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 3개월연속 순매수","안정"],["🟡 혼조","주의"],["🟠 2개월 매도우세","경계"],["🔴 3개월연속 순매도","위험"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>외국인 순매수 3개월 이동평균 · 최근 3개월 추세 기준</span>
+                  {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>
+                    {last>=0?"+":""}{(last/1000).toFixed(0)}억 {vl}
+                  </span>}
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs>
+                      <linearGradient id="foreignPos" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.green} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.green} stopOpacity={0.02}/>
+                      </linearGradient>
+                      <linearGradient id="foreignNeg" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.red} stopOpacity={0.02}/>
+                        <stop offset="100%" stopColor={C.red} stopOpacity={0.3}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} tickFormatter={v=>`${(v/1000).toFixed(0)}억`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={0} stroke={`${C.muted}66`} strokeDasharray="3 3" label={{value:"기준선",fill:C.muted,fontSize:7,position:"insideTopRight"}}/>
+                    <Bar dataKey="ma3" name="순매수3MA" fill={C.teal} opacity={0.6} radius={[2,2,0,0]}
+                      label={false}
+                      {...{cell: data.map((d,i)=>(
+                        {key:i, fill: d.ma3>=0?C.green:C.red}
+                      ))}}
+                    />
+                  </ComposedChart>
+                </CW>
                 </>);
               })()}
             </Box>
