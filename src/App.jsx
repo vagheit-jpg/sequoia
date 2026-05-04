@@ -4222,6 +4222,10 @@ export default function App(){
              val:_icsa!=null?`${_icsa}k`:"-",
              color:_icsa==null?"#888":_icsa>=300?C.red:_icsa>=250?C.orange:_icsa>=210?C.gold:C.green,
              tip:_icsa==null?"":_icsa>=300?"급등":_icsa>=250?"증가":_icsa>=210?"보통":"안정"},
+            {label:"미국 실업률", region:"🇺🇸",
+             val:(()=>{const v=(macroData?.fredUNRATEMonthly||[]).slice(-1)[0]?.value??null;return v!=null?`${v}%`:"-";})(),
+             color:(()=>{const v=(macroData?.fredUNRATEMonthly||[]).slice(-1)[0]?.value??null;return v==null?"#888":v>=5.5?C.red:v>=4.5?C.orange:v>=4.0?C.gold:C.green;})(),
+             tip:(()=>{const v=(macroData?.fredUNRATEMonthly||[]).slice(-1)[0]?.value??null;return v==null?"":v>=5.5?"침체":v>=4.5?"상승주의":v>=4.0?"보통":"호조";})()},
             // ── 🇰🇷 한국 지표
             {label:"한국 M2 통화량 YoY", region:"🇰🇷",
              val:(()=>{const v=[...(macroData?.krM2YoY||[])].reverse().find(r=>r.yoy!=null)?.yoy??null;return v!=null?`${v>0?"+":""}${v}%`:"-";})(),
@@ -4626,15 +4630,56 @@ export default function App(){
                   </div>
                 </div>
 
+                {/* ── 주요 위험 요인 TOP3 + 해설 */}
+                {(()=>{
+                  const inds=dc.indicators||[];
+                  const worst=[...inds].sort((a,b)=>a.score-b.score).slice(0,3).filter(i=>i.score<0);
+                  if(!worst.length) return null;
+                  const factor=worst[0];
+                  const factorDesc=factor.score<=-2
+                    ?`${factor.label}이(가) 위험 수준입니다. 즉각적인 주의가 필요합니다.`
+                    :`${factor.label}이(가) 경계 수준에 진입했습니다.`;
+                  return(
+                  <div style={{marginBottom:12}}>
+                    <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>⚠️ 주요 위험 요인</div>
+                    <div style={{background:`${C.red}0d`,border:`1px solid ${C.red}33`,borderRadius:8,
+                      padding:"7px 10px",marginBottom:6,borderLeft:`3px solid ${C.red}88`}}>
+                      <div style={{color:`${C.muted}bb`,fontSize:7,marginBottom:4}}>{factorDesc}</div>
+                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                        {worst.map((ind,i)=>{
+                          const sc=ind.score;
+                          const sc_color=sc<=-2?C.red:C.orange;
+                          return(
+                          <div key={ind.key} style={{display:"flex",alignItems:"center",gap:6}}>
+                            <span style={{color:sc_color,fontSize:9,fontWeight:700,minWidth:14}}>
+                              {i+1}.
+                            </span>
+                            <span style={{color:C.muted,fontSize:9,flex:1}}>{ind.label}</span>
+                            <span style={{color:sc_color,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
+                              {ind.val!=null?`${ind.val}${ind.unit}`:"-"}
+                            </span>
+                            <span style={{color:sc_color,fontSize:7,
+                              background:`${sc_color}18`,borderRadius:4,padding:"1px 4px"}}>
+                              {sc<=-2?ind.bad:ind.warn}
+                            </span>
+                          </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                  );
+                })()}
+
                 {/* ── 지표 상세 그리드 */}
                 <div style={{marginBottom:8}}>
                   <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
-                    📋 지표별 상세 (23개)
+                    📋 지표별 상세 (24개)
                   </div>
                   {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
                     const cfg=catCfg.find(c=>c.cat===cat)||{icon:"•",color:C.muted};
                     // 미국 key 목록
-                    const US_KEYS=new Set(["미국금리역전","하이일드","HY스프레드","미국SLOOS","VIX","DXY","ICSA","LEI","구리금","미국M2"]);
+                    const US_KEYS=new Set(["미국금리역전","하이일드","HY스프레드","미국SLOOS","VIX","DXY","ICSA","UNRATE","LEI","구리금","미국M2"]);
                     const allInds=dc.indicators.filter(i=>i.cat===cat);
                     // 미국 먼저, 한국 나중 정렬
                     const inds=[...allInds.filter(i=>US_KEYS.has(i.key)),...allInds.filter(i=>!US_KEYS.has(i.key))];
@@ -5712,6 +5757,63 @@ export default function App(){
                     <ReferenceLine y={250} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"경계 250k",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
                     <ReferenceLine y={210} stroke={`${C.gold}66`}   strokeDasharray="3 3" label={{value:"주의 210k",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
                     <Area dataKey="value" name="실업청구(k)" stroke={C.purple} strokeWidth={2.5} fill="url(#icsaGrad)" dot={false} connectNulls/>
+                  </ComposedChart>
+                </CW>
+                </>);
+              })()}
+            </Box>
+            )}
+
+            {/* ── 미국 실업률 */}
+            {(macroData?.fredUNRATEMonthly||[]).length>0&&(
+            <Box>
+              <ST accent={C.blue}>👷 🇺🇸 미국 실업률 — 고용시장 건전성</ST>
+              {(()=>{
+                const data=(macroData.fredUNRATEMonthly||[]).slice(-60);
+                const last=data.slice(-1)[0]?.value??null;
+                const prev12=data.slice(-13)[0]?.value??null;
+                const yoy=last!=null&&prev12!=null?+(last-prev12).toFixed(1):null;
+                const vc=last==null?"#888":last>=5.5?C.red:last>=4.5?C.orange:last>=4.0?C.gold:C.green;
+                const vl=last==null?"":last>=5.5?"침체":last>=4.5?"상승주의":last>=4.0?"보통":"호조";
+                return(<>
+                <div style={{background:`${C.blue}0e`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                  <div style={{color:C.blue,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
+                  <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                    미국 전체 노동인구 중 실업자 비율입니다. 경기 사이클의 후행 지표로,
+                    <span style={{color:C.blue,fontWeight:700}}> 상승 전환 시 경기침체 신호</span>로 해석됩니다.<br/>
+                    정상 구간은 <span style={{color:C.green,fontWeight:700}}>4% 이하</span>. 5.5% 이상이면 침체 구간입니다.
+                  </div>
+                  <div style={{display:"flex",gap:8,marginTop:4,flexWrap:"wrap"}}>
+                    {[["🟢 4% 미만","호조"],["🟡 4~4.5%","보통"],["🟠 4.5~5.5%","상승주의"],["🔴 5.5%↑","침체"]].map(([r,l])=>(
+                      <span key={r} style={{fontSize:7,color:`${C.muted}cc`}}>{r} <span style={{color:C.muted}}>{l}</span></span>
+                    ))}
+                  </div>
+                </div>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+                  background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
+                  <span style={{fontSize:8,color:C.muted}}>실업률 · 4.5%↑ 주의 · 5.5%↑ 침체신호 (월별)</span>
+                  <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                    {yoy!=null&&<span style={{fontSize:8,color:yoy>0?C.red:C.green,fontWeight:600}}>
+                      YoY {yoy>0?"+":""}{yoy}%p
+                    </span>}
+                    {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>{last}% {vl}</span>}
+                  </div>
+                </div>
+                <CW h={200}>
+                  <ComposedChart data={data} margin={{top:8,right:16,left:0,bottom:8}}>
+                    <defs><linearGradient id="unrateGrad" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor={C.blue} stopOpacity={0.3}/>
+                        <stop offset="100%" stopColor={C.blue} stopOpacity={0.02}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                    <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={11} tickFormatter={v=>v?.slice(0,6)||""}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={32} tickFormatter={v=>`${v}%`} domain={["auto","auto"]}/>
+                    <Tooltip content={<MTip/>} cursor={false}/>
+                    <ReferenceLine y={5.5} stroke={`${C.red}66`}    strokeDasharray="3 3" label={{value:"침체 5.5%",fill:C.red,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={4.5} stroke={`${C.orange}66`} strokeDasharray="3 3" label={{value:"주의 4.5%",fill:C.orange,fontSize:7,position:"insideTopRight"}}/>
+                    <ReferenceLine y={4.0} stroke={`${C.gold}66`}   strokeDasharray="3 3" label={{value:"보통 4.0%",fill:C.gold,fontSize:7,position:"insideTopRight"}}/>
+                    <Area dataKey="value" name="실업률(%)" stroke={C.blue} strokeWidth={2.5} fill="url(#unrateGrad)" dot={false} connectNulls/>
                   </ComposedChart>
                 </CW>
                 </>);
