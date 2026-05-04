@@ -810,7 +810,6 @@ function calcSequoiaCIndex(defconData) {
   if (clusterCount >= 2) clusterPenalty += 3;
   if (clusterCount >= 3) clusterPenalty += 6;
   if (clusterCount >= 4) clusterPenalty += 10;
-  if (clusterCount >= 5) clusterPenalty += 14;
 
   // 2) 조합 페널티: 금융위기형 조합은 추가 차감
   let triggerPenalty = 0;
