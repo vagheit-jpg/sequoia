@@ -596,8 +596,9 @@ export default async function handler(req, res) {
     // S22CC: 외국인 순매수 → 양수=순매수, 음수=순매도
     // 3개월 이동평균으로 노이즈 제거 후 방향성 판단
     const foreignNet = foreignNetRaw
-      .map(r => ({ date: r.date?.slice(0,6) ?? r.date, value: r.value }))
-      .filter(r => r.date && r.value != null);
+    // ECOS S22CC 원자료 단위: 백만원 → 억원
+    .map(r => ({ date: r.date?.slice(0,6) ?? r.date, value: +(r.value / 100).toFixed(0) }))
+    .filter(r => r.date && r.value != null);
     // 3개월 이동평균
     const foreignNet3M = foreignNet.map((r, i) => {
       if (i < 2) return { ...r, ma3: null };
