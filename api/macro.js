@@ -316,27 +316,41 @@ function calcCrisisAnalysis(defconData) {
 
 // ── SEFCON
 function calcDefcon(indicators) {
-  // 카테고리별 점수 (0~100, 지표 수/가중치 자동 정규화)
-  // T10Y2Y 가중 2배는 신용위험 카테고리 내부에서만 작동
-  const cats = ["신용위험","유동성","시장공포","실물경기","물가"];
+  // ── 카테고리 가중치 (KLR 연구 기반 선행성 반영)
+  // 신용위험 30% — 가장 빠른 선행지표 집중
+  // 시장공포 25% — VIX 등 실시간 반응
+  // 실물경기 20% — 유지
+  // 유동성   15% — 일부 후행 포함
+  // 물가     10% — 가장 후행적
+  const CAT_WEIGHT = {
+    "신용위험": 0.30,
+    "시장공포": 0.25,
+    "실물경기": 0.20,
+    "유동성":   0.15,
+    "물가":     0.10,
+  };
+  const cats = Object.keys(CAT_WEIGHT);
+
   const catScores = cats.map(cat => {
     const inds   = indicators.filter(i => i.cat === cat);
     const catRaw = inds.reduce((s, i) => s + i.score, 0);
-    // catMax: 각 지표의 가중치 합 (T10Y2Y는 *2이므로 score가 최대 4)
-    // 실제 maxRaw = 지표별 최대 abs(score) 합
+    // catMax: 지표별 최대 가중 점수 합산
+    // T10Y2Y(×2)→max4, Baa/HY/LEI(×1.5)→max3, 일반→max2
     const catMax = inds.reduce((s, i) => {
-      // 가중 2배 지표는 max=4, 일반 지표는 max=2
-      const absMax = Math.abs(i.score) > 2 ? 4 : 2;
-      return s + absMax;
+      const absScore = Math.abs(i.score);
+      if (absScore > 3) return s + 4;       // ×2 지표
+      if (absScore > 2) return s + 3;       // ×1.5 지표
+      return s + 2;                          // 일반 지표
     }, 0) || (inds.length * 2);
     const score = catMax > 0 ? Math.round((catRaw + catMax) / (catMax * 2) * 100) : 50;
-    return { cat, score: Math.max(0, Math.min(100, score)), count: inds.length };
+    return { cat, score: Math.max(0, Math.min(100, score)), count: inds.length, weight: CAT_WEIGHT[cat] };
   });
 
-  // ── C안: 전체 점수 = 카테고리 점수 산술 평균
-  // → 카테고리당 영향력 정확히 20%. 지표 수 불균형 완전 제거
-  const totalScore = Math.round(catScores.reduce((s, c) => s + c.score, 0) / cats.length);
-  const maxScore   = 100;
+  // ── 전체 점수 = 카테고리 가중 평균 (선행성 반영)
+  const totalScore = Math.round(
+    catScores.reduce((s, c) => s + c.score * c.weight, 0)
+  );
+  const maxScore = 100;
 
   let defcon, defconLabel, defconColor, defconDesc;
   if      (totalScore <= 30) { defcon=1; defconLabel="SEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호 동시 발생. 현금 비중 최우선. 역사적 위기 수준에 근접"; }
@@ -589,31 +603,32 @@ export default async function handler(req, res) {
     };
 
     const indicators = [
-      // ── 신용위험 (6개 — T10Y2Y 가중2배, 카테고리 정규화로 전체 영향 20% 유지)
+      // ── 신용위험 (6개)
+      // T10Y2Y: 12~18개월 선행 → ×2 유지
       { cat:"신용위험", key:"미국금리역전", label:"미국 장단기금리차(T10Y2Y)", val:lastFRED(fredT10Y2Y), unit:"%",
         good:"정상", warn:"평탄", bad:"역전",
-        score: scoreV(lastFRED(fredT10Y2Y), [-1.0, -0.5, 0.5,  1.0], -1) * 2 }, // 가중 2배
-      { cat:"신용위험", key:"하이일드",     label:"미국 Baa 신용스프레드",     val:lastFRED(fredHY),     unit:"%p",
+        score: scoreV(lastFRED(fredT10Y2Y), [-1.0, -0.5, 0.5, 1.0], -1) * 2 },
+      // Baa스프레드: 6~12개월 선행 → ×1.5
+      { cat:"신용위험", key:"하이일드", label:"미국 Baa 신용스프레드", val:lastFRED(fredHY), unit:"%p",
         good:"안정", warn:"경계", bad:"급등",
-        score: scoreV(lastFRED(fredHY),     [ 4.0,  3.0, 2.0,  1.5],  1) },
-      { cat:"신용위험", key:"금리차KR",     label:"한국 10Y-3Y 금리차",       val:last(yieldSpread),    unit:"%p",
+        score: Math.round(scoreV(lastFRED(fredHY), [4.0, 3.0, 2.0, 1.5], 1) * 1.5) },
+      { cat:"신용위험", key:"금리차KR", label:"한국 10Y-3Y 금리차", val:last(yieldSpread), unit:"%p",
         good:"정상화", warn:"평탄", bad:"역전",
-        score: scoreV(last(yieldSpread),    [-0.5,  0.0, 0.5,  1.0], -1) },
-      { cat:"신용위험", key:"HY스프레드",   label:"ICE BofA HY 스프레드",     val:lastFRED(fredBAML),   unit:"%p",
+        score: scoreV(last(yieldSpread), [-0.5, 0.0, 0.5, 1.0], -1) },
+      // HY스프레드: 6~12개월 선행 → ×1.5
+      { cat:"신용위험", key:"HY스프레드", label:"ICE BofA HY 스프레드", val:lastFRED(fredBAML), unit:"%p",
         good:"안정", warn:"경계", bad:"위기",
-        score: scoreV(lastFRED(fredBAML),   [ 9.0,  6.0, 4.0,  3.0],  1) },
-      { cat:"신용위험", key:"미국SLOOS",    label:"미국 SLOOS 대출기준강화",  val:lastFRED(fredSLOOS),  unit:"%",
+        score: Math.round(scoreV(lastFRED(fredBAML), [9.0, 6.0, 4.0, 3.0], 1) * 1.5) },
+      { cat:"신용위험", key:"미국SLOOS", label:"미국 SLOOS 대출기준강화", val:lastFRED(fredSLOOS), unit:"%",
         good:"완화", warn:"중립", bad:"강화",
-        // 양수=대출기준 강화. 2008년 60%↑, 2020년 70%↑, 정상 0~10%
-        score: scoreV(lastFRED(fredSLOOS),  [50, 20, -5, -20], 1) },
-      { cat:"신용위험", key:"한국SLOOS",    label:"한국 은행 대출태도지수",   val:last(krSloos),        unit:"",
+        score: scoreV(lastFRED(fredSLOOS), [50, 20, -5, -20], 1) },
+      { cat:"신용위험", key:"한국SLOOS", label:"한국 은행 대출태도지수", val:last(krSloos), unit:"",
         good:"완화", warn:"중립", bad:"강화",
-        score: scoreV(last(krSloos),        [40, 20, -5, -20], 1) },
+        score: scoreV(last(krSloos), [40, 20, -5, -20], 1) },
 
-      // ── 유동성 (6개 — M2 2개 추가)
+      // ── 유동성 (6개)
       { cat:"유동성", key:"미국M2", label:"미국 M2 통화량 YoY", val:lastYoy(usM2YoY), unit:"%",
         good:"양호", warn:"주의", bad:"긴축/버블",
-        // 급감(<0%) 위험, 정상(0~5%) 양호, 급증(>10%) 과잉(버블위험이나 위기는 아님 → 중립처리)
         score: (()=>{const v=lastYoy(usM2YoY);if(v==null)return 0;if(v<-2)return -2;if(v<0)return -1;if(v<=5)return 0;if(v<=10)return +1;return 0;})() },
       { cat:"유동성", key:"한국M2", label:"한국 M2 통화량 YoY", val:lastYoy(krM2YoY), unit:"%",
         good:"양호", warn:"주의", bad:"긴축/버블",
@@ -621,62 +636,59 @@ export default async function handler(req, res) {
       { cat:"유동성", key:"기준금리", label:"한국 기준금리", val:last(rate), unit:"%",
         good:"완화적", warn:"중립", bad:"긴축",
         score: scoreV(last(rate), [4.0, 3.0, 2.0, 1.0], 1) },
-      { cat:"유동성", key:"환율",     label:"원/달러 환율", val:last(fx),   unit:"원",
+      { cat:"유동성", key:"환율", label:"원/달러 환율", val:last(fx), unit:"원",
         good:"강세", warn:"중립", bad:"약세",
-        score: scoreV(last(fx),   [1450, 1380, 1250, 1150], 1) },
+        score: scoreV(last(fx), [1450, 1380, 1250, 1150], 1) },
       { cat:"유동성", key:"CD스프레드", label:"CD금리-기준금리 스프레드", val:last(cdSpread), unit:"%p",
         good:"안정", warn:"보통", bad:"확대",
         score: scoreV(last(cdSpread), [1.5, 1.0, 0.3, 0.1], 1) },
-      { cat:"유동성", key:"가계부채GDP", label:"가계부채/GDP (ECOS협의)",  val:last(hhDebtGDP), unit:"%",
+      { cat:"유동성", key:"가계부채GDP", label:"가계부채/GDP (ECOS협의)", val:last(hhDebtGDP), unit:"%",
         good:"안정", warn:"주의", bad:"과부하",
-        // ECOS 151Y001 협의 기준 실제값 (BIS ~105%와 정의 다름, 보정 없음)
-        // 현재 ~77%. 역사적: 2008년 ~60%, 2022년 ~80%. bad2:82 bad1:75 good1:65 good2:60
         score: scoreV(last(hhDebtGDP), [82, 75, 65, 60], 1) },
 
       // ── 시장공포 (3개)
-      { cat:"시장공포", key:"VIX", label:"VIX 공포지수",  val:lastFRED(fredVIX), unit:"",
+      { cat:"시장공포", key:"VIX", label:"VIX 공포지수", val:lastFRED(fredVIX), unit:"",
         good:"안정", warn:"경계", bad:"공포",
         score: scoreV(lastFRED(fredVIX), [35, 25, 18, 13], 1) },
-      { cat:"시장공포", key:"BSI", label:"BSI 제조업",    val:last(bsi),         unit:"",
+      { cat:"시장공포", key:"BSI", label:"BSI 제조업", val:last(bsi), unit:"",
         good:"확장", warn:"중립", bad:"수축",
-        score: scoreV(last(bsi),         [80, 90, 100, 110], -1) },
-      { cat:"시장공포", key:"DXY", label:"DXY 달러인덱스", val:last(yahooDXY),   unit:"",
+        score: scoreV(last(bsi), [80, 90, 100, 110], -1) },
+      { cat:"시장공포", key:"DXY", label:"DXY 달러인덱스", val:last(yahooDXY), unit:"",
         good:"약세", warn:"중립", bad:"강세",
-        // 달러 강세 = 위험회피·신흥국 압박. 106이상 위험, 100이하 안정
         score: scoreV(last(yahooDXY), [108, 104, 100, 97], 1) },
 
-      // ── 실물경기 (5개)
-      { cat:"실물경기", key:"수출",   label:"한국 수출 YoY",       val:lastYoy(exportYoY),   unit:"%",
+      // ── 실물경기 (6개)
+      { cat:"실물경기", key:"수출", label:"한국 수출 YoY", val:lastYoy(exportYoY), unit:"%",
         good:"증가", warn:"보합", bad:"감소",
-        score: scoreV(lastYoy(exportYoY),   [-15, -5,  5, 15], -1) },
-      { cat:"실물경기", key:"ICSA",   label:"주간 실업청구(천건)",  val:lastFRED(fredICSA),  unit:"k",
+        score: scoreV(lastYoy(exportYoY), [-15, -5, 5, 15], -1) },
+      { cat:"실물경기", key:"ICSA", label:"주간 실업청구(천건)", val:lastFRED(fredICSA), unit:"k",
         good:"안정", warn:"증가", bad:"급등",
-        score: scoreV(lastFRED(fredICSA),   [300, 250, 210, 180], 1) },
-      { cat:"실물경기", key:"UNRATE", label:"미국 실업률",           val:fredUNRATEMonthly.slice(-1)[0]?.value??null, unit:"%",
+        score: scoreV(lastFRED(fredICSA), [300, 250, 210, 180], 1) },
+      // UNRATE: 후행지표·ICSA 중복 → score:0 고정, 화면 표시·그래프 참고용만
+      { cat:"실물경기", key:"UNRATE", label:"미국 실업률 (참고)", val:fredUNRATEMonthly.slice(-1)[0]?.value??null, unit:"%",
         good:"호조", warn:"상승", bad:"침체",
-        score: scoreV(fredUNRATEMonthly.slice(-1)[0]?.value??null, [5.5, 4.5, 4.0, 3.5], 1) },
-      { cat:"실물경기", key:"GDP",    label:"한국 GDP성장률",       val:lastYoy(gdp),         unit:"%",
+        score: 0 },
+      { cat:"실물경기", key:"GDP", label:"한국 GDP성장률", val:lastYoy(gdp), unit:"%",
         good:"견조", warn:"완만", bad:"침체",
-        score: scoreV(lastYoy(gdp),         [-1, 1, 3, 4], -1) },
-      { cat:"실물경기", key:"LEI",    label:"미국 LEI 경기선행지수", val:lastFRED(fredLEI),  unit:"",
+        score: scoreV(lastYoy(gdp), [-1, 1, 3, 4], -1) },
+      // LEI: 6개월 선행 → ×1.5
+      { cat:"실물경기", key:"LEI", label:"미국 LEI 경기선행지수", val:lastFRED(fredLEI), unit:"",
         good:"확장", warn:"둔화", bad:"수축",
-        // OECD LEI: 100 기준. 99이하 둔화, 98이하 수축
-        score: scoreV(lastFRED(fredLEI),    [98, 99, 100.5, 101.5], -1) },
-      { cat:"실물경기", key:"구리금", label:"구리/금 비율(×1000)",   val:last(copperGold),   unit:"",
+        score: Math.round(scoreV(lastFRED(fredLEI), [98, 99, 100.5, 101.5], -1) * 1.5) },
+      { cat:"실물경기", key:"구리금", label:"구리/금 비율(×1000)", val:last(copperGold), unit:"",
         good:"강세", warn:"중립", bad:"약세",
-        // 구리금 상승 = 경기기대 양호. 하락 = 경기비관
-        score: scoreV(last(copperGold),     [0.15, 0.18, 0.25, 0.30], -1) },
+        score: scoreV(last(copperGold), [0.15, 0.18, 0.25, 0.30], -1) },
 
-      // ── 물가 (3개)
-      { cat:"물가", key:"CPI",    label:"한국 CPI YoY",   val:lastYoy(cpi),           unit:"%",
+      // ── 물가 (3개) — 후행지표, 카테고리 가중치로 영향 조정
+      { cat:"물가", key:"CPI", label:"한국 CPI YoY", val:lastYoy(cpi), unit:"%",
         good:"안정", warn:"보통", bad:"고인플",
-        score: scoreV(lastYoy(cpi),           [5, 3, 1, 0], 1) },
-      { cat:"물가", key:"PPI",    label:"한국 PPI YoY",   val:lastYoy(ppi),           unit:"%",
+        score: scoreV(lastYoy(cpi), [5, 3, 1, 0], 1) },
+      { cat:"물가", key:"PPI", label:"한국 PPI YoY", val:lastYoy(ppi), unit:"%",
         good:"안정", warn:"보통", bad:"원가↑",
-        score: scoreV(lastYoy(ppi),           [6, 3, 1, 0], 1) },
-      { cat:"물가", key:"가계신용", label:"가계신용 YoY", val:lastYoy(hhCreditYoY),   unit:"%",
+        score: scoreV(lastYoy(ppi), [6, 3, 1, 0], 1) },
+      { cat:"물가", key:"가계신용", label:"가계신용 YoY", val:lastYoy(hhCreditYoY), unit:"%",
         good:"감소", warn:"완만", bad:"과열",
-        score: scoreV(lastYoy(hhCreditYoY),   [8, 5, 2, 0], 1) },
+        score: scoreV(lastYoy(hhCreditYoY), [8, 5, 2, 0], 1) },
     ];
 
     const defconData = calcDefcon(indicators);
