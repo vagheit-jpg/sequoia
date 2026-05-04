@@ -685,7 +685,12 @@ export default async function handler(req, res) {
         score: scoreV(last(yahooDXY), [108, 104, 100, 97], 1) },
       // 외국인 KOSPI 순매수: 3개월 연속 방향성으로 판단
       // 순매도 지속 = 외국인 이탈 = 시장공포/위험 신호
-      { cat:"시장공포", key:"외국인순매수", label:"외국인 KOSPI 순매수 추이", val:lastForeignNet3M, unit:"",
+      { cat:"시장공포", key:"외국인순매수", label:"외국인 KOSPI 순매수 추이",
+        val: lastForeignNet3M == null ? null : (()=>{
+          const a=Math.abs(lastForeignNet3M); const s=lastForeignNet3M>=0?"+":"-";
+          return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${Math.round(a).toLocaleString()}억`;
+        })(),
+        unit:"",
         good:"순매수", warn:"혼조", bad:"순매도",
         score: foreignNetTrend ?? 0 },
 
