@@ -6365,7 +6365,7 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>외국인 순매수 3개월 이동평균 · 최근 3개월 추세 기준</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>
-                    {(()=>{const a=Math.abs(last);const s=last>=0?"+":"-";return a>=10000?`${s}${(a/10000).toFixed(1)}조 ${vl}`:`${s}${a.toLocaleString()}억 ${vl}`;})()} 
+                    {(()=>{const a=Math.abs(last);const s=last>=0?"+":"-";return a>=10000?`${s}${(a/10000).toFixed(1)}조 ${vl}`:`${s}${Math.round(a).toLocaleString()}억 ${vl}`;})()} 
                   </span>}
                 </div>
                 <CW h={200}>
@@ -6397,7 +6397,7 @@ export default function App(){
                       if(v==null)return null;
                       const a=Math.abs(v);
                       const s=v>=0?"+":"-";
-                      const disp=a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${a.toLocaleString()}억`;
+                      const disp=a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${Math.round(a).toLocaleString()}억`;
                       return(<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 11px",fontSize:11}}>
                         <div style={{color:C.gold,fontWeight:700,marginBottom:3,fontFamily:"monospace"}}>{label}</div>
                         <div style={{color:v>=0?C.green:C.red,fontWeight:700,fontFamily:"monospace"}}>외국인 순매수 3MA: {disp}</div>
