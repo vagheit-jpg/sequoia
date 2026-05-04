@@ -16,8 +16,14 @@ async function fetchECOS(statCode, itemCode, startDate, endDate, freq = "MM") {
     return [];
   }
   const rows = json?.StatisticSearch?.row || [];
-  return rows.map(r => ({ date: r.TIME, value: parseFloat(r.DATA_VALUE) }))
-             .filter(r => !isNaN(r.value));
+return rows.map(r => ({
+  date: r.TIME,
+  value: parseFloat(r.DATA_VALUE),
+  itemCode2: r.ITEM_CODE2,
+  itemName2: r.ITEM_NAME2,
+  unitName: r.UNIT_NAME,
+}))
+.filter(r => !isNaN(r.value));
 }
 
 // ── FRED 호출
@@ -595,10 +601,13 @@ export default async function handler(req, res) {
     // ── 외국인 KOSPI 순매수 (월별, 단위 확인 후 조정 필요)
     // S22CC: 외국인 순매수 → 양수=순매수, 음수=순매도
     // 3개월 이동평균으로 노이즈 제거 후 방향성 판단
-    const foreignNet = foreignNetRaw
-    // ECOS S22CC 원자료 단위: 백만원 → 억원
-    .map(r => ({ date: r.date?.slice(0,6) ?? r.date, value: +(r.value / 100).toFixed(0) }))
-    .filter(r => r.date && r.value != null);
+   const foreignNet = foreignNetRaw
+  .filter(r => r.itemCode2 === "VA") // 거래대금만 사용, VO(거래량)는 제외
+  .map(r => ({
+    date: r.date?.slice(0,6) ?? r.date,
+    value: +(r.value / 100).toFixed(0) // 백만원 → 억원
+  }))
+  .filter(r => r.date && r.value != null);
     // 3개월 이동평균
     const foreignNet3M = foreignNet.map((r, i) => {
       if (i < 2) return { ...r, ma3: null };
