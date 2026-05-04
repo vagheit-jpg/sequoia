@@ -421,7 +421,8 @@ export default async function handler(req, res) {
            fredSLOOSR, krSloosR, fredLEIR, fredICSAR, fredBAMLR,
            yahooBIZDR, yahooDXYR, yahooHGR, yahooGCR,
            ecosCDR, nominalGdpR,
-           fredM2SLR, ecosKrM2R] =
+           fredM2SLR, ecosKrM2R,
+           foreignNetR] =
       await Promise.allSettled([
         fetchECOS("200Y102", "10111",   startDateQ, `${endY}Q4`, "Q"),  // GDP 실질 전기비%
         fetchECOS("901Y118", "T002",    startDate,  endDate,     "M"),  // 수출금액(천불)
@@ -453,6 +454,7 @@ export default async function handler(req, res) {
         fetchECOS("200Y113", "10106",   `${endY - 10}`, `${endY}`, "A"),// 명목 GDP 연간 (십억원) — 자동 갱신
         fetchFRED("M2SL",             `${endY - 8}-01-01`),             // 미국 M2 통화량 (월별, 십억달러)
         fetchECOS("161Y006", "BBHA00", startDate,  endDate,     "M"),  // 한국 M2 광의통화 평잔 원계열 (월별, 십억원)
+        fetchECOS("901Y055", "S22CC",  startDate,  endDate,     "M"),  // 외국인 KOSPI 순매수 (월별)
       ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -488,6 +490,7 @@ export default async function handler(req, res) {
     const nominalGdpArr = ok(nominalGdpR); // 명목 GDP 연간 (십억원)
     const fredM2SLRaw   = ok(fredM2SLR);   // 미국 M2 (십억달러)
     const ecosKrM2Raw   = ok(ecosKrM2R);   // 한국 M2 (십억원)
+    const foreignNetRaw = ok(foreignNetR); // 외국인 KOSPI 순매수 (월별)
 
     // ── 가공
     // GDP: 이미 전기비% → yoy 필드로 매핑
@@ -589,6 +592,30 @@ export default async function handler(req, res) {
     const krM2 = ecosKrM2Raw.map(r => ({ date: r.date, value: r.value })).filter(r=>r.date&&r.value!=null);
     const krM2YoY = calcMonthlyYoY(krM2);
 
+    // ── 외국인 KOSPI 순매수 (월별, 단위 확인 후 조정 필요)
+    // S22CC: 외국인 순매수 → 양수=순매수, 음수=순매도
+    // 3개월 이동평균으로 노이즈 제거 후 방향성 판단
+    const foreignNet = foreignNetRaw
+      .map(r => ({ date: r.date?.slice(0,6) ?? r.date, value: r.value }))
+      .filter(r => r.date && r.value != null);
+    // 3개월 이동평균
+    const foreignNet3M = foreignNet.map((r, i) => {
+      if (i < 2) return { ...r, ma3: null };
+      const avg = (foreignNet[i].value + foreignNet[i-1].value + foreignNet[i-2].value) / 3;
+      return { ...r, ma3: +avg.toFixed(0) };
+    });
+    const lastForeignNet3M = foreignNet3M.filter(r => r.ma3 != null).slice(-1)[0]?.ma3 ?? null;
+    // 최근 3개월 연속 방향 판단
+    const foreignNetTrend = (() => {
+      const recent = foreignNet.slice(-3).map(r => r.value);
+      if (recent.length < 3) return null;
+      if (recent.every(v => v < 0)) return -2;  // 3개월 연속 순매도
+      if (recent.filter(v => v < 0).length >= 2) return -1; // 2개월 순매도
+      if (recent.every(v => v > 0)) return +2;  // 3개월 연속 순매수
+      if (recent.filter(v => v > 0).length >= 2) return +1; // 2개월 순매수
+      return 0;
+    })();
+
     // ── SEFCON 지표
     const last    = arr => arr?.slice(-1)[0]?.value ?? null;
     const lastYoy = arr => [...(arr||[])].reverse().find(r=>r.yoy!=null)?.yoy ?? null;
@@ -656,6 +683,11 @@ export default async function handler(req, res) {
       { cat:"시장공포", key:"DXY", label:"DXY 달러인덱스", val:last(yahooDXY), unit:"",
         good:"약세", warn:"중립", bad:"강세",
         score: scoreV(last(yahooDXY), [108, 104, 100, 97], 1) },
+      // 외국인 KOSPI 순매수: 3개월 연속 방향성으로 판단
+      // 순매도 지속 = 외국인 이탈 = 시장공포/위험 신호
+      { cat:"시장공포", key:"외국인순매수", label:"외국인 KOSPI 순매수 추이", val:lastForeignNet3M, unit:"",
+        good:"순매수", warn:"혼조", bad:"순매도",
+        score: foreignNetTrend ?? 0 },
 
       // ── 실물경기 (6개)
       { cat:"실물경기", key:"수출", label:"한국 수출 YoY", val:lastYoy(exportYoY), unit:"%",
@@ -704,6 +736,7 @@ export default async function handler(req, res) {
       yahooBIZD, yahooDXY, copperGold, yahooHG, yahooGC,
       cdSpread, hhDebtGDP,
       usM2YoY, krM2YoY,
+      foreignNet, foreignNet3M,
       defconData,
       crisisAnalysis,
       updatedAt: Date.now(),
@@ -720,6 +753,7 @@ export default async function handler(req, res) {
         yahooHG:yahooHGRaw.length, yahooGC:yahooGCRaw.length,
         cdSpread:cdSpread.length, hhDebtGDP:hhDebtGDP.length, nominalGdp:nominalGdpArr.length,
         usM2:fredM2SLRaw.length, krM2:ecosKrM2Raw.length,
+        foreignNet:foreignNetRaw.length,
       }
     };
 
