@@ -4847,32 +4847,7 @@ export default function App(){
               const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
               // distToTop을 퍼센트로 변환 (최대거리 250 기준)
               const distPct = Math.round((nav.distToTop / 250) * 100);
-              // localStorage로 이전 proximityScore 읽어 속도 계산
-              const SPEED_KEY = "sq_nav_prev";
-              let speedDelta = null;
-              let speedLabel = "";
-              let speedColor = C.muted;
-              try {
-                const raw = localStorage.getItem(SPEED_KEY);
-                if (raw) {
-                  const {score: prevScore, ts} = JSON.parse(raw);
-                  const daysDiff = (Date.now() - ts) / (1000 * 60 * 60 * 24);
-                  if (daysDiff > 0.5 && daysDiff < 60) {
-                    speedDelta = +(pct - prevScore).toFixed(1);
-                    const perDay = +(speedDelta / daysDiff).toFixed(2);
-                    if (speedDelta > 5)       { speedLabel = `▲ +${speedDelta}pt 악화 (${perDay>0?"+":""}${perDay}pt/일)`; speedColor = C.red; }
-                    else if (speedDelta > 1)  { speedLabel = `▲ +${speedDelta}pt 소폭악화`; speedColor = C.orange; }
-                    else if (speedDelta >= -1) { speedLabel = `— ${speedDelta}pt 횡보`; speedColor = C.muted; }
-                    else if (speedDelta >= -5) { speedLabel = `▼ ${speedDelta}pt 소폭개선`; speedColor = C.gold; }
-                    else                      { speedLabel = `▼ ${speedDelta}pt 개선 (${perDay}pt/일)`; speedColor = C.green; }
-                  }
-                }
-                // 현재 값 저장 (최소 6시간 간격으로 갱신)
-                const existing = raw ? JSON.parse(raw) : null;
-                if (!existing || Date.now() - existing.ts > 6*60*60*1000) {
-                  localStorage.setItem(SPEED_KEY, JSON.stringify({score: pct, ts: Date.now()}));
-                }
-              } catch {}
+
               return(
               <Box>
                 <ST accent={C.cyan}>🧭 Crisis Navigation</ST>
@@ -4891,18 +4866,7 @@ export default function App(){
                       </div>
                     </div>
                   </div>
-                  {/* 속도 카드 */}
-                  <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${speedColor}33`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:C.muted,fontSize:9}}>악화 속도 (전회 대비)</span>
-                      <span style={{color:speedColor,fontWeight:700,fontSize:9}}>
-                        {speedLabel || "— 기록 없음 (다음 갱신 시 표시)"}
-                      </span>
-                    </div>
-                    {speedDelta!==null&&<div style={{color:`${C.muted}66`,fontSize:7,marginTop:3}}>
-                      ※ 6시간 이상 간격으로 갱신 · 단기 노이즈 있음
-                    </div>}
-                  </div>
+
                   <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
                     <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
                       <span style={{color:C.muted,fontSize:9}}>현재 위기 근접도</span>
