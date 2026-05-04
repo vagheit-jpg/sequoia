@@ -4623,6 +4623,38 @@ export default function App(){
                   {dc.defconDesc}
                 </div>
 
+                {/* ── SEFCON v2.0 C-Index: macro.js 판단 엔진 결과 표시 */}
+                {dc.enhancedRisk&&(()=>{
+                  const er=dc.enhancedRisk;
+                  return(
+                  <div style={{background:`${er.cColor||dc.defconColor}12`,border:`1px solid ${(er.cColor||dc.defconColor)}44`,
+                    borderRadius:10,padding:"8px 10px",marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:5}}>
+                      <div style={{color:er.cColor||dc.defconColor,fontSize:9,fontWeight:900}}>
+                        🧠 C-Index {er.cIndex}/100 · {er.cLevel}
+                      </div>
+                      <div style={{color:C.muted,fontSize:7,fontFamily:"monospace"}}>
+                        신뢰도 {er.confidence}% · {er.riskMomentum}
+                      </div>
+                    </div>
+                    <div style={{color:`${C.muted}dd`,fontSize:8,lineHeight:1.55,marginBottom:5}}>
+                      {er.cDesc}
+                    </div>
+                    <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+                      <span style={{color:er.cColor||dc.defconColor,fontSize:7,fontWeight:800,
+                        background:`${er.cColor||dc.defconColor}18`,border:`1px solid ${er.cColor||dc.defconColor}33`,borderRadius:5,padding:"2px 5px"}}>
+                        {er.crisisType}
+                      </span>
+                      {(er.topDrivers||[]).slice(0,3).map(d=>(
+                        <span key={d} style={{color:C.muted,fontSize:7,background:C.card2,border:`1px solid ${C.border}`,borderRadius:5,padding:"2px 5px"}}>
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  );
+                })()}
+
                 {/* ── 카테고리 5개 게이지 */}
                 <div style={{marginBottom:12}}>
                   <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>
@@ -6339,7 +6371,7 @@ export default function App(){
             {/* ── 외국인 KOSPI 순매수 */}
             {(macroData?.foreignNet3M||[]).length>0&&(
             <Box>
-              <ST accent={C.teal}>🌏 🇰🇷 외국인 KOSPI 순매수 — 자금 이탈 조기 감지</ST>
+              <ST accent={C.teal}>🌏 🇰🇷 외국인 KOSPI 순매수 (월별) — 자금 흐름</ST>
               {(()=>{
                 const data=(macroData.foreignNet3M||[]).filter(r=>r.ma3!=null).slice(-36);
                 const raw=(macroData.foreignNet||[]).slice(-3);
@@ -6351,7 +6383,7 @@ export default function App(){
                 <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                   <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
                   <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
-                    외국인이 KOSPI에서 사고판 차이(순매수)의 3개월 이동평균입니다.
+                    외국인이 KOSPI에서 월별로 사고판 차이(순매수)와 3개월 이동평균 흐름을 함께 봅니다.
                     외국인은 KOSPI 시총의 <span style={{color:C.teal,fontWeight:700}}>30%+를 보유</span>해 이들의 이탈은 즉각적인 하락 압력으로 이어집니다.<br/>
                     3개월 연속 순매도는 위험 신호, 3개월 연속 순매수는 안정 신호입니다.
                   </div>
@@ -6363,7 +6395,7 @@ export default function App(){
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>외국인 순매수 3개월 이동평균 · 최근 3개월 추세 기준</span>
+                  <span style={{fontSize:8,color:C.muted}}>최근 3개월 이동평균 · 월별 순매수 기반</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>
                     {(()=>{const a=Math.abs(last);const s=last>=0?"+":"-";return a>=10000?`${s}${(a/10000).toFixed(1)}조 ${vl}`:`${s}${Math.round(a).toLocaleString()}억 ${vl}`;})()} 
                   </span>}
