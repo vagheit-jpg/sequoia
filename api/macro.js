@@ -367,60 +367,7 @@ function calcDefcon(indicators) {
 
   return { defcon, defconLabel, defconColor, defconDesc, totalScore, maxScore, indicators, catScores };
 }
-// ─────────────────────────────────────────────
-// SEFCON v2.0 C-Index (안정형 실전 엔진)
-// ─────────────────────────────────────────────
-function calcSequoiaCIndex(defconData) {
-  const indicators = defconData.indicators || [];
 
-  const baseRisk = Math.max(0, 100 - defconData.totalScore);
-
-  const getScore = (name) =>
-    indicators.find(i => i.name?.includes(name))?.score ?? 0;
-
-  const foreignSell = getScore("외국인") <= -2;
-  const fxStress = getScore("환율") <= -1;
-  const vixStress = getScore("VIX") <= -1;
-  const creditStress =
-    getScore("HY") <= -1 || getScore("스프레드") <= -1;
-
-  // ── 클러스터
-  let clusterPenalty = 0;
-  const clusterCount = [foreignSell, fxStress, vixStress, creditStress].filter(Boolean).length;
-
-  if (clusterCount >= 2) clusterPenalty += 5;
-  if (clusterCount >= 3) clusterPenalty += 10;
-  if (clusterCount >= 4) clusterPenalty += 15;
-
-  // ── 가속도
-  let accelerationPenalty = 0;
-  if (foreignSell && fxStress) accelerationPenalty += 5;
-
-  // ── 위기 유형
-  let crisisType = "혼합형";
-  if (foreignSell && fxStress) crisisType = "외국인 이탈형";
-  else if (creditStress && vixStress) crisisType = "신용경색형";
-  else if (fxStress && vixStress) crisisType = "시장공포형";
-
-  const cIndex = Math.min(
-    100,
-    baseRisk + clusterPenalty + accelerationPenalty
-  );
-
-  let level =
-    cIndex >= 80 ? "위기" :
-    cIndex >= 60 ? "경계" :
-    cIndex >= 40 ? "주의" :
-    "정상";
-
-  return {
-    cIndex,
-    level,
-    crisisType,
-    clusterPenalty,
-    accelerationPenalty
-  };
-}
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
@@ -805,8 +752,6 @@ export default async function handler(req, res) {
     ];
 
     const defconData = calcDefcon(indicators);
-    const enhancedRisk = calcSequoiaCIndex(defconData);
-    defconData.enhancedRisk = enhancedRisk;
     const crisisAnalysis = calcCrisisAnalysis(defconData);
 
     const data = {
