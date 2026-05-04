@@ -753,18 +753,39 @@ export default async function handler(req, res) {
 
 const defconData = calcDefcon(indicators);
 
-// SEFCON v2.0 핵심엔진 적용 — 기존 점수와 단계를 실제로 보정
 const enhancedRisk = calcSequoiaCIndex(defconData);
+
+// 로그 (개발용)
+if (process.env.NODE_ENV !== "production") {
+  console.log("SEFCON DEBUG", {
+    originalScore: enhancedRisk.originalScore,
+    adjustedScore: enhancedRisk.adjustedScore,
+    clusterPenalty: enhancedRisk.clusterPenalty,
+    triggerPenalty: enhancedRisk.triggerPenalty,
+    confirmationPenalty: enhancedRisk.confirmationPenalty,
+    clusterCount: enhancedRisk.clusterCount,
+    crisisType: enhancedRisk.crisisType
+  });
+}
 
 defconData.originalScore = enhancedRisk.originalScore;
 defconData.adjustedScore = enhancedRisk.adjustedScore;
 defconData.totalScore = enhancedRisk.adjustedScore;
 defconData.defcon = enhancedRisk.defcon;
+
+// 히스토리 누적 저장
+const prev = JSON.parse(localStorage.getItem("sefcon_history") || "[]");
+prev.push({
+  date: new Date(),
+  score: defconData.totalScore,
+  defcon: defconData.defcon
+});
+localStorage.setItem("sefcon_history", JSON.stringify(prev));
+
 defconData.defconLabel = enhancedRisk.defconLabel;
 defconData.defconColor = enhancedRisk.defconColor;
 defconData.defconDesc = enhancedRisk.defconDesc;
 defconData.enhancedRisk = enhancedRisk;
-
 const crisisAnalysis = calcCrisisAnalysis(defconData);
 
 // ─────────────────────────────────────────────
