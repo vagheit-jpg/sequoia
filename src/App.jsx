@@ -4280,7 +4280,8 @@ export default function App(){
                const arr=macroData?.foreignNet3M||[];
                const v=arr.filter(r=>r.ma3!=null).slice(-1)[0]?.ma3??null;
                if(v==null) return "-";
-               return v>=0?`+${(v/1000).toFixed(0)}억`:`${(v/1000).toFixed(0)}억`;
+               const a=Math.abs(v);const s=v>=0?"+":"-";
+               return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${a.toLocaleString()}억`;
              })(),
              color:(()=>{
                const arr=macroData?.foreignNet||[];
@@ -6364,7 +6365,7 @@ export default function App(){
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
                   <span style={{fontSize:8,color:C.muted}}>외국인 순매수 3개월 이동평균 · 최근 3개월 추세 기준</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>
-                    {last>=0?"+":""}{(last/1000).toFixed(0)}억 {vl}
+                    {(()=>{const a=Math.abs(last);const s=last>=0?"+":"-";return a>=10000?`${s}${(a/10000).toFixed(1)}조 ${vl}`:`${s}${a.toLocaleString()}억 ${vl}`;})()} 
                   </span>}
                 </div>
                 <CW h={200}>
@@ -6381,15 +6382,27 @@ export default function App(){
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                     <XAxis dataKey="date" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={v=>v?.slice(0,6)||""}/>
-                    <YAxis tick={{fill:C.muted,fontSize:9}} width={40} tickFormatter={v=>`${(v/1000).toFixed(0)}억`} domain={["auto","auto"]}/>
+                    <YAxis tick={{fill:C.muted,fontSize:9}} width={44} tickFormatter={v=>{const a=Math.abs(v);const s=v<0?"-":"";return a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${Math.round(a/100)*100}억`;}} domain={["auto","auto"]}/>
                     <Tooltip content={<MTip/>} cursor={false}/>
                     <ReferenceLine y={0} stroke={`${C.muted}66`} strokeDasharray="3 3" label={{value:"기준선",fill:C.muted,fontSize:7,position:"insideTopRight"}}/>
-                    <Bar dataKey="ma3" name="순매수3MA" fill={C.teal} opacity={0.6} radius={[2,2,0,0]}
+                    <Bar dataKey="ma3" name="외국인순매수(억)" fill={C.teal} opacity={0.6} radius={[2,2,0,0]}
                       label={false}
                       {...{cell: data.map((d,i)=>(
                         {key:i, fill: d.ma3>=0?C.green:C.red}
                       ))}}
                     />
+                    <Tooltip cursor={false} content={({active,payload,label})=>{
+                      if(!active||!payload?.length)return null;
+                      const v=payload[0]?.value;
+                      if(v==null)return null;
+                      const a=Math.abs(v);
+                      const s=v>=0?"+":"-";
+                      const disp=a>=10000?`${s}${(a/10000).toFixed(1)}조`:`${s}${a.toLocaleString()}억`;
+                      return(<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 11px",fontSize:11}}>
+                        <div style={{color:C.gold,fontWeight:700,marginBottom:3,fontFamily:"monospace"}}>{label}</div>
+                        <div style={{color:v>=0?C.green:C.red,fontWeight:700,fontFamily:"monospace"}}>외국인 순매수 3MA: {disp}</div>
+                      </div>);
+                    }}/> 
                   </ComposedChart>
                 </CW>
                 </>);
