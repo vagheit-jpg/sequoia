@@ -26,6 +26,35 @@ return rows.map(r => ({
 .filter(r => !isNaN(r.value));
 }
 
+// ── 날짜 정규화: FRED/ECOS/Yahoo 날짜를 YYYYMM 또는 YYYYMMDD 기준으로 안전하게 통일
+function normalizeDateKey(v, mode = "month") {
+  if (v == null) return null;
+  const s = String(v).trim().replace(/\./g, "-");
+  let y = null, m = null, d = null;
+
+  if (/^\d{8}$/.test(s)) {
+    y = s.slice(0, 4); m = s.slice(4, 6); d = s.slice(6, 8);
+  } else if (/^\d{6}$/.test(s)) {
+    y = s.slice(0, 4); m = s.slice(4, 6); d = "01";
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    y = s.slice(0, 4); m = s.slice(5, 7); d = s.slice(8, 10);
+  } else if (/^\d{4}-\d{2}$/.test(s)) {
+    y = s.slice(0, 4); m = s.slice(5, 7); d = "01";
+  } else if (/^\d{4}Q[1-4]$/.test(s)) {
+    y = s.slice(0, 4);
+    m = String(Number(s.slice(5, 6)) * 3).padStart(2, "0");
+    d = "01";
+  } else {
+    const digits = s.replace(/\D/g, "");
+    if (digits.length >= 6) {
+      y = digits.slice(0, 4); m = digits.slice(4, 6); d = digits.slice(6, 8) || "01";
+    }
+  }
+
+  if (!y || !m) return null;
+  return mode === "day" ? `${y}${m}${d || "01"}` : `${y}${m}`;
+}
+
 // ── FRED 호출
 const FRED_KEY = process.env.FRED_API_KEY || "";
 async function fetchFRED(seriesId, startDate) {
@@ -35,12 +64,12 @@ async function fetchFRED(seriesId, startDate) {
   const res = await fetch(url);
   const json = await res.json();
   if (!json?.observations) {
-    console.warn(`[FRED] ${seriesId}: no observations`);
+    console.warn(`[FRED] ${seriesId}: no observations`, json?.error_message || json);
     return [];
   }
   return json.observations
-    .map(r => ({ date: r.date.replace(/-/g, "").slice(0, 8), value: parseFloat(r.value) }))
-    .filter(r => !isNaN(r.value));
+    .map(r => ({ date: normalizeDateKey(r.date, "day"), value: parseFloat(r.value) }))
+    .filter(r => r.date && !Number.isNaN(r.value));
 }
 
 // ── Yahoo Finance 지수 월봉 (^KS11, ^KQ11)
@@ -129,8 +158,9 @@ async function fetchYahooMonthly(yahooTicker, yearsBack = 5) {
 // ── 일별 → 월별 변환 (말일 값 사용)
 function dailyToMonthly(arr) {
   const map = {};
-  for (const r of arr) {
-    const ym = r.date.slice(0, 6); // YYYYMMDD → YYYYMM
+  for (const r of arr || []) {
+    const ym = normalizeDateKey(r.date, "month");
+    if (!ym) continue;
     map[ym] = r.value; // 같은 달이면 덮어쓰기 → 마지막 값(말일)
   }
   return Object.entries(map).sort((a,b)=>a[0]>b[0]?1:-1).map(([date,value])=>({date,value}));
@@ -317,14 +347,16 @@ function calcCrisisAnalysis(defconData) {
     topCrisis: top,
   };
 
+
   return { results, top, top2, warnings, navigation };
 }
 
-
 // ══════════════════════════════════════════════════════════════
-// SEFCON v3 Regime Insight — 안전 패치형 보조 엔진
-// 원칙: 기존 SEFCON v2 점수/등급/공식 Crisis Navigation은 절대 수정하지 않는다.
-// 목적: 기존 공식 유사 이벤트 판단을 내부 역사 패턴으로 보조 검증한다.
+// SEFCON v3.1 Regime Adjustment Layer
+// 원칙: v2 보정 엔진을 기본값으로 삼고, v3는 조건부·제한적으로만 추가 보정한다.
+// - 보정폭: 최대 ±10점
+// - 등급 변화: 최대 1단계
+// - 3중 게이트: 유사도 + 위험밀도 + 유형일치
 // ══════════════════════════════════════════════════════════════
 const INTERNAL_REGIME_EVENTS = [
   { id:"panic_1907", label:"1907 미국 은행공황", year:1907, type:"banking_crisis", phase:"은행 유동성 위기", cat:{신용위험:10,유동성:12,시장공포:10,실물경기:22,물가:44}, importance:5 },
@@ -355,23 +387,60 @@ const INTERNAL_REGIME_EVENTS = [
   { id:"covid_2020", label:"2020 코로나 충격", year:2020, type:"external_shock", phase:"외생 충격·급락", cat:{신용위험:12,유동성:58,시장공포:6,실물경기:10,물가:68}, importance:5 },
   { id:"tightening_2022", label:"2022 인플레이션·긴축 충격", year:2022, type:"rate_shock", phase:"인플레이션 긴축", cat:{신용위험:22,유동성:18,시장공포:30,실물경기:42,물가:14}, importance:5 },
   { id:"uk_ldi_2022", label:"2022 영국 LDI 위기", year:2022, type:"liquidity_crisis", phase:"금리·레버리지 위기", cat:{신용위험:24,유동성:16,시장공포:24,실물경기:44,물가:18}, importance:4 },
+  { id:"svb_2023", label:"2023 SVB 은행위기", year:2023, type:"banking_crisis", phase:"금리충격형 은행위기", cat:{신용위험:20,유동성:18,시장공포:20,실물경기:48,물가:22}, importance:4 },
+  { id:"cre_2023", label:"2023~2024 상업용부동산 스트레스", year:2023, type:"credit_crisis", phase:"부동산 신용 스트레스", cat:{신용위험:28,유동성:26,시장공포:36,실물경기:46,물가:30}, importance:3 },
 ];
 
 function classifyRegimeType(type) {
   const map = {
-    banking_crisis: "은행위기형",
-    credit_crisis: "신용위기형",
-    fx_crisis: "외환위기형",
-    rate_shock: "긴축·금리충격형",
-    liquidity_crisis: "유동성경색형",
-    bubble_late: "버블말기형",
-    bubble_burst: "버블붕괴형",
-    inflation_shock: "인플레이션충격형",
-    china_slowdown: "중국둔화형",
-    external_shock: "외생충격형",
-    policy_easing_rebound: "정책반등형",
+    banking_crisis: "은행위기형", credit_crisis: "신용위기형", fx_crisis: "외환위기형",
+    rate_shock: "긴축·금리충격형", liquidity_crisis: "유동성경색형",
+    bubble_late: "버블말기형", bubble_burst: "버블붕괴형", inflation_shock: "인플레이션충격형",
+    china_slowdown: "중국둔화형", external_shock: "외생충격형",
   };
   return map[type] || type || "미분류";
+}
+
+function inferEnhancedRiskTypes(enhancedRisk) {
+  const t = `${enhancedRisk?.crisisType || ""}`;
+  const types = new Set();
+  if (t.includes("신용")) types.add("credit_crisis");
+  if (t.includes("달러") || t.includes("환율") || t.includes("외국인")) { types.add("fx_crisis"); types.add("liquidity_crisis"); }
+  if (t.includes("유동성")) types.add("liquidity_crisis");
+  if (t.includes("실물") || t.includes("수출")) types.add("china_slowdown");
+  if (types.size === 0) types.add("rate_shock");
+  return [...types];
+}
+
+function defconFromScore(score) {
+  let defcon, defconLabel, defconColor, defconDesc;
+  if      (score <= 30) { defcon=1; defconLabel="SEFCON 1  붕괴임박"; defconColor="#FF1A1A"; defconDesc="복수의 위기 신호가 동시 발생. 현금 비중 최우선. 시스템 리스크 구간"; }
+  else if (score <= 45) { defcon=2; defconLabel="SEFCON 2  위기";     defconColor="#FF6B00"; defconDesc="선행지표와 트리거가 동시 악화. 리스크 자산 비중 축소 검토"; }
+  else if (score <= 58) { defcon=3; defconLabel="SEFCON 3  경계";     defconColor="#F0C800"; defconDesc="일부 위기 조합 감지. 포트폴리오 방어 태세 필요"; }
+  else if (score <= 72) { defcon=4; defconLabel="SEFCON 4  관망";     defconColor="#38BDF8"; defconDesc="대체로 양호하나 일부 위험 신호 관찰"; }
+  else                  { defcon=5; defconLabel="SEFCON 5  안정";     defconColor="#00C878"; defconDesc="전반적 위험 신호 제한적. 적극적 투자 환경"; }
+  return { defcon, defconLabel, defconColor, defconDesc };
+}
+
+function clampScoreToOneDefconStep(baseScore, proposedScore) {
+  const base = defconFromScore(baseScore).defcon;
+  const proposed = defconFromScore(proposedScore).defcon;
+  if (Math.abs(proposed - base) <= 1) return proposedScore;
+  // 낮은 score = 더 위험. base에서 한 단계 이상 위험해지려 하면 허용 최저 구간으로 제한.
+  if (proposed < base - 1) {
+    if (base === 5) return 59; // 5 → 4까지만
+    if (base === 4) return 46; // 4 → 3까지만
+    if (base === 3) return 31; // 3 → 2까지만
+    return 0;                  // 2 → 1까지만
+  }
+  // 한 단계 이상 안전해지려 하면 허용 최고 구간으로 제한.
+  if (proposed > base + 1) {
+    if (base === 1) return 45; // 1 → 2까지만
+    if (base === 2) return 58; // 2 → 3까지만
+    if (base === 3) return 72; // 3 → 4까지만
+    return 100;                // 4 → 5까지만
+  }
+  return proposedScore;
 }
 
 function buildRegimeInsight({ defconData, crisisAnalysis }) {
@@ -381,107 +450,134 @@ function buildRegimeInsight({ defconData, crisisAnalysis }) {
     .map(e => ({ ...e, similarity: calcSimilarity(currentCatScores, e.cat) }))
     .sort((a, b) => b.similarity - a.similarity);
 
-  const officialTop = (crisisAnalysis?.results || []).slice(0, 3).map(e => ({
-    id: e.id, label: e.label, date: e.date, defcon: e.defcon,
-    similarity: e.similarity, desc: e.desc, impact: e.impact,
-  }));
-
   const typeScore = {};
   internalMatches.slice(0, 7).forEach((m, idx) => {
     const weight = Math.max(1, 7 - idx) * (m.similarity || 0);
     typeScore[m.type] = (typeScore[m.type] || 0) + weight;
   });
   const typeMixRaw = Object.entries(typeScore).sort((a, b) => b[1] - a[1]);
-  const totalTypeScore = typeMixRaw.reduce((s, x) => s + x[1], 0) || 1;
+  const totalTypeScore = typeMixRaw.reduce((sum, x) => sum + x[1], 0) || 1;
   const typeMix = typeMixRaw.slice(0, 5).map(([type, score]) => ({
     type,
     label: classifyRegimeType(type),
     weight: Math.round(score / totalTypeScore * 100),
   }));
-
-  const primary = typeMix[0] || { type: "unknown", label: "미분류", weight: 0 };
+  const primary = typeMix[0] || { type:"unknown", label:"미분류", weight:0 };
   const topInternal = internalMatches.slice(0, 5).map(m => ({
-    id: m.id, label: m.label, year: m.year, type: m.type,
-    typeLabel: classifyRegimeType(m.type), phase: m.phase,
-    similarity: m.similarity, importance: m.importance,
+    id:m.id, label:m.label, year:m.year, type:m.type, typeLabel:classifyRegimeType(m.type),
+    phase:m.phase, similarity:m.similarity, importance:m.importance,
   }));
-
-  const internalTop = topInternal[0] || null;
-  const agreement = internalTop
-    ? (internalTop.similarity >= 75 ? "강함" : internalTop.similarity >= 65 ? "보통" : "약함")
-    : "판정불가";
-
-  const sefconScore = defconData?.totalScore ?? 50;
-  const sefconRisk = Math.max(0, Math.min(100, 100 - sefconScore));
+  const sefconRisk = Math.max(0, Math.min(100, 100 - (defconData?.totalScore ?? 50)));
   const navigationRisk = crisisAnalysis?.navigation?.proximityScore ?? 50;
   const density = crisisAnalysis?.navigation?.dangerDensity ?? 0;
   const transitionRisk = Math.round(sefconRisk * 0.50 + navigationRisk * 0.30 + density * 0.20);
+  return {
+    engine:"SEFCON v3.1 Regime Insight",
+    mode:"gated_adjustment",
+    version:"v3.1-on-v2",
+    officialTop: (crisisAnalysis?.results || []).slice(0,3).map(e => ({id:e.id,label:e.label,date:e.date,defcon:e.defcon,similarity:e.similarity,desc:e.desc,impact:e.impact})),
+    internalTopMatches: topInternal,
+    regime: { primaryType:primary.type, primaryLabel:primary.label, confidence:primary.weight, typeMix },
+    transitionRisk: { score:transitionRisk, level: transitionRisk>=75?"위기":transitionRisk>=60?"경고":transitionRisk>=45?"주의":transitionRisk<30?"안정":"관찰", components:{sefconRisk,navigationRisk,dangerDensity:density} },
+    trainingSet: { officialEvents:CRISIS_BENCHMARKS.length, internalEvents:INTERNAL_REGIME_EVENTS.length, recentEventsExcluded:false, uiVisible:false },
+  };
+}
 
-  let transitionLevel = "관찰";
-  if (transitionRisk >= 75) transitionLevel = "위기";
-  else if (transitionRisk >= 60) transitionLevel = "경고";
-  else if (transitionRisk >= 45) transitionLevel = "주의";
-  else if (transitionRisk < 30) transitionLevel = "안정";
+function calculateV3Adjustment({ defconData, enhancedRisk, crisisAnalysis, regimeInsight, exportKospiAlignment }) {
+  const baseScore = defconData?.totalScore ?? 50;
+  const dangerDensity = crisisAnalysis?.navigation?.dangerDensity ?? 0;
+  const top = regimeInsight?.internalTopMatches?.[0] || null;
+  const topSimilarity = top?.similarity ?? 0;
+  const primaryType = regimeInsight?.regime?.primaryType || top?.type || "unknown";
+  const inferredTypes = inferEnhancedRiskTypes(enhancedRisk);
+  const typeConsistency = inferredTypes.includes(primaryType)
+    || (primaryType === "banking_crisis" && inferredTypes.includes("credit_crisis"))
+    || (primaryType === "credit_crisis" && inferredTypes.includes("banking_crisis"))
+    || (primaryType === "rate_shock" && (enhancedRisk?.crisisType || "").includes("달러"));
 
-  const interpretation = (() => {
-    if (primary.type === "rate_shock") return "공식 SEFCON 판단은 유지하되, 내부 구조상 금리·긴축 압박형에 가까운지 보조 점검합니다.";
-    if (primary.type === "credit_crisis" || primary.type === "banking_crisis") return "신용·은행 시스템 스트레스형 신호가 우세한지 보조 검증합니다.";
-    if (primary.type === "bubble_late") return "현 국면이 실제 위기라기보다 버블 말기·집중장세형인지 보조 점검합니다.";
-    if (primary.type === "liquidity_crisis") return "단기 유동성 경색과 위험자산 변동성 확대 가능성을 보조 점검합니다.";
-    if (primary.type === "fx_crisis") return "환율·외화유동성 압박이 핵심 위험인지 보조 점검합니다.";
-    return "기존 Crisis Navigation을 변경하지 않고, 내부 역사 패턴으로 해석을 보조합니다.";
-  })();
+  const strongGate = topSimilarity >= 70 && dangerDensity >= 45 && typeConsistency;
+  const emergencyGate = topSimilarity >= 82 && dangerDensity >= 55;
+  const gatePassed = strongGate || emergencyGate;
+
+  let delta = 0; // finalScore - baseScore. 음수면 위험 강화, 양수면 위험 완화.
+  const reasons = [];
+
+  if (gatePassed) {
+    const severeTypes = ["credit_crisis", "banking_crisis", "fx_crisis", "liquidity_crisis", "bubble_burst"];
+    if (topSimilarity >= 85) { delta -= 4; reasons.push(`역사 패턴 유사도 ${topSimilarity}%: 매우 높음`); }
+    else if (topSimilarity >= 78) { delta -= 3; reasons.push(`역사 패턴 유사도 ${topSimilarity}%: 높음`); }
+    else { delta -= 2; reasons.push(`역사 패턴 유사도 ${topSimilarity}%: 보정 조건 충족`); }
+
+    if (severeTypes.includes(primaryType)) { delta -= 3; reasons.push(`${classifyRegimeType(primaryType)} 우세`); }
+    else if (primaryType === "rate_shock" || primaryType === "inflation_shock") { delta -= 2; reasons.push(`${classifyRegimeType(primaryType)} 우세`); }
+    else if (primaryType === "bubble_late") { delta -= 1; reasons.push("버블말기형 과열 신호"); }
+
+    if (dangerDensity >= 65) { delta -= 3; reasons.push(`위험지표 밀도 ${dangerDensity}%: 높음`); }
+    else if (dangerDensity >= 55) { delta -= 2; reasons.push(`위험지표 밀도 ${dangerDensity}%: 경고권`); }
+    else { delta -= 1; reasons.push(`위험지표 밀도 ${dangerDensity}%: 보정 조건 충족`); }
+
+    if (typeConsistency) reasons.push("v2 위기유형과 v3 역사패턴이 일치");
+    else reasons.push("고유사도·고위험밀도에 따른 예외 보정");
+  } else {
+    reasons.push("v3 3중 게이트 미충족: 점수 보정 없음");
+  }
+
+  const currentGap = exportKospiAlignment?.currentMarket?.gapZ;
+  const leadGap = exportKospiAlignment?.leadAdjusted?.gapZ;
+  if (Number.isFinite(currentGap) && Number.isFinite(leadGap)) {
+    if (currentGap >= 1.2 && leadGap >= 0.7) {
+      delta -= 2;
+      reasons.push(`수출 대비 코스피 선행 과열: 현재 ${currentGap}σ, 보정 ${leadGap}σ`);
+    } else if (currentGap <= -1.2 && leadGap <= -0.7 && (defconData?.defcon ?? 3) >= 3) {
+      delta += 2;
+      reasons.push(`수출 대비 코스피 저평가: 현재 ${currentGap}σ, 보정 ${leadGap}σ`);
+    }
+  }
+
+  delta = Math.max(-10, Math.min(10, Math.round(delta)));
+  let proposedScore = Math.max(0, Math.min(100, baseScore + delta));
+  const finalScore = clampScoreToOneDefconStep(baseScore, proposedScore);
+  const finalDelta = finalScore - baseScore;
+  const applied = finalDelta !== 0;
+  const finalDefcon = defconFromScore(finalScore);
 
   return {
-    engine: "SEFCON v3 Regime Insight",
-    mode: "shadow_assistant",
-    version: "v3.0-safe-patch-on-v2",
-    note: "기존 SEFCON v2 점수·등급·공식 Crisis Navigation 결과를 변경하지 않는 보조 해석 엔진입니다.",
-    officialTop,
-    officialTopId: crisisAnalysis?.top?.id || null,
-    officialTopLabel: crisisAnalysis?.top?.label || null,
-    internalTopMatches: topInternal,
-    regime: {
-      primaryType: primary.type,
-      primaryLabel: primary.label,
-      confidence: primary.weight,
-      typeMix,
-      agreementWithOfficial: agreement,
-    },
-    transitionRisk: {
-      score: transitionRisk,
-      level: transitionLevel,
-      components: { sefconRisk, navigationRisk, dangerDensity: density },
-    },
-    interpretation,
-    trainingSet: {
-      officialEvents: CRISIS_BENCHMARKS.length,
-      internalEvents: INTERNAL_REGIME_EVENTS.length,
-      recentEventsExcluded: true,
-      uiVisible: false,
-    },
+    applied,
+    gatePassed,
+    adjustment: finalDelta,
+    baseScore,
+    proposedScore,
+    finalScore,
+    baseDefcon: defconData?.defcon ?? defconFromScore(baseScore).defcon,
+    finalDefcon: finalDefcon.defcon,
+    primaryType,
+    primaryLabel: classifyRegimeType(primaryType),
+    topSimilarity,
+    dangerDensity,
+    typeConsistency,
+    reasons,
   };
+}
+
+function applyV3AdjustmentToDefcon(defconData, v3Adjustment) {
+  if (!defconData || !v3Adjustment) return defconData;
+  defconData.v2FinalScore = v3Adjustment.baseScore;
+  defconData.v3Adjustment = v3Adjustment;
+  defconData.totalScore = v3Adjustment.finalScore;
+  defconData.adjustedScore = v3Adjustment.finalScore;
+  const d = defconFromScore(v3Adjustment.finalScore);
+  defconData.defcon = d.defcon;
+  defconData.defconLabel = d.defconLabel;
+  defconData.defconColor = d.defconColor;
+  defconData.defconDesc = v3Adjustment.applied
+    ? `${d.defconDesc} · v3 ${v3Adjustment.primaryLabel} ${v3Adjustment.adjustment > 0 ? "+" : ""}${v3Adjustment.adjustment}점 보정`
+    : d.defconDesc;
+  return defconData;
 }
 
 // ══════════════════════════════════════════════════════════════
 // 일평균수출 · 코스피 비교 보정 — 데이터 시차 방어용 보조 필드
-// 원칙: 기존 exportYoY/kospiMonthly 원본과 UI는 수정하지 않는다.
 // ══════════════════════════════════════════════════════════════
-function shiftMonthYYYYMM(yyyymm, offset) {
-  if (!yyyymm) return null;
-  const s = String(yyyymm).replace(".", "");
-  const y = Number(s.slice(0, 4));
-  const m = Number(s.slice(4, 6));
-  if (!y || !m) return null;
-  const d = new Date(y, m - 1 + offset, 1);
-  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function monthKey(v) {
-  if (!v) return null;
-  return String(v).replace(".", "").slice(0, 6);
-}
-
 function normalizeSeriesZ(arr, valueKey) {
   const vals = (arr || []).map(r => Number(r[valueKey])).filter(v => Number.isFinite(v));
   if (vals.length < 12) return [];
@@ -503,86 +599,53 @@ function classifyExportKospiGap(z) {
   return "중립";
 }
 
+function shiftMonthYYYYMM(yyyymm, offset) {
+  const key = normalizeDateKey(yyyymm, "month");
+  if (!key) return null;
+  const y = Number(key.slice(0,4));
+  const m = Number(key.slice(4,6));
+  const d = new Date(y, m - 1 + offset, 1);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 function buildExportKospiAlignment(dailyExport, kospiMonthly, leadMonths = 2) {
   const exportValid = (dailyExport || [])
     .filter(r => r?.date && r.value != null)
-    .map(r => ({ date: monthKey(r.date), value: Number(r.value) }))
+    .map(r => ({ date: normalizeDateKey(r.date, "month"), value: Number(r.value) }))
     .filter(r => r.date && Number.isFinite(r.value));
-
   const kospiValid = (kospiMonthly || [])
     .filter(r => r?.date && r.price != null)
-    .map(r => ({ date: monthKey(r.date), price: Number(r.price) }))
+    .map(r => ({ date: normalizeDateKey(r.date, "month"), price: Number(r.price) }))
     .filter(r => r.date && Number.isFinite(r.price));
 
-  if (exportValid.length < 12 || kospiValid.length < 12) {
-    return { available: false, reason: "수출 또는 코스피 데이터 부족" };
-  }
-
+  if (exportValid.length < 12 || kospiValid.length < 12) return { available:false, reason:"수출 또는 코스피 데이터 부족" };
   const exportZ = normalizeSeriesZ(exportValid, "value");
   const kospiZ = normalizeSeriesZ(kospiValid, "price");
   const kospiMap = new Map(kospiZ.map(r => [r.date, r]));
-
   const exportLatest = [...exportZ].reverse().find(r => r.z != null);
   const kospiLatest = [...kospiZ].reverse().find(r => r.z != null);
-  const commonMonths = exportZ
-    .filter(r => r.z != null && kospiMap.has(r.date))
-    .map(r => r.date)
-    .sort();
+  const commonMonths = exportZ.filter(r => r.z != null && kospiMap.has(r.date)).map(r => r.date).sort();
   const commonMonth = commonMonths.at(-1);
-
-  if (!exportLatest || !kospiLatest || !commonMonth) {
-    return { available: false, reason: "공통 기준월 계산 실패" };
-  }
+  if (!exportLatest || !kospiLatest || !commonMonth) return { available:false, reason:"공통 기준월 계산 실패" };
 
   const exportAtCommon = exportZ.find(r => r.date === commonMonth);
   const kospiAtCommon = kospiMap.get(commonMonth);
   const officialGapZ = +(kospiAtCommon.z - exportAtCommon.z).toFixed(2);
-
   const currentGapZ = +(kospiLatest.z - exportLatest.z).toFixed(2);
   const leadMonth = shiftMonthYYYYMM(exportLatest.date, leadMonths);
   const kospiLead = kospiMap.get(leadMonth) || kospiLatest;
   const leadGapZ = +(kospiLead.z - exportLatest.z).toFixed(2);
-
-  const lagMonths = (() => {
-    const y1 = Number(exportLatest.date.slice(0, 4));
-    const m1 = Number(exportLatest.date.slice(4, 6));
-    const y2 = Number(kospiLatest.date.slice(0, 4));
-    const m2 = Number(kospiLatest.date.slice(4, 6));
-    return (y2 * 12 + m2) - (y1 * 12 + m1);
-  })();
+  const y1 = Number(exportLatest.date.slice(0,4)), m1 = Number(exportLatest.date.slice(4,6));
+  const y2 = Number(kospiLatest.date.slice(0,4)), m2 = Number(kospiLatest.date.slice(4,6));
+  const lagMonths = (y2 * 12 + m2) - (y1 * 12 + m1);
 
   return {
-    available: true,
+    available:true,
     commonMonth,
-    official: {
-      label: "동월 기준",
-      exportMonth: commonMonth,
-      kospiMonth: commonMonth,
-      gapZ: officialGapZ,
-      signal: classifyExportKospiGap(officialGapZ),
-    },
-    currentMarket: {
-      label: "현재 주가 기준",
-      exportMonth: exportLatest.date,
-      kospiMonth: kospiLatest.date,
-      gapZ: currentGapZ,
-      signal: classifyExportKospiGap(currentGapZ),
-    },
-    leadAdjusted: {
-      label: `${leadMonths}개월 선행 보정`,
-      exportMonth: exportLatest.date,
-      kospiMonth: kospiLead?.date || null,
-      gapZ: leadGapZ,
-      signal: classifyExportKospiGap(leadGapZ),
-    },
-    dataLag: {
-      exportLatestMonth: exportLatest.date,
-      kospiLatestMonth: kospiLatest.date,
-      lagMonths,
-      message: lagMonths > 0
-        ? `수출 데이터가 코스피보다 약 ${lagMonths}개월 늦습니다.`
-        : "수출과 코스피의 최신월 차이가 크지 않습니다.",
-    },
+    official:{ label:"동월 기준", exportMonth:commonMonth, kospiMonth:commonMonth, gapZ:officialGapZ, signal:classifyExportKospiGap(officialGapZ) },
+    currentMarket:{ label:"현재 주가 기준", exportMonth:exportLatest.date, kospiMonth:kospiLatest.date, gapZ:currentGapZ, signal:classifyExportKospiGap(currentGapZ) },
+    leadAdjusted:{ label:`${leadMonths}개월 선행 보정`, exportMonth:exportLatest.date, kospiMonth:kospiLead?.date || null, gapZ:leadGapZ, signal:classifyExportKospiGap(leadGapZ) },
+    dataLag:{ exportLatestMonth:exportLatest.date, kospiLatestMonth:kospiLatest.date, lagMonths, message:lagMonths>0?`수출 데이터가 코스피보다 약 ${lagMonths}개월 늦습니다.`:"수출과 코스피의 최신월 차이가 크지 않습니다." },
   };
 }
 
@@ -1046,6 +1109,14 @@ defconData.defconDesc = enhancedRisk.defconDesc;
 defconData.enhancedRisk = enhancedRisk;
 const crisisAnalysis = calcCrisisAnalysis(defconData);
 const regimeInsight = buildRegimeInsight({ defconData, crisisAnalysis });
+const v3Adjustment = calculateV3Adjustment({
+  defconData,
+  enhancedRisk,
+  crisisAnalysis,
+  regimeInsight,
+  exportKospiAlignment,
+});
+applyV3AdjustmentToDefcon(defconData, v3Adjustment);
 
 // ─────────────────────────────────────────────
 // SEFCON v2.0 Core Engine
@@ -1205,6 +1276,7 @@ function calcSequoiaCIndex(defconData) {
       defconData,
       crisisAnalysis,
       regimeInsight,
+      v3Adjustment,
       updatedAt: Date.now(),
       _debug: {
         gdp:gdpArr.length, export:exportArr.length, rate:rateArr.length,
@@ -1215,13 +1287,17 @@ function calcSequoiaCIndex(defconData) {
         fredVIX:fredVIXRaw.length, fredUNRATE:fredUNRATE.length,
         krSloos:krSloosRaw.length, fredSLOOS:fredSLOOSRaw.length, fredLEI:fredLEIRaw.length, fredICSA:fredICSARaw.length,
         fredBAML:fredBAMLRaw.length,
+        fredSamples:{
+          t10y2y:fredT10Y2YRaw.slice(-2),
+          baa:fredHYRaw.slice(-2),
+          dgs10:fredDGS10Raw.slice(-2),
+          lei:fredLEIRaw.slice(-2),
+        },
         yahooBIZD:yahooBIZDRaw.length, yahooDXY:yahooDXYRaw.length,
         yahooHG:yahooHGRaw.length, yahooGC:yahooGCRaw.length,
         cdSpread:cdSpread.length, hhDebtGDP:hhDebtGDP.length, nominalGdp:nominalGdpArr.length,
         usM2:fredM2SLRaw.length, krM2:ecosKrM2Raw.length,
         foreignNet:foreignNetRaw.length,
-        exportKospiAlignment: exportKospiAlignment?.available ? "ok" : "insufficient",
-        regimeInsight: regimeInsight?.engine || "none",
       }
     };
 
