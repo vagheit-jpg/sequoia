@@ -4569,6 +4569,24 @@ export default function App(){
                       letterSpacing:"0.05em",textShadow:`0 0 20px ${dc.defconColor}88`}}>
                       {dc.defconLabel}
                     </div>
+{macroData?.v3Adjustment && (
+  <div style={{
+    fontSize:11,
+    marginTop:4,
+    color: macroData.v3Adjustment.adjustment < 0
+      ? C.red
+      : macroData.v3Adjustment.adjustment > 0
+        ? C.green
+        : C.muted,
+    opacity:0.9,
+    fontWeight:700
+  }}>
+    → v3 보정: {macroData?.regimeInsight?.regime?.primaryLabel || "패턴분석"} 
+    {" "}
+    ({macroData.v3Adjustment.adjustment > 0 ? "+" : ""}
+    {macroData.v3Adjustment.adjustment ?? 0})
+  </div>
+)}
                     <div style={{color:`${C.muted}88`,fontSize:7,marginTop:3}}>
                       데이터 기준: {macroData?.updatedAt?new Date(macroData.updatedAt).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"-"}
                     </div>
