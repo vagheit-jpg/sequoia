@@ -4889,7 +4889,7 @@ export default function App(){
   );
 })()}
 
-              {/* ══ AEGIS 전략 엔진 카드 ══ */}
+       {/* ══ AEGIS 전략 엔진 카드 ══ */}
 {macroData?.regimeInsight && dc && (() => {
 
   const regimeLabel =
@@ -4903,19 +4903,16 @@ export default function App(){
       if (level === "low") return {
         stance:"부분 방어",
         summary:"가격 과열 신호는 있으나 시스템 위험은 아직 제한적입니다.",
-        weights:["주식 60%","현금/단기채 35%","방어자산 5%"],
         actions:["일부 차익실현","신규 매수 신중","고평가 종목 비중 축소","현금 비중 점진 확대"]
       };
       if (level === "mid") return {
         stance:"방어 전환",
         summary:"버블 말기 신호와 SEFCON 경계 단계가 겹친 구간입니다.",
-        weights:["주식 45%","현금/단기채 50%","방어자산 5%"],
         actions:["현금 비중 확대","고PER 종목 축소","분할매도 검토","방어주·단기채 선호"]
       };
       return {
         stance:"공격적 방어",
         summary:"버블 말기와 고위험 SEFCON이 겹친 위험 구간입니다.",
-        weights:["주식 25%","현금/단기채 70%","방어자산 5%"],
         actions:["리스크 자산 대폭 축소","레버리지 금지","현금 우선","반등 시 비중 축소"]
       };
     }
@@ -4924,19 +4921,16 @@ export default function App(){
       if (level === "low") return {
         stance:"선별 방어",
         summary:"금리 압박은 있으나 시스템 위험은 제한적입니다.",
-        weights:["주식 55%","현금/단기채 40%","방어자산 5%"],
         actions:["성장주 축소","저부채 기업 선호","현금흐름 우량주 유지","무리한 추격매수 금지"]
       };
       if (level === "mid") return {
         stance:"방어 강화",
         summary:"금리 충격과 SEFCON 경계 단계가 겹쳤습니다.",
-        weights:["주식 40%","현금/단기채 55%","방어자산 5%"],
         actions:["현금·단기채 확대","레버리지 금지","고멀티플 종목 축소","배당·현금흐름 중심"]
       };
       return {
         stance:"생존 우선",
         summary:"긴축 충격이 위기 단계와 결합한 방어 우선 구간입니다.",
-        weights:["주식 20%","현금/단기채 75%","방어자산 5%"],
         actions:["현금 최우선","부채 많은 기업 회피","위험자산 축소","가격보다 생존성 우선"]
       };
     }
@@ -4945,19 +4939,16 @@ export default function App(){
       if (level === "low") return {
         stance:"리스크온 준비",
         summary:"바닥 통과 후 회복 가능성이 커지는 구간입니다.",
-        weights:["주식 70%","현금/단기채 25%","방어자산 5%"],
         actions:["주식 비중 확대","고ROE 우량주 매수","현금 일부 투입","장기 포지션 구축"]
       };
       if (level === "mid") return {
         stance:"분할매수",
         summary:"공포는 남아 있으나 장기 기회가 형성되는 구간입니다.",
-        weights:["주식 55%","현금/단기채 40%","방어자산 5%"],
         actions:["우량주 분할매수","일괄매수 금지","현금 일부 유지","하락 시 추가 매수"]
       };
       return {
         stance:"공포 매수 대기",
         summary:"위험은 높지만 장기 기회가 생길 수 있는 구간입니다.",
-        weights:["주식 35%","현금/단기채 60%","방어자산 5%"],
         actions:["소액 분할매수","현금 방어 유지","부실기업 회피","정책 전환 확인"]
       };
     }
@@ -4966,9 +4957,6 @@ export default function App(){
       return {
         stance: level === "high" ? "신중한 회복 대응" : "회복 참여",
         summary:"회복 초입 신호가 나타나는 구간입니다.",
-        weights: level === "high"
-          ? ["주식 45%","현금/단기채 50%","방어자산 5%"]
-          : ["주식 65%","현금/단기채 30%","방어자산 5%"],
         actions:["우량주 중심 분할매수","경기민감주 일부 편입","현금 일부 유지","추세 확인 후 확대"]
       };
     }
@@ -4977,7 +4965,6 @@ export default function App(){
       return {
         stance:"정상 운용",
         summary:"성장과 유동성이 비교적 양호한 구간입니다.",
-        weights:["주식 70%","현금/단기채 25%","방어자산 5%"],
         actions:["주식 비중 유지","고ROE 기업 중심","과열 종목만 일부 조정","현금 최소 유지"]
       };
     }
@@ -4985,7 +4972,6 @@ export default function App(){
     return {
       stance:"중립 관망",
       summary:"레짐 신호가 명확하지 않거나 혼합되어 있습니다.",
-      weights:["주식 50%","현금/단기채 45%","방어자산 5%"],
       actions:["현금 일부 유지","신규 매수 신중","기존 우량주 보유","추가 신호 확인"]
     };
   };
@@ -5027,23 +5013,6 @@ export default function App(){
         {strategy.summary}
       </div>
 
-      <div style={{marginTop:10,display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-        {strategy.weights.map((w,i)=>(
-          <div key={i} style={{
-            background:C.card2,
-            border:`1px solid ${C.border}`,
-            borderRadius:10,
-            padding:"7px 6px",
-            textAlign:"center",
-            color:i===0 ? C.green : i===1 ? C.gold : C.muted,
-            fontSize:10,
-            fontWeight:800
-          }}>
-            {w}
-          </div>
-        ))}
-      </div>
-
       <div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>
         {strategy.actions.map((a,i)=>(
           <div key={i} style={{fontSize:10,color:C.text,lineHeight:1.45}}>
@@ -5051,10 +5020,11 @@ export default function App(){
           </div>
         ))}
       </div>
+
     </div>
   );
-})()}
 
+})()}
               {/* ══ AEGIS 포트폴리오 가이드 ══ */}
             {dc&&(()=>{
               const level = dc.defcon;
