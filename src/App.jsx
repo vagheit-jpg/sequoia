@@ -4581,10 +4581,11 @@ export default function App(){
     opacity:0.9,
     fontWeight:700
   }}>
-    → v3 보정: {macroData?.regimeInsight?.regime?.primaryLabel || "패턴분석"} 
-    {" "}
-    ({macroData.v3Adjustment.adjustment > 0 ? "+" : ""}
-    {macroData.v3Adjustment.adjustment ?? 0})
+    → v3: {macroData?.regimeInsight?.regime?.primaryLabel || "패턴분석"} / {
+      macroData.v3Adjustment.adjustment === 0
+        ? "보정 없음"
+        : `${macroData.v3Adjustment.adjustment > 0 ? "+" : ""}${macroData.v3Adjustment.adjustment}점 보정`
+    }
   </div>
 )}
                     <div style={{color:`${C.muted}88`,fontSize:7,marginTop:3}}>
