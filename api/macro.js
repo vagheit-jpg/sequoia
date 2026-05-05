@@ -320,6 +320,272 @@ function calcCrisisAnalysis(defconData) {
   return { results, top, top2, warnings, navigation };
 }
 
+
+// ══════════════════════════════════════════════════════════════
+// SEFCON v3 Regime Insight — 안전 패치형 보조 엔진
+// 원칙: 기존 SEFCON v2 점수/등급/공식 Crisis Navigation은 절대 수정하지 않는다.
+// 목적: 기존 공식 유사 이벤트 판단을 내부 역사 패턴으로 보조 검증한다.
+// ══════════════════════════════════════════════════════════════
+const INTERNAL_REGIME_EVENTS = [
+  { id:"panic_1907", label:"1907 미국 은행공황", year:1907, type:"banking_crisis", phase:"은행 유동성 위기", cat:{신용위험:10,유동성:12,시장공포:10,실물경기:22,물가:44}, importance:5 },
+  { id:"crash_1929", label:"1929 대공황 주가붕괴", year:1929, type:"bubble_burst", phase:"버블 붕괴", cat:{신용위험:16,유동성:18,시장공포:8,실물경기:18,물가:36}, importance:5 },
+  { id:"banking_1931", label:"1931 글로벌 은행위기", year:1931, type:"banking_crisis", phase:"은행 신뢰 붕괴", cat:{신용위험:6,유동성:10,시장공포:8,실물경기:10,물가:30}, importance:5 },
+  { id:"nifty_1969", label:"1969 니프티피프티 과열", year:1969, type:"bubble_late", phase:"우량성장주 과열", cat:{신용위험:62,유동성:62,시장공포:86,실물경기:76,물가:42}, importance:4 },
+  { id:"oil_1973", label:"1973 1차 오일쇼크", year:1973, type:"inflation_shock", phase:"인플레이션 충격", cat:{신용위험:24,유동성:18,시장공포:22,실물경기:18,물가:5}, importance:5 },
+  { id:"volcker_1979", label:"1979 볼커 긴축 쇼크", year:1979, type:"rate_shock", phase:"고금리 긴축 충격", cat:{신용위험:18,유동성:8,시장공포:12,실물경기:25,물가:5}, importance:5 },
+  { id:"black_monday_1987", label:"1987 블랙먼데이", year:1987, type:"liquidity_crisis", phase:"시장 유동성 급락", cat:{신용위험:28,유동성:18,시장공포:8,실물경기:55,물가:46}, importance:4 },
+  { id:"japan_bubble_1989", label:"1989 일본 자산버블 정점", year:1989, type:"bubble_late", phase:"자산버블 말기", cat:{신용위험:68,유동성:72,시장공포:88,실물경기:78,물가:36}, importance:5 },
+  { id:"japan_1990", label:"1990 일본 버블 붕괴", year:1990, type:"bubble_burst", phase:"부동산·주식 버블 붕괴", cat:{신용위험:35,유동성:25,시장공포:40,실물경기:52,물가:20}, importance:5 },
+  { id:"bond_1994", label:"1994 채권 대학살", year:1994, type:"rate_shock", phase:"급격한 금리상승", cat:{신용위험:30,유동성:22,시장공포:28,실물경기:45,물가:32}, importance:4 },
+  { id:"mexico_1994", label:"1994 멕시코 테킬라 위기", year:1994, type:"fx_crisis", phase:"외환위기", cat:{신용위험:12,유동성:10,시장공포:16,실물경기:20,물가:12}, importance:4 },
+  { id:"asia_fx_1997", label:"1997 아시아 외환위기", year:1997, type:"fx_crisis", phase:"외환·신용위기", cat:{신용위험:8,유동성:8,시장공포:12,실물경기:16,물가:12}, importance:5 },
+  { id:"ltcm_1998", label:"1998 LTCM 위기", year:1998, type:"liquidity_crisis", phase:"레버리지 청산", cat:{신용위험:15,유동성:18,시장공포:12,실물경기:22,물가:52}, importance:4 },
+  { id:"dotcom_late_1999", label:"1999 닷컴버블 말기", year:1999, type:"bubble_late", phase:"성장주 버블 말기", cat:{신용위험:50,유동성:64,시장공포:84,실물경기:72,물가:46}, importance:5 },
+  { id:"dotcom_2000", label:"2000 IT 버블 붕괴", year:2000, type:"bubble_burst", phase:"성장주 버블 붕괴", cat:{신용위험:28,유동성:35,시장공포:22,실물경기:42,물가:45}, importance:5 },
+  { id:"korea_card_2003", label:"2003 한국 카드채 위기", year:2003, type:"credit_crisis", phase:"소비신용 위기", cat:{신용위험:20,유동성:25,시장공포:30,실물경기:34,물가:48}, importance:3 },
+  { id:"housing_boom_2005", label:"2005 미국 주택버블 확장", year:2005, type:"bubble_late", phase:"부동산 신용버블", cat:{신용위험:64,유동성:70,시장공포:86,실물경기:74,물가:40}, importance:4 },
+  { id:"subprime_2007", label:"2007 서브프라임 초기", year:2007, type:"credit_crisis", phase:"신용위기 초기", cat:{신용위험:22,유동성:26,시장공포:28,실물경기:42,물가:42}, importance:5 },
+  { id:"gfc_2008", label:"2008 글로벌 금융위기", year:2008, type:"credit_crisis", phase:"시스템 신용위기", cat:{신용위험:4,유동성:20,시장공포:3,실물경기:8,물가:25}, importance:5 },
+  { id:"europe_2011", label:"2011 유럽 재정위기", year:2011, type:"credit_crisis", phase:"재정·은행위기", cat:{신용위험:25,유동성:28,시장공포:18,실물경기:38,물가:38}, importance:5 },
+  { id:"taper_2013", label:"2013 테이퍼 텐트럼", year:2013, type:"rate_shock", phase:"금리상승·신흥국 압박", cat:{신용위험:34,유동성:26,시장공포:32,실물경기:48,물가:34}, importance:4 },
+  { id:"china_2015", label:"2015 중국 위안화 쇼크", year:2015, type:"china_slowdown", phase:"중국 둔화·환율충격", cat:{신용위험:35,유동성:25,시장공포:28,실물경기:30,물가:55}, importance:4 },
+  { id:"hy_energy_2016", label:"2016 유가·하이일드 위기", year:2016, type:"credit_crisis", phase:"에너지 신용위기", cat:{신용위험:26,유동성:34,시장공포:28,실물경기:32,물가:64}, importance:4 },
+  { id:"fed_2018", label:"2018 연준 긴축 조정", year:2018, type:"rate_shock", phase:"긴축 후반 조정", cat:{신용위험:38,유동성:35,시장공포:35,실물경기:42,물가:38}, importance:5 },
+  { id:"repo_2019", label:"2019 미국 레포시장 경색", year:2019, type:"liquidity_crisis", phase:"단기자금 경색", cat:{신용위험:34,유동성:22,시장공포:42,실물경기:54,물가:46}, importance:3 },
+  { id:"covid_2020", label:"2020 코로나 충격", year:2020, type:"external_shock", phase:"외생 충격·급락", cat:{신용위험:12,유동성:58,시장공포:6,실물경기:10,물가:68}, importance:5 },
+  { id:"tightening_2022", label:"2022 인플레이션·긴축 충격", year:2022, type:"rate_shock", phase:"인플레이션 긴축", cat:{신용위험:22,유동성:18,시장공포:30,실물경기:42,물가:14}, importance:5 },
+  { id:"uk_ldi_2022", label:"2022 영국 LDI 위기", year:2022, type:"liquidity_crisis", phase:"금리·레버리지 위기", cat:{신용위험:24,유동성:16,시장공포:24,실물경기:44,물가:18}, importance:4 },
+];
+
+function classifyRegimeType(type) {
+  const map = {
+    banking_crisis: "은행위기형",
+    credit_crisis: "신용위기형",
+    fx_crisis: "외환위기형",
+    rate_shock: "긴축·금리충격형",
+    liquidity_crisis: "유동성경색형",
+    bubble_late: "버블말기형",
+    bubble_burst: "버블붕괴형",
+    inflation_shock: "인플레이션충격형",
+    china_slowdown: "중국둔화형",
+    external_shock: "외생충격형",
+    policy_easing_rebound: "정책반등형",
+  };
+  return map[type] || type || "미분류";
+}
+
+function buildRegimeInsight({ defconData, crisisAnalysis }) {
+  const currentCatScores = defconData?.catScores || [];
+  const internalMatches = INTERNAL_REGIME_EVENTS
+    .filter(e => e.importance >= 3)
+    .map(e => ({ ...e, similarity: calcSimilarity(currentCatScores, e.cat) }))
+    .sort((a, b) => b.similarity - a.similarity);
+
+  const officialTop = (crisisAnalysis?.results || []).slice(0, 3).map(e => ({
+    id: e.id, label: e.label, date: e.date, defcon: e.defcon,
+    similarity: e.similarity, desc: e.desc, impact: e.impact,
+  }));
+
+  const typeScore = {};
+  internalMatches.slice(0, 7).forEach((m, idx) => {
+    const weight = Math.max(1, 7 - idx) * (m.similarity || 0);
+    typeScore[m.type] = (typeScore[m.type] || 0) + weight;
+  });
+  const typeMixRaw = Object.entries(typeScore).sort((a, b) => b[1] - a[1]);
+  const totalTypeScore = typeMixRaw.reduce((s, x) => s + x[1], 0) || 1;
+  const typeMix = typeMixRaw.slice(0, 5).map(([type, score]) => ({
+    type,
+    label: classifyRegimeType(type),
+    weight: Math.round(score / totalTypeScore * 100),
+  }));
+
+  const primary = typeMix[0] || { type: "unknown", label: "미분류", weight: 0 };
+  const topInternal = internalMatches.slice(0, 5).map(m => ({
+    id: m.id, label: m.label, year: m.year, type: m.type,
+    typeLabel: classifyRegimeType(m.type), phase: m.phase,
+    similarity: m.similarity, importance: m.importance,
+  }));
+
+  const internalTop = topInternal[0] || null;
+  const agreement = internalTop
+    ? (internalTop.similarity >= 75 ? "강함" : internalTop.similarity >= 65 ? "보통" : "약함")
+    : "판정불가";
+
+  const sefconScore = defconData?.totalScore ?? 50;
+  const sefconRisk = Math.max(0, Math.min(100, 100 - sefconScore));
+  const navigationRisk = crisisAnalysis?.navigation?.proximityScore ?? 50;
+  const density = crisisAnalysis?.navigation?.dangerDensity ?? 0;
+  const transitionRisk = Math.round(sefconRisk * 0.50 + navigationRisk * 0.30 + density * 0.20);
+
+  let transitionLevel = "관찰";
+  if (transitionRisk >= 75) transitionLevel = "위기";
+  else if (transitionRisk >= 60) transitionLevel = "경고";
+  else if (transitionRisk >= 45) transitionLevel = "주의";
+  else if (transitionRisk < 30) transitionLevel = "안정";
+
+  const interpretation = (() => {
+    if (primary.type === "rate_shock") return "공식 SEFCON 판단은 유지하되, 내부 구조상 금리·긴축 압박형에 가까운지 보조 점검합니다.";
+    if (primary.type === "credit_crisis" || primary.type === "banking_crisis") return "신용·은행 시스템 스트레스형 신호가 우세한지 보조 검증합니다.";
+    if (primary.type === "bubble_late") return "현 국면이 실제 위기라기보다 버블 말기·집중장세형인지 보조 점검합니다.";
+    if (primary.type === "liquidity_crisis") return "단기 유동성 경색과 위험자산 변동성 확대 가능성을 보조 점검합니다.";
+    if (primary.type === "fx_crisis") return "환율·외화유동성 압박이 핵심 위험인지 보조 점검합니다.";
+    return "기존 Crisis Navigation을 변경하지 않고, 내부 역사 패턴으로 해석을 보조합니다.";
+  })();
+
+  return {
+    engine: "SEFCON v3 Regime Insight",
+    mode: "shadow_assistant",
+    version: "v3.0-safe-patch-on-v2",
+    note: "기존 SEFCON v2 점수·등급·공식 Crisis Navigation 결과를 변경하지 않는 보조 해석 엔진입니다.",
+    officialTop,
+    officialTopId: crisisAnalysis?.top?.id || null,
+    officialTopLabel: crisisAnalysis?.top?.label || null,
+    internalTopMatches: topInternal,
+    regime: {
+      primaryType: primary.type,
+      primaryLabel: primary.label,
+      confidence: primary.weight,
+      typeMix,
+      agreementWithOfficial: agreement,
+    },
+    transitionRisk: {
+      score: transitionRisk,
+      level: transitionLevel,
+      components: { sefconRisk, navigationRisk, dangerDensity: density },
+    },
+    interpretation,
+    trainingSet: {
+      officialEvents: CRISIS_BENCHMARKS.length,
+      internalEvents: INTERNAL_REGIME_EVENTS.length,
+      recentEventsExcluded: true,
+      uiVisible: false,
+    },
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// 일평균수출 · 코스피 비교 보정 — 데이터 시차 방어용 보조 필드
+// 원칙: 기존 exportYoY/kospiMonthly 원본과 UI는 수정하지 않는다.
+// ══════════════════════════════════════════════════════════════
+function shiftMonthYYYYMM(yyyymm, offset) {
+  if (!yyyymm) return null;
+  const s = String(yyyymm).replace(".", "");
+  const y = Number(s.slice(0, 4));
+  const m = Number(s.slice(4, 6));
+  if (!y || !m) return null;
+  const d = new Date(y, m - 1 + offset, 1);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthKey(v) {
+  if (!v) return null;
+  return String(v).replace(".", "").slice(0, 6);
+}
+
+function normalizeSeriesZ(arr, valueKey) {
+  const vals = (arr || []).map(r => Number(r[valueKey])).filter(v => Number.isFinite(v));
+  if (vals.length < 12) return [];
+  const avg = vals.reduce((s, v) => s + v, 0) / vals.length;
+  const variance = vals.reduce((s, v) => s + Math.pow(v - avg, 2), 0) / vals.length;
+  const sd = Math.sqrt(variance) || 1;
+  return (arr || []).map(r => {
+    const v = Number(r[valueKey]);
+    return Number.isFinite(v) ? { ...r, z: +((v - avg) / sd).toFixed(2) } : { ...r, z: null };
+  });
+}
+
+function classifyExportKospiGap(z) {
+  if (z == null || !Number.isFinite(Number(z))) return "데이터 부족";
+  if (z >= 1.5) return "강한 과열";
+  if (z >= 0.5) return "과열";
+  if (z <= -1.5) return "강한 저평가";
+  if (z <= -0.5) return "저평가";
+  return "중립";
+}
+
+function buildExportKospiAlignment(dailyExport, kospiMonthly, leadMonths = 2) {
+  const exportValid = (dailyExport || [])
+    .filter(r => r?.date && r.value != null)
+    .map(r => ({ date: monthKey(r.date), value: Number(r.value) }))
+    .filter(r => r.date && Number.isFinite(r.value));
+
+  const kospiValid = (kospiMonthly || [])
+    .filter(r => r?.date && r.price != null)
+    .map(r => ({ date: monthKey(r.date), price: Number(r.price) }))
+    .filter(r => r.date && Number.isFinite(r.price));
+
+  if (exportValid.length < 12 || kospiValid.length < 12) {
+    return { available: false, reason: "수출 또는 코스피 데이터 부족" };
+  }
+
+  const exportZ = normalizeSeriesZ(exportValid, "value");
+  const kospiZ = normalizeSeriesZ(kospiValid, "price");
+  const kospiMap = new Map(kospiZ.map(r => [r.date, r]));
+
+  const exportLatest = [...exportZ].reverse().find(r => r.z != null);
+  const kospiLatest = [...kospiZ].reverse().find(r => r.z != null);
+  const commonMonths = exportZ
+    .filter(r => r.z != null && kospiMap.has(r.date))
+    .map(r => r.date)
+    .sort();
+  const commonMonth = commonMonths.at(-1);
+
+  if (!exportLatest || !kospiLatest || !commonMonth) {
+    return { available: false, reason: "공통 기준월 계산 실패" };
+  }
+
+  const exportAtCommon = exportZ.find(r => r.date === commonMonth);
+  const kospiAtCommon = kospiMap.get(commonMonth);
+  const officialGapZ = +(kospiAtCommon.z - exportAtCommon.z).toFixed(2);
+
+  const currentGapZ = +(kospiLatest.z - exportLatest.z).toFixed(2);
+  const leadMonth = shiftMonthYYYYMM(exportLatest.date, leadMonths);
+  const kospiLead = kospiMap.get(leadMonth) || kospiLatest;
+  const leadGapZ = +(kospiLead.z - exportLatest.z).toFixed(2);
+
+  const lagMonths = (() => {
+    const y1 = Number(exportLatest.date.slice(0, 4));
+    const m1 = Number(exportLatest.date.slice(4, 6));
+    const y2 = Number(kospiLatest.date.slice(0, 4));
+    const m2 = Number(kospiLatest.date.slice(4, 6));
+    return (y2 * 12 + m2) - (y1 * 12 + m1);
+  })();
+
+  return {
+    available: true,
+    commonMonth,
+    official: {
+      label: "동월 기준",
+      exportMonth: commonMonth,
+      kospiMonth: commonMonth,
+      gapZ: officialGapZ,
+      signal: classifyExportKospiGap(officialGapZ),
+    },
+    currentMarket: {
+      label: "현재 주가 기준",
+      exportMonth: exportLatest.date,
+      kospiMonth: kospiLatest.date,
+      gapZ: currentGapZ,
+      signal: classifyExportKospiGap(currentGapZ),
+    },
+    leadAdjusted: {
+      label: `${leadMonths}개월 선행 보정`,
+      exportMonth: exportLatest.date,
+      kospiMonth: kospiLead?.date || null,
+      gapZ: leadGapZ,
+      signal: classifyExportKospiGap(leadGapZ),
+    },
+    dataLag: {
+      exportLatestMonth: exportLatest.date,
+      kospiLatestMonth: kospiLatest.date,
+      lagMonths,
+      message: lagMonths > 0
+        ? `수출 데이터가 코스피보다 약 ${lagMonths}개월 늦습니다.`
+        : "수출과 코스피의 최신월 차이가 크지 않습니다.",
+    },
+  };
+}
+
 // ── SEFCON
 function calcDefcon(indicators) {
   // ── 카테고리 가중치 (KLR 연구 기반 선행성 반영)
@@ -505,6 +771,7 @@ export default async function handler(req, res) {
     // 수출: 천불 → 일평균$M (1천불/21일/1000 = $M)
     const dailyExport = exportArr.map(r => ({ date: r.date, value: +(r.value / 21000).toFixed(1) }));
     const exportYoY   = calcMonthlyYoY(dailyExport);
+    const exportKospiAlignment = buildExportKospiAlignment(dailyExport, kospiMonthly, 2);
     const rate        = dailyToMonthly(rateArr);
     const fx          = dailyToMonthly(fxArr);
     const ppi         = calcMonthlyYoY(ppiArr);
@@ -751,11 +1018,181 @@ export default async function handler(req, res) {
         score: scoreV(lastYoy(hhCreditYoY), [8, 5, 2, 0], 1) },
     ];
 
-    const defconData = calcDefcon(indicators);
-    const crisisAnalysis = calcCrisisAnalysis(defconData);
+const defconData = calcDefcon(indicators);
 
+const enhancedRisk = calcSequoiaCIndex(defconData);
+
+// 로그 (개발용)
+if (process.env.NODE_ENV !== "production") {
+  console.log("SEFCON DEBUG", {
+    originalScore: enhancedRisk.originalScore,
+    adjustedScore: enhancedRisk.adjustedScore,
+    clusterPenalty: enhancedRisk.clusterPenalty,
+    triggerPenalty: enhancedRisk.triggerPenalty,
+    confirmationPenalty: enhancedRisk.confirmationPenalty,
+    clusterCount: enhancedRisk.clusterCount,
+    crisisType: enhancedRisk.crisisType
+  });
+}
+
+defconData.originalScore = enhancedRisk.originalScore;
+defconData.adjustedScore = enhancedRisk.adjustedScore;
+defconData.totalScore = enhancedRisk.adjustedScore;
+defconData.defcon = enhancedRisk.defcon;
+
+defconData.defconLabel = enhancedRisk.defconLabel;
+defconData.defconColor = enhancedRisk.defconColor;
+defconData.defconDesc = enhancedRisk.defconDesc;
+defconData.enhancedRisk = enhancedRisk;
+const crisisAnalysis = calcCrisisAnalysis(defconData);
+const regimeInsight = buildRegimeInsight({ defconData, crisisAnalysis });
+
+// ─────────────────────────────────────────────
+// SEFCON v2.0 Core Engine
+// 기존 SEFCON 점수를 실제로 보정하여 최종 단계를 바꾸는 핵심엔진
+// ─────────────────────────────────────────────
+function calcSequoiaCIndex(defconData) {
+  const indicators = defconData.indicators || [];
+
+  const getScore = (keyword) =>
+    indicators.find(i =>
+      i.key?.includes(keyword) ||
+      i.label?.includes(keyword)
+    )?.score ?? 0;
+
+  const hasRisk = (keyword, threshold = -1) => getScore(keyword) <= threshold;
+
+  // 핵심 위험 신호
+  const foreignSell  = hasRisk("외국인", -2);
+  const fxStress     = hasRisk("환율", -1);
+  const vixStress    = hasRisk("VIX", -1);
+  const hyStress     = hasRisk("HY", -1) || hasRisk("하이일드", -1);
+  const cdStress     = hasRisk("CD", -1);
+  const creditStress = hyStress || cdStress;
+  const dxyStress    = hasRisk("DXY", -1);
+  const sloosStress  = hasRisk("SLOOS", -1);
+  const leiStress    = hasRisk("LEI", -1);
+  const exportStress = hasRisk("수출", -1);
+
+  // 1) 클러스터 페널티: 위험 신호가 동시에 켜질수록 점수 차감
+  const clusterCount = [
+    foreignSell,
+    fxStress,
+    vixStress,
+    creditStress,
+    dxyStress,
+    sloosStress,
+    leiStress,
+    exportStress
+  ].filter(Boolean).length;
+
+  let clusterPenalty = 0;
+  if (clusterCount >= 2) clusterPenalty += 3;
+  if (clusterCount >= 3) clusterPenalty += 6;
+  if (clusterCount >= 4) clusterPenalty += 10;
+
+  // 2) 조합 페널티: 금융위기형 조합은 추가 차감
+  let triggerPenalty = 0;
+
+  if (foreignSell && fxStress) triggerPenalty += 6;              // 외국인 이탈 + 환율
+  if (vixStress && creditStress) triggerPenalty += 7;            // 공포 + 신용경색
+  if (fxStress && dxyStress) triggerPenalty += 4;                // 달러 강세 + 원화 약세
+  if (foreignSell && fxStress && vixStress) triggerPenalty += 5; // 리스크오프 클러스터
+  if (creditStress && sloosStress) triggerPenalty += 5;          // 신용조건 악화
+
+  // 3) 확인 페널티: 실물까지 꺾이면 추가 차감
+  let confirmationPenalty = 0;
+  if (leiStress) confirmationPenalty += 3;
+  if (exportStress) confirmationPenalty += 3;
+  if (leiStress && exportStress) confirmationPenalty += 3;
+
+  // 총 페널티
+  const totalPenalty = Math.min(
+    30,
+    clusterPenalty + triggerPenalty + confirmationPenalty
+  );
+
+  // 기존 SEFCON 점수 보정
+  const originalScore = defconData.totalScore;
+  const adjustedScore = Math.max(0, Math.min(100, originalScore - totalPenalty));
+
+  // C-Index: 위험도 지수. 높을수록 위험
+  const cIndex = Math.max(0, Math.min(100, 100 - adjustedScore));
+
+  // 보정된 SEFCON 단계 재산출
+  let defcon, defconLabel, defconColor, defconDesc;
+
+  if (adjustedScore <= 30) {
+    defcon = 1;
+    defconLabel = "SEFCON 1  붕괴임박";
+    defconColor = "#FF1A1A";
+    defconDesc = "복수의 위기 신호가 동시 발생. 현금 비중 최우선. 시스템 리스크 구간";
+  } else if (adjustedScore <= 45) {
+    defcon = 2;
+    defconLabel = "SEFCON 2  위기";
+    defconColor = "#FF6B00";
+    defconDesc = "선행지표와 트리거가 동시 악화. 리스크 자산 비중 축소 검토";
+  } else if (adjustedScore <= 58) {
+    defcon = 3;
+    defconLabel = "SEFCON 3  경계";
+    defconColor = "#F0C800";
+    defconDesc = "일부 위기 조합 감지. 포트폴리오 방어 태세 필요";
+  } else if (adjustedScore <= 72) {
+    defcon = 4;
+    defconLabel = "SEFCON 4  관망";
+    defconColor = "#38BDF8";
+    defconDesc = "대체로 양호하나 일부 위험 신호 관찰";
+  } else {
+    defcon = 5;
+    defconLabel = "SEFCON 5  안정";
+    defconColor = "#00C878";
+    defconDesc = "전반적 위험 신호 제한적. 적극적 투자 환경";
+  }
+
+  // 위기 유형
+  let crisisType = "혼합형";
+  if (foreignSell && fxStress && vixStress) crisisType = "외국인 이탈형 / 환율 스트레스형";
+  else if (vixStress && creditStress) crisisType = "신용경색형";
+  else if (fxStress && dxyStress) crisisType = "달러 유동성 압박형";
+  else if (leiStress && exportStress) crisisType = "실물경기 둔화형";
+  else if (foreignSell && fxStress) crisisType = "외국인 이탈형";
+
+  const confidence = Math.min(
+    95,
+    Math.max(45, 50 + clusterCount * 5 + Math.round(totalPenalty / 2))
+  );
+
+  const topDrivers = [];
+  if (foreignSell) topDrivers.push("외국인 순매도 압력");
+  if (fxStress) topDrivers.push("원/달러 환율 스트레스");
+  if (vixStress) topDrivers.push("시장공포 확대");
+  if (creditStress) topDrivers.push("신용스프레드 악화");
+  if (dxyStress) topDrivers.push("달러 강세 압력");
+  if (sloosStress) topDrivers.push("대출기준 강화");
+  if (leiStress) topDrivers.push("경기선행지수 둔화");
+  if (exportStress) topDrivers.push("수출 둔화");
+
+  return {
+    originalScore,
+    adjustedScore,
+    cIndex,
+    totalPenalty,
+    clusterPenalty,
+    triggerPenalty,
+    confirmationPenalty,
+    clusterCount,
+    crisisType,
+    confidence,
+    topDrivers,
+    defcon,
+    defconLabel,
+    defconColor,
+    defconDesc
+  };
+}
+    
     const data = {
-      gdp, gdpLevel, dailyExport, exportYoY,
+      gdp, gdpLevel, dailyExport, exportYoY, exportKospiAlignment,
       rate, fx, ppi, cpi, bsi,
       kospiMonthly, kosdaqMonthly,
       hhCreditYoY, yieldSpread,
@@ -767,6 +1204,7 @@ export default async function handler(req, res) {
       foreignNet, foreignNet3M,
       defconData,
       crisisAnalysis,
+      regimeInsight,
       updatedAt: Date.now(),
       _debug: {
         gdp:gdpArr.length, export:exportArr.length, rate:rateArr.length,
@@ -782,6 +1220,8 @@ export default async function handler(req, res) {
         cdSpread:cdSpread.length, hhDebtGDP:hhDebtGDP.length, nominalGdp:nominalGdpArr.length,
         usM2:fredM2SLRaw.length, krM2:ecosKrM2Raw.length,
         foreignNet:foreignNetRaw.length,
+        exportKospiAlignment: exportKospiAlignment?.available ? "ok" : "insufficient",
+        regimeInsight: regimeInsight?.engine || "none",
       }
     };
 
