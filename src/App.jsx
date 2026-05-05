@@ -4757,10 +4757,9 @@ export default function App(){
               );
             })()}
 
- {/* ══ v3 시장 국면 지도 카드 ══ */}
+{/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
 
-  // 🔥 레짐 색상
   const getRegimeColor = (label) => {
     const t = String(label || "");
     if (t.includes("정상") || t.includes("확장")) return C.green;
@@ -4774,7 +4773,33 @@ export default function App(){
     return C.muted;
   };
 
-  // 🔥 범례 (키워드 기반)
+  const prettyRegimeLabel = (label) => {
+    const t = String(label || "");
+    const map = {
+      "정상확장형": "정상 확장형",
+      "정상-확장형": "정상 확장형",
+      "회복초입형": "회복 초입형",
+      "회복-초입형": "회복 초입형",
+      "버블초입형": "버블 초입형",
+      "버블-초입형": "버블 초입형",
+      "버블말기형": "버블 말기형",
+      "버블-말기형": "버블 말기형",
+      "긴축금리충격형": "긴축·금리충격형",
+      "긴축-금리충격형": "긴축·금리충격형",
+      "유동성환율위기형": "유동성 위기형",
+      "유동성-환율위기형": "유동성 위기형",
+      "신용시스템위기형": "신용경색형",
+      "신용-시스템위기형": "신용경색형",
+      "복합위기형": "복합 위기형",
+      "복합-위기형": "복합 위기형",
+      "침체바닥형": "침체 바닥형",
+      "침체-바닥형": "침체 바닥형",
+      "혼합불확실형": "혼합/불확실형",
+      "혼합/불확실형": "혼합/불확실형"
+    };
+    return map[t.replace(/\s/g, "")] || t;
+  };
+
   const regimeLegend = [
     { key:"정상", label:"정상 확장형", desc:["성장 + 유동성 양호","수출↑, LEI↑, 신용 안정","리스크온"] },
     { key:"회복", label:"회복 초입형", desc:["실물 회복 + 유동성 완화","수출↑, LEI↑, 금리↓","초기 상승"] },
@@ -4790,11 +4815,11 @@ export default function App(){
   const regimeLabel =
     macroData?.regimeInsight?.regime?.primaryLabel || "혼합/불확실형";
 
+  const displayLabel = prettyRegimeLabel(regimeLabel);
   const regimeColor = getRegimeColor(regimeLabel);
 
-  // 🔥 키워드 매칭 (단순/안정)
   const found =
-    regimeLegend.find(r => regimeLabel.includes(r.key)) ||
+    regimeLegend.find(r => regimeLabel.replace(/\s/g, "").includes(r.key)) ||
     { label:"혼합/불확실형", desc:["신호 엇갈림","지표 상충","관망"] };
 
   const adj = macroData?.v3Adjustment?.adjustment ?? 0;
@@ -4804,7 +4829,7 @@ export default function App(){
   return (
     <div style={{
       background:C.card,
-      border:`2px solid ${dc?.defconColor || C.orange}44`,   // 🔥 SEFCON 연동
+      border:`2px solid ${dc?.defconColor || C.orange}44`,
       borderRadius:16,
       padding:"16px 14px",
       marginBottom:10,
@@ -4816,12 +4841,17 @@ export default function App(){
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
         <div style={{color:regimeColor,fontSize:16,fontWeight:900}}>
-          {regimeLabel}
+          {displayLabel}
         </div>
         <div style={{
           color:adj < 0 ? C.red : adj > 0 ? C.green : C.muted,
           fontSize:9,
-          fontWeight:800
+          fontWeight:800,
+          background:C.card2,
+          border:`1px solid ${C.border}`,
+          borderRadius:999,
+          padding:"2px 8px",
+          whiteSpace:"nowrap"
         }}>
           {adjText}
         </div>
