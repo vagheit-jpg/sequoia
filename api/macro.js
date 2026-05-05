@@ -460,6 +460,204 @@ function buildRegimeInsight({ defconData, crisisAnalysis }) {
       recentEventsExcluded: true,
       uiVisible: false,
     },
+
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// SEFCON v3 Conditional Adjustment — 제한 보정 레이어
+// 원칙:
+// 1) v2(calcSequoiaCIndex)를 기본값으로 둔다.
+// 2) v3는 최대 ±10점만 보정한다.
+// 3) 최종 등급 변화는 v2 대비 최대 1단계만 허용한다.
+// 4) 유사도·위험밀도·유형 일치 3중 게이트를 통과할 때만 위험 보정을 적용한다.
+// ══════════════════════════════════════════════════════════════
+function deriveSefconLevelFromScore(score) {
+  const s = Math.max(0, Math.min(100, Math.round(score ?? 50)));
+  if (s <= 30) return {
+    defcon: 1,
+    defconLabel: "SEFCON 1  붕괴임박",
+    defconColor: "#FF1A1A",
+    defconDesc: "복수의 위기 신호가 동시 발생. 현금 비중 최우선. 시스템 리스크 구간",
+  };
+  if (s <= 45) return {
+    defcon: 2,
+    defconLabel: "SEFCON 2  위기",
+    defconColor: "#FF6B00",
+    defconDesc: "선행지표와 역사 패턴이 위험권에 근접. 리스크 자산 비중 축소 검토",
+  };
+  if (s <= 58) return {
+    defcon: 3,
+    defconLabel: "SEFCON 3  경계",
+    defconColor: "#F0C800",
+    defconDesc: "일부 위기 조합 감지. 포트폴리오 방어 태세 필요",
+  };
+  if (s <= 72) return {
+    defcon: 4,
+    defconLabel: "SEFCON 4  관망",
+    defconColor: "#38BDF8",
+    defconDesc: "대체로 양호하나 일부 위험 신호 관찰",
+  };
+  return {
+    defcon: 5,
+    defconLabel: "SEFCON 5  안정",
+    defconColor: "#00C878",
+    defconDesc: "전반적 위험 신호 제한적. 적극적 투자 환경",
+  };
+}
+
+function clampScoreToOneStep(baseDefcon, candidateScore) {
+  const candidate = deriveSefconLevelFromScore(candidateScore);
+  if (!baseDefcon || Math.abs(candidate.defcon - baseDefcon) <= 1) {
+    return Math.max(0, Math.min(100, Math.round(candidateScore)));
+  }
+
+  // defcon 숫자가 낮을수록 위험. v3가 너무 위험하게 밀면 한 단계만 낮춘다.
+  if (candidate.defcon < baseDefcon - 1) {
+    const allowed = baseDefcon - 1;
+    if (allowed === 1) return 30;
+    if (allowed === 2) return 45;
+    if (allowed === 3) return 58;
+    if (allowed === 4) return 72;
+  }
+
+  // v3가 너무 안전하게 밀면 한 단계만 높인다.
+  if (candidate.defcon > baseDefcon + 1) {
+    const allowed = baseDefcon + 1;
+    if (allowed === 2) return 31;
+    if (allowed === 3) return 46;
+    if (allowed === 4) return 59;
+    if (allowed === 5) return 73;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(candidateScore)));
+}
+
+function calcV3ConditionalAdjustment({ defconData, crisisAnalysis, regimeInsight, exportKospiAlignment }) {
+  const baseScore = defconData?.totalScore ?? 50;
+  const baseDefcon = defconData?.defcon ?? deriveSefconLevelFromScore(baseScore).defcon;
+  const dangerDensity = crisisAnalysis?.navigation?.dangerDensity ?? 0;
+  const proximityScore = crisisAnalysis?.navigation?.proximityScore ?? 0;
+  const primaryType = regimeInsight?.regime?.primaryType || "unknown";
+  const primaryLabel = regimeInsight?.regime?.primaryLabel || "미분류";
+  const primaryConfidence = regimeInsight?.regime?.confidence ?? 0;
+  const topInternal = regimeInsight?.internalTopMatches?.[0] || null;
+  const topSimilarity = topInternal?.similarity ?? 0;
+  const officialTop = crisisAnalysis?.top || null;
+
+  const dangerousTypes = [
+    "credit_crisis",
+    "banking_crisis",
+    "liquidity_crisis",
+    "fx_crisis",
+    "rate_shock",
+    "bubble_burst",
+    "inflation_shock",
+  ];
+  const cautionTypes = ["bubble_late", "china_slowdown", "external_shock"];
+
+  const typeIsDangerous = dangerousTypes.includes(primaryType);
+  const typeIsCaution = cautionTypes.includes(primaryType);
+  const typeConsistency = (() => {
+    if (!officialTop || !topInternal) return false;
+    const o = String(officialTop.id || "") + " " + String(officialTop.label || "");
+    if (primaryType === "rate_shock") return /긴축|금리|bond|volcker|fed|tightening/i.test(o);
+    if (primaryType === "credit_crisis" || primaryType === "banking_crisis") return /금융|신용|LTCM|리먼|gfc|europe|IMF|위기/i.test(o);
+    if (primaryType === "bubble_burst" || primaryType === "bubble_late") return /버블|dotcom|japan|IT/i.test(o);
+    if (primaryType === "fx_crisis") return /IMF|외환|환율|asia|china/i.test(o);
+    if (primaryType === "liquidity_crisis") return /LTCM|코로나|금융|유동성|긴축/i.test(o);
+    if (primaryType === "inflation_shock") return /물가|긴축|volcker|oil|2022/i.test(o);
+    return false;
+  })();
+
+  const gate = {
+    similarity: topSimilarity >= 70,
+    density: dangerDensity >= 35 || proximityScore >= 70,
+    type: typeIsDangerous || typeConsistency,
+  };
+  const gatePassed = gate.similarity && gate.density && gate.type;
+
+  const reasons = [];
+  let riskPenalty = 0;
+  let reliefBonus = 0;
+
+  if (gatePassed) {
+    if (topSimilarity >= 85) riskPenalty += 5;
+    else if (topSimilarity >= 78) riskPenalty += 4;
+    else if (topSimilarity >= 70) riskPenalty += 3;
+
+    if (primaryType === "credit_crisis" || primaryType === "banking_crisis") riskPenalty += 4;
+    else if (primaryType === "liquidity_crisis" || primaryType === "fx_crisis") riskPenalty += 3;
+    else if (primaryType === "rate_shock" || primaryType === "inflation_shock") riskPenalty += 2;
+    else if (primaryType === "bubble_burst") riskPenalty += 3;
+
+    if (dangerDensity >= 50) riskPenalty += 2;
+    if (proximityScore >= 78) riskPenalty += 1;
+
+    reasons.push(`내부 역사 패턴 ${topInternal?.label || "상위 이벤트"} 유사도 ${topSimilarity}%`);
+    reasons.push(`주요 유형: ${primaryLabel} / 신뢰도 ${primaryConfidence}%`);
+    reasons.push(`위험밀도 ${dangerDensity}% · 공식 위기근접도 ${proximityScore}%`);
+  } else {
+    reasons.push(`v3 게이트 미충족: 유사도 ${topSimilarity}%, 위험밀도 ${dangerDensity}%, 유형 ${primaryLabel}`);
+  }
+
+  // 수출-코스피 시차 보정: 점수에는 제한적으로만 반영.
+  const currentGap = exportKospiAlignment?.currentMarket?.gapZ;
+  const leadGap = exportKospiAlignment?.leadAdjusted?.gapZ;
+  if (Number.isFinite(currentGap)) {
+    if (currentGap >= 1.5) {
+      riskPenalty += 3;
+      reasons.push(`코스피가 일평균수출 대비 강한 선반영/과열 상태(${currentGap}σ)`);
+    } else if (currentGap >= 0.8) {
+      riskPenalty += 2;
+      reasons.push(`코스피가 일평균수출 대비 선반영 상태(${currentGap}σ)`);
+    } else if (currentGap <= -1.5) {
+      reliefBonus += 2;
+      reasons.push(`코스피가 일평균수출 대비 강한 저평가 상태(${currentGap}σ)`);
+    } else if (currentGap <= -0.8) {
+      reliefBonus += 1;
+      reasons.push(`코스피가 일평균수출 대비 저평가 상태(${currentGap}σ)`);
+    }
+  }
+  if (Number.isFinite(leadGap) && leadGap >= 1.2) {
+    riskPenalty += 1;
+    reasons.push(`2개월 선행 보정 기준도 경계 이상(${leadGap}σ)`);
+  }
+
+  // 안전장치: 위험 보정과 완화 보정을 합산하되 최대 ±10점 제한.
+  const rawAdjustment = Math.max(-10, Math.min(10, riskPenalty - reliefBonus));
+  const candidateScore = Math.max(0, Math.min(100, baseScore - rawAdjustment));
+  const finalScore = clampScoreToOneStep(baseDefcon, candidateScore);
+  const level = deriveSefconLevelFromScore(finalScore);
+  const finalAdjustment = Math.round(baseScore - finalScore);
+
+  return {
+    engine: "SEFCON v3 Conditional Adjustment",
+    version: "v3.1-gated-30events",
+    mode: "limited_score_adjustment",
+    baseScore: Math.round(baseScore),
+    baseDefcon,
+    rawAdjustment,
+    finalAdjustment,
+    finalScore,
+    finalDefcon: level.defcon,
+    finalLabel: level.defconLabel,
+    finalColor: level.defconColor,
+    finalDesc: level.defconDesc,
+    gate,
+    gatePassed,
+    primaryType,
+    primaryLabel,
+    topSimilarity,
+    typeConsistency,
+    riskPenalty,
+    reliefBonus,
+    reasons,
+    limits: {
+      maxPointAdjustment: 10,
+      maxDefconStepChange: 1,
+      stabilityMode: "monthly_macro_inputs_and_6h_api_cache",
+    },
   };
 }
 
@@ -1046,6 +1244,25 @@ defconData.defconDesc = enhancedRisk.defconDesc;
 defconData.enhancedRisk = enhancedRisk;
 const crisisAnalysis = calcCrisisAnalysis(defconData);
 const regimeInsight = buildRegimeInsight({ defconData, crisisAnalysis });
+const v3Adjustment = calcV3ConditionalAdjustment({
+  defconData,
+  crisisAnalysis,
+  regimeInsight,
+  exportKospiAlignment,
+});
+
+// v3는 v2 점수를 덮어쓰지 않고, 제한 보정 레이어로만 반영한다.
+// 최대 ±10점, 등급 변화 최대 1단계 제한.
+defconData.v2Score = defconData.totalScore;
+defconData.v2Defcon = defconData.defcon;
+defconData.v3Adjustment = v3Adjustment;
+defconData.totalScore = v3Adjustment.finalScore;
+defconData.adjustedScoreV3 = v3Adjustment.finalScore;
+defconData.defcon = v3Adjustment.finalDefcon;
+defconData.defconLabel = v3Adjustment.finalLabel;
+defconData.defconColor = v3Adjustment.finalColor;
+defconData.defconDesc = `${v3Adjustment.finalDesc} · v3보정 ${v3Adjustment.finalAdjustment >= 0 ? "-" : "+"}${Math.abs(v3Adjustment.finalAdjustment)}점`;
+regimeInsight.scoreAdjustment = v3Adjustment;
 
 // ─────────────────────────────────────────────
 // SEFCON v2.0 Core Engine
@@ -1205,6 +1422,7 @@ function calcSequoiaCIndex(defconData) {
       defconData,
       crisisAnalysis,
       regimeInsight,
+      v3Adjustment,
       updatedAt: Date.now(),
       _debug: {
         gdp:gdpArr.length, export:exportArr.length, rate:rateArr.length,
@@ -1222,6 +1440,7 @@ function calcSequoiaCIndex(defconData) {
         foreignNet:foreignNetRaw.length,
         exportKospiAlignment: exportKospiAlignment?.available ? "ok" : "insufficient",
         regimeInsight: regimeInsight?.engine || "none",
+        v3Adjustment: v3Adjustment?.finalAdjustment ?? 0,
       }
     };
 
