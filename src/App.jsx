@@ -4569,25 +4569,6 @@ export default function App(){
                       letterSpacing:"0.05em",textShadow:`0 0 20px ${dc.defconColor}88`}}>
                       {dc.defconLabel}
                     </div>
-{macroData?.v3Adjustment && (
-  <div style={{
-    fontSize:11,
-    marginTop:4,
-    color: macroData.v3Adjustment.adjustment < 0
-      ? C.red
-      : macroData.v3Adjustment.adjustment > 0
-        ? C.green
-        : C.muted,
-    opacity:0.9,
-    fontWeight:700
-  }}>
-    → v3: {macroData?.regimeInsight?.regime?.primaryLabel || "패턴분석"} / {
-      macroData.v3Adjustment.adjustment === 0
-        ? "보정 없음"
-        : `${macroData.v3Adjustment.adjustment > 0 ? "+" : ""}${macroData.v3Adjustment.adjustment}점 보정`
-    }
-  </div>
-)}
                     <div style={{color:`${C.muted}88`,fontSize:7,marginTop:3}}>
                       데이터 기준: {macroData?.updatedAt?new Date(macroData.updatedAt).toLocaleDateString("ko-KR",{year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}):"-"}
                     </div>
@@ -4776,6 +4757,116 @@ export default function App(){
               );
             })()}
 
+            {/* ══ v3 시장 국면 지도 카드 ══ */}
+            {macroData?.regimeInsight && (() => {
+              const getRegimeColor = (label) => {
+                const t = String(label || "");
+                if (t.includes("정상") || t.includes("확장")) return C.green;
+                if (t.includes("회복")) return C.teal;
+                if (t.includes("초입")) return C.blue;
+                if (t.includes("버블말기") || t.includes("버블 말기")) return C.orange;
+                if (t.includes("긴축") || t.includes("금리")) return C.gold;
+                if (t.includes("유동성")) return C.purple;
+                if (t.includes("신용") || t.includes("복합") || t.includes("위기")) return C.red;
+                if (t.includes("바닥") || t.includes("침체")) return C.cyan;
+                return C.muted;
+              };
+
+              const regimeLegend = [
+                ["정상 확장형","성장 + 유동성 양호","수출↑, LEI↑, 신용 안정","리스크온"],
+                ["회복 초입형","실물 회복 + 유동성 완화","수출↑, LEI↑, 금리↓","초기 상승"],
+                ["버블 초입형","유동성 과잉 + 자산 상승","M2↑, 자산↑, 변동성↓","상승 지속"],
+                ["버블 말기형","가격 과열 + 실물 둔화 시작","주가↑, 수출/LEI 둔화","고점 형성"],
+                ["긴축 압박형","금리 상승 + 유동성 축소","금리↑, DXY↑, 유동성↓","밸류 압축"],
+                ["유동성 위기형","달러/환율/외국인 이탈","환율↑, 외국인↓, DXY↑","신흥국 위험"],
+                ["신용경색형","금융 시스템 스트레스","HY↑, SLOOS↑, 스프레드↑","위기 초입"],
+                ["복합 위기형","신용 + 실물 동시 붕괴","LEI↓, 수출↓, 신용 악화","금융위기 구간"],
+                ["침체 바닥형","공포 극대 + 정책 전환","VIX↑ 후 안정, 금리↓","기회 구간"],
+                ["혼합/불확실형","신호 엇갈림","지표 상충","관망"]
+              ];
+
+              const regimeLabel = macroData?.regimeInsight?.regime?.primaryLabel || "혼합/불확실형";
+              const regimeColor = getRegimeColor(regimeLabel);
+              const adj = macroData?.v3Adjustment?.adjustment ?? 0;
+              const adjText = adj === 0 ? "보정 없음" : `${adj > 0 ? "+" : ""}${adj}점 보정`;
+              const legendRow =
+                regimeLegend.find(r =>
+                  regimeLabel.includes(r[0].replace("형","")) ||
+                  r[0].includes(regimeLabel.replace("형",""))
+                ) || ["혼합/불확실형","신호 엇갈림","지표 상충","관망"];
+
+              return (
+                <div style={{
+                  background:C.card2,
+                  border:`1px solid ${regimeColor}55`,
+                  borderLeft:`4px solid ${regimeColor}`,
+                  borderRadius:12,
+                  padding:"10px 12px",
+                  marginBottom:10,
+                  boxShadow:`0 0 18px ${regimeColor}14`
+                }}>
+                  <div style={{color:C.muted,fontSize:8,letterSpacing:"0.08em",marginBottom:5}}>
+                    🗺️ 시장 국면 지도 — v3 Regime
+                  </div>
+
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                    <div style={{color:regimeColor,fontSize:14,fontWeight:900}}>
+                      {regimeLabel}
+                    </div>
+                    <div style={{
+                      color:adj < 0 ? C.red : adj > 0 ? C.green : C.muted,
+                      fontSize:9,
+                      fontWeight:800,
+                      background:C.card,
+                      border:`1px solid ${C.border}`,
+                      borderRadius:999,
+                      padding:"2px 7px",
+                      whiteSpace:"nowrap"
+                    }}>
+                      {adjText}
+                    </div>
+                  </div>
+
+                  <div style={{marginTop:7,display:"grid",gridTemplateColumns:"1fr",gap:4}}>
+                    <div style={{color:C.muted,fontSize:9}}>
+                      <b style={{color:C.text}}>유형:</b> {legendRow[0]}
+                    </div>
+                    <div style={{color:C.muted,fontSize:9}}>
+                      <b style={{color:C.text}}>핵심특징:</b> {legendRow[1]}
+                    </div>
+                    <div style={{color:C.muted,fontSize:9}}>
+                      <b style={{color:C.text}}>대표신호:</b> {legendRow[2]}
+                    </div>
+                    <div style={{color:C.muted,fontSize:9}}>
+                      <b style={{color:C.text}}>투자해석:</b> {legendRow[3]}
+                    </div>
+                  </div>
+
+                  <details style={{marginTop:8}}>
+                    <summary style={{color:C.muted,fontSize:8,cursor:"pointer"}}>
+                      레짐 전체 범례 보기
+                    </summary>
+                    <div style={{marginTop:7,display:"flex",flexDirection:"column",gap:5}}>
+                      {regimeLegend.map((r,i)=>{
+                        const c = getRegimeColor(r[0]);
+                        return (
+                          <div key={i} style={{
+                            fontSize:8,
+                            color:C.muted,
+                            borderLeft:`3px solid ${c}`,
+                            paddingLeft:7,
+                            lineHeight:1.45
+                          }}>
+                            <b style={{color:c}}>{r[0]}</b> — {r[1]} / {r[2]} → {r[3]}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </details>
+                </div>
+              );
+            })()}
+         
             {/* ══ AEGIS 포트폴리오 가이드 ══ */}
             {dc&&(()=>{
               const level = dc.defcon;
