@@ -4796,15 +4796,14 @@ export default function App(){
                 ) || ["혼합/불확실형","신호 엇갈림","지표 상충","관망"];
 
               return (
-                <div style={{
-                  background:C.card2,
-                  border:`1px solid ${regimeColor}55`,
-                  borderLeft:`4px solid ${regimeColor}`,
-                  borderRadius:12,
-                  padding:"10px 12px",
-                  marginBottom:10,
-                  boxShadow:`0 0 18px ${regimeColor}14`
-                }}>
+  <div style={{
+  background:C.card,
+  border:`2px solid ${dc?.defconColor || C.orange}44`,
+  borderRadius:16,
+  padding:"16px 14px",
+  marginBottom:10,
+  boxShadow:`0 0 32px ${(dc?.defconColor || C.orange)}18`
+}}>
                   <div style={{color:C.muted,fontSize:8,letterSpacing:"0.08em",marginBottom:5}}>
                     🗺️ 시장 국면 지도 — v3 Regime
                   </div>
