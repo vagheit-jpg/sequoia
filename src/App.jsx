@@ -45,6 +45,89 @@ const sbUpsertStock=(s)=>sbFetch("stocks?on_conflict=ticker",{method:"POST",
   body:JSON.stringify({ticker:s.ticker,name:s.name,ann_data:s.annData||[],qtr_data:s.qtrData||[],div_data:s.divData||[],updated_at:new Date().toISOString()}),
 });
 const sbDeleteStock=(ticker)=>sbFetch(`stocks?ticker=eq.${ticker}`,{method:"DELETE"});
+const sbUpsertSefconSnapshot=(payload)=>sbFetch("sefcon_prediction_snapshots?on_conflict=snapshot_key",{method:"POST",
+  headers:{"Prefer":"resolution=merge-duplicates,return=representation"},
+  body:JSON.stringify(payload),
+});
+const sbGetSefconSnapshots=()=>sbFetch("sefcon_prediction_snapshots?select=*&order=created_at.desc&limit=120");
+const sbUpsertSefconOutcome=(payload)=>sbFetch("sefcon_engine_outcomes?on_conflict=prediction_id,horizon",{method:"POST",
+  headers:{"Prefer":"resolution=merge-duplicates,return=representation"},
+  body:JSON.stringify(payload),
+});
+const sbPatchSefconSnapshot=(id,patch)=>sbFetch(`sefcon_prediction_snapshots?id=eq.${id}`,{method:"PATCH",body:JSON.stringify(patch)});
+
+const addMonthsISO=(isoDate,months)=>{const d=new Date(`${isoDate}T00:00:00`);d.setMonth(d.getMonth()+months);return d.toISOString().slice(0,10);};
+const latestMarketValue=(arr,key="value")=>{if(!Array.isArray(arr))return null;for(let i=arr.length-1;i>=0;i--){const r=arr[i];const v=r?.[key]??r?.price??null;if(v!=null&&!Number.isNaN(Number(v)))return {date:r.date,value:Number(v)};}return null;};
+const pctChange=(start,end)=>start&&end!=null?+(((Number(end)/Number(start))-1)*100).toFixed(2):null;
+const classifySefconError=(risk,kospiRet,kosdaqRet,usdRet)=>{
+  const equityRet=[kospiRet,kosdaqRet].filter(v=>v!=null).reduce((s,v,_,a)=>s+v/a.length,0);
+  if(risk>=70&&equityRet>5)return "과잉경고";
+  if(risk<45&&equityRet<-15)return "위험과소평가";
+  if(risk>=60&&equityRet<-10)return "정확한방어신호";
+  if(risk<45&&equityRet>5)return "정확한공격신호";
+  if(risk>=60&&usdRet!=null&&usdRet>5)return "정확한방어신호";
+  return "중립";
+};
+const buildSefconSnapshotRow=(macro)=>{
+  const bt=macro?.backtestEngine;if(!bt?.snapshotKey)return null;
+  return {
+    snapshot_key:bt.snapshotKey,
+    snapshot_date:bt.snapshotDate,
+    engine_version:bt.engineVersion,
+    sefcon_score:bt.prediction?.sefconScore??null,
+    transition_risk:bt.prediction?.transitionRisk?.score??null,
+    regime_primary:bt.prediction?.regime?.primaryType??bt.prediction?.regime?.primaryPhase??null,
+    regime_secondary:bt.prediction?.regime?.secondaryType??bt.prediction?.regime?.secondaryPhase??null,
+    top_matches:bt.prediction?.topMatches??[],
+    allocation_guide:bt.prediction?.allocationGuide??null,
+    current_vector:bt.prediction?.currentVector??null,
+    market_snapshot:bt.marketSnapshot??{},
+    prediction_payload:bt.prediction??{},
+    evaluated_horizons:{},
+  };
+};
+const evaluateDueSefconSnapshots=async(macro)=>{
+  const rows=await sbGetSefconSnapshots().catch(()=>[]);
+  if(!Array.isArray(rows)||!rows.length)return;
+  const nowISO=new Date().toISOString().slice(0,10);
+  const latest={
+    kospi:latestMarketValue(macro?.kospiMonthly,"price"),
+    kosdaq:latestMarketValue(macro?.kosdaqMonthly,"price"),
+    usdkrw:latestMarketValue(macro?.fx,"value"),
+    vix:latestMarketValue(macro?.fredVIX,"value"),
+    dxy:latestMarketValue(macro?.yahooDXY,"value"),
+  };
+  const horizonMonths={"1M":1,"3M":3,"6M":6,"12M":12};
+  for(const row of rows){
+    const evaluated=row.evaluated_horizons||{};
+    for(const [h,m] of Object.entries(horizonMonths)){
+      if(evaluated[h])continue;
+      if(addMonthsISO(row.snapshot_date,m)>nowISO)continue;
+      const start=row.market_snapshot||{};
+      const kospiRet=pctChange(start.kospi?.value,latest.kospi?.value);
+      const kosdaqRet=pctChange(start.kosdaq?.value,latest.kosdaq?.value);
+      const usdRet=pctChange(start.usdkrw?.value,latest.usdkrw?.value);
+      const vixChg=latest.vix?.value!=null&&start.vix?.value!=null?+(latest.vix.value-start.vix.value).toFixed(2):null;
+      const errorType=classifySefconError(row.transition_risk??50,kospiRet,kosdaqRet,usdRet);
+      await sbUpsertSefconOutcome({
+        prediction_id:row.id,horizon:h,evaluated_at:new Date().toISOString(),
+        kospi_return:kospiRet,kosdaq_return:kosdaqRet,usdkrw_change:usdRet,vix_change:vixChg,
+        error_type:errorType,
+        actual_market:{latest},
+        lesson:errorType==="과잉경고"?"위험 신호가 실제 하락으로 연결되지 않았습니다. 가중치 과민 여부를 점검합니다.":errorType==="위험과소평가"?"낮은 전이위험에도 하락이 발생했습니다. 선행지표 누락 여부를 점검합니다.":"판정과 실제 결과의 방향성이 대체로 일치했습니다.",
+      });
+      evaluated[h]={evaluatedAt:new Date().toISOString(),errorType};
+    }
+    if(JSON.stringify(evaluated)!==JSON.stringify(row.evaluated_horizons||{})){
+      await sbPatchSefconSnapshot(row.id,{evaluated_horizons:evaluated});
+    }
+  }
+};
+const persistSefconBacktest=async(macro)=>{
+  const row=buildSefconSnapshotRow(macro);
+  if(!row)return;
+  try{await sbUpsertSefconSnapshot(row);await evaluateDueSefconSnapshots(macro);}catch(e){console.warn("[SEFCON Backtest] Supabase 저장/평가 실패:",e.message);}
+};
 const rowToStock=(r)=>({ticker:r.ticker,name:r.name,annData:r.ann_data||[],qtrData:r.qtr_data||[],divData:r.div_data||[]});
 
 // ══════════════════════════════════════════════════════════════
@@ -751,6 +834,111 @@ const ViewToggle=({view,setView})=>(
         border:`1px solid ${view===v?C.blue:C.border}`,borderRadius:6,padding:"4px 14px",fontSize:11,cursor:"pointer",fontWeight:view===v?700:400}}>{v}</button>))}
   </div>
 );
+
+
+// ══════════════════════════════════════════════════════════════
+// SEFCON v3 Regime Engine 카드 — 기존 Crisis Navigation 하단 표시
+// ══════════════════════════════════════════════════════════════
+const RegimeEngineCard = ({ macroData }) => {
+  const engine = macroData?.crisisAnalysis?.regimeEngine;
+  const backtest = macroData?.backtestEngine;
+  if (!engine) return null;
+
+  const regime = engine.regime || {};
+  const risk = engine.transitionRisk || {};
+  const allocation = engine.allocationGuide || {};
+  const topMatches = engine.topMatches || [];
+  const trainingSet = engine.trainingSet || {};
+  const riskScore = risk.score ?? 0;
+  const riskColor = riskScore >= 75 ? C.red : riskScore >= 60 ? C.orange : riskScore >= 45 ? C.goldL : C.green;
+  const modeLabel = (backtest?.mode || engine.selfEvolution?.mode || "shadow").toUpperCase();
+  const eventCount = trainingSet.totalEvents ?? topMatches.length ?? "-";
+
+  const pill = (label, value, color = C.text) => (
+    <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:12,padding:"9px 10px"}}>
+      <div style={{color:C.muted,fontSize:8,marginBottom:4,fontWeight:700}}>{label}</div>
+      <div style={{color,fontSize:12,fontWeight:900,lineHeight:1.35}}>{value || "-"}</div>
+    </div>
+  );
+
+  return (
+    <Box p="13px 14px" mb={12} style={{border:`1.5px solid ${riskColor}33`,boxShadow:`0 0 18px ${riskColor}11`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:12}}>
+        <div>
+          <div style={{display:"flex",alignItems:"center",gap:7,marginBottom:3}}>
+            <span style={{fontSize:15}}>🧠</span>
+            <span style={{color:C.text,fontSize:13,fontWeight:900,letterSpacing:"0.02em"}}>SEFCON v3 Regime Engine</span>
+          </div>
+          <div style={{color:C.muted,fontSize:8,lineHeight:1.55}}>
+            역사적 사건 {eventCount}개 기반 국면 판독 · 전이위험 · Shadow Learning
+          </div>
+        </div>
+        <div style={{background:`${riskColor}18`,border:`1px solid ${riskColor}55`,borderRadius:999,padding:"5px 9px",color:riskColor,fontSize:8,fontWeight:900,whiteSpace:"nowrap"}}>
+          {modeLabel} MODE
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2, minmax(0, 1fr))",gap:8,marginBottom:10}}>
+        {pill("현재 국면", regime.primaryPhase || regime.primaryType || "미분류", C.text)}
+        {pill("전이위험", `${risk.score ?? "-"}점 · ${risk.level || "-"}`, riskColor)}
+        {pill("보조 국면", regime.secondaryPhase || regime.secondaryType || "-", C.muted)}
+        {pill("신뢰도", `${regime.confidence ?? "-"}%`, C.goldL)}
+      </div>
+
+      <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 11px",marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <div style={{color:C.muted,fontSize:8,fontWeight:800}}>전이위험 게이지</div>
+          <div style={{color:riskColor,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{risk.score ?? "-"}/100</div>
+        </div>
+        <div style={{background:`${C.muted}22`,height:8,borderRadius:999,overflow:"hidden"}}>
+          <div style={{width:`${Math.min(100,Math.max(0,riskScore))}%`,height:"100%",background:riskColor,borderRadius:999,transition:"width 0.5s"}}/>
+        </div>
+        <div style={{color:`${C.muted}CC`,fontSize:8,lineHeight:1.65,marginTop:7}}>
+          {risk.message || "현재 국면이 향후 위험 구간으로 전이될 가능성을 측정합니다."}
+        </div>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit, minmax(150px, 1fr))",gap:8,marginBottom:10}}>
+        <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 11px"}}>
+          <div style={{color:C.muted,fontSize:8,fontWeight:800,marginBottom:6}}>권장 배분</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:5,fontSize:9,lineHeight:1.5}}>
+            <div style={{color:C.text}}>주식 <b style={{color:C.green}}>{allocation.stock || "-"}</b></div>
+            <div style={{color:C.text}}>현금 <b style={{color:C.goldL}}>{allocation.cash || "-"}</b></div>
+            <div style={{color:C.text}}>채권 <b style={{color:C.cyan}}>{allocation.bond || "-"}</b></div>
+            <div style={{color:C.text}}>달러 <b style={{color:C.orange}}>{allocation.dollar || "-"}</b></div>
+          </div>
+          <div style={{color:C.muted,fontSize:8,marginTop:7,lineHeight:1.55}}>{allocation.message || "포트폴리오 방어 강도를 조정합니다."}</div>
+        </div>
+
+        <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 11px"}}>
+          <div style={{color:C.muted,fontSize:8,fontWeight:800,marginBottom:6}}>학습 상태</div>
+          <div style={{color:C.text,fontSize:11,fontWeight:900,marginBottom:4}}>데이터 축적 중</div>
+          <div style={{color:C.muted,fontSize:8,lineHeight:1.55}}>1M · 3M · 6M · 12M 결과를 Supabase에 기록하고 오차를 분류합니다.</div>
+        </div>
+      </div>
+
+      <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:12,padding:"10px 11px"}}>
+        <div style={{color:C.muted,fontSize:8,fontWeight:800,marginBottom:7}}>유사 역사 국면 TOP 3</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {topMatches.slice(0,3).map((m,i)=>{
+            const sim = m.similarity ?? 0;
+            const simColor = sim >= 80 ? C.red : sim >= 65 ? C.orange : sim >= 50 ? C.goldL : C.green;
+            return (
+              <div key={m.id || i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,background:C.bg,border:`1px solid ${simColor}33`,borderRadius:9,padding:"8px 9px"}}>
+                <div style={{minWidth:0}}>
+                  <div style={{color:C.text,fontSize:9,fontWeight:900,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{i+1}. {m.label || m.name || "-"}</div>
+                  <div style={{color:C.muted,fontSize:7,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.date || "-"} · {m.phase || m.type || "국면"}</div>
+                </div>
+                <div style={{color:simColor,fontSize:12,fontWeight:900,fontFamily:"monospace",whiteSpace:"nowrap"}}>{sim}%</div>
+              </div>
+            );
+          })}
+          {!topMatches.length && <div style={{color:C.muted,fontSize:8}}>macro.js v3 응답 대기 중입니다.</div>}
+        </div>
+      </div>
+    </Box>
+  );
+};
 
 // ══════════════════════════════════════════════════════════════
 // 8. 메인 앱
@@ -1822,6 +2010,7 @@ export default function App(){
       setMacroData(cached);
       if(cached.kospiMonthly?.length)  setKospiMonthly(cached.kospiMonthly);
       if(cached.kosdaqMonthly?.length) setKosdaqMonthly(cached.kosdaqMonthly);
+      persistSefconBacktest(cached);
       setMarketLoaded(true);setMarketLoading(false);
       return;
     }
@@ -1833,6 +2022,7 @@ export default function App(){
         if(macro.kospiMonthly?.length)  setKospiMonthly(macro.kospiMonthly);
         if(macro.kosdaqMonthly?.length) setKosdaqMonthly(macro.kosdaqMonthly);
         try{localStorage.setItem("sq_macro_v1",JSON.stringify({data:macro,ts:Date.now()}));}catch{}
+        persistSefconBacktest(macro);
       }
       setMarketLoaded(true);
       setMarketLoading(false);
@@ -5071,6 +5261,10 @@ export default function App(){
               );
             })()}
 
+
+            {/* ══ SEFCON v3 Regime Engine 카드 ══ */}
+            <RegimeEngineCard macroData={macroData} />
+
             {/* ══ 역사적 위기 유사도 분석 ══ */}
             {macroData?.crisisAnalysis&&(()=>{
               const ca=macroData.crisisAnalysis;
@@ -6339,7 +6533,7 @@ export default function App(){
             {/* ── 외국인 KOSPI 순매수 */}
             {(macroData?.foreignNet3M||[]).length>0&&(
             <Box>
-              <ST accent={C.teal}>🌏 🇰🇷 외국인 KOSPI 순매수 (월별) — 자금 흐름</ST>
+              <ST accent={C.teal}>🌏 🇰🇷 외국인 KOSPI 순매수 — 자금 이탈 조기 감지</ST>
               {(()=>{
                 const data=(macroData.foreignNet3M||[]).filter(r=>r.ma3!=null).slice(-36);
                 const raw=(macroData.foreignNet||[]).slice(-3);
@@ -6351,7 +6545,7 @@ export default function App(){
                 <div style={{background:`${C.teal}0e`,border:`1px solid ${C.teal}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                   <div style={{color:C.teal,fontSize:8,fontWeight:700,marginBottom:3}}>📖 이 지표가 뭔가요?</div>
                   <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
-                    외국인이 KOSPI에서 월별로 사고판 차이(순매수)와 3개월 이동평균 흐름을 함께 봅니다. 
+                    외국인이 KOSPI에서 사고판 차이(순매수)의 3개월 이동평균입니다.
                     외국인은 KOSPI 시총의 <span style={{color:C.teal,fontWeight:700}}>30%+를 보유</span>해 이들의 이탈은 즉각적인 하락 압력으로 이어집니다.<br/>
                     3개월 연속 순매도는 위험 신호, 3개월 연속 순매수는 안정 신호입니다.
                   </div>
@@ -6363,7 +6557,7 @@ export default function App(){
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
                   background:C.card2,borderRadius:8,padding:"6px 10px",marginBottom:6,border:`1px solid ${C.border}`}}>
-                  <span style={{fontSize:8,color:C.muted}}>외국인 순매수 3개월 이동평균 :</span>
+                  <span style={{fontSize:8,color:C.muted}}>외국인 순매수 3개월 이동평균 · 최근 3개월 추세 기준</span>
                   {last!=null&&<span style={{fontSize:11,fontWeight:700,color:vc,fontFamily:"monospace"}}>
                     {(()=>{const a=Math.abs(last);const s=last>=0?"+":"-";return a>=10000?`${s}${(a/10000).toFixed(1)}조 ${vl}`:`${s}${Math.round(a).toLocaleString()}억 ${vl}`;})()} 
                   </span>}
