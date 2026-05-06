@@ -4888,7 +4888,257 @@ export default function App(){
     </div>
   );
 })()}
+{/* ══ v3 타이밍 카드: 버블 말기 / 침체 바닥 전용 ══ */}
+{macroData?.regimeInsight && dc && (() => {
+  const regimeLabel =
+    macroData?.regimeInsight?.regime?.primaryLabel || "";
 
+  const isBubbleLate =
+    regimeLabel.includes("버블") && regimeLabel.includes("말기");
+
+  const isBottom =
+    regimeLabel.includes("침체") || regimeLabel.includes("바닥");
+
+  if (!isBubbleLate && !isBottom) return null;
+
+  const rsiData = calcRSI(kospiMonthly || []);
+  const macdData = calcMACD(kospiMonthly || []);
+  const obvData = calcOBV(kospiMonthly || []);
+
+  const lastRsi = rsiData.at(-1)?.rsi ?? null;
+  const lastMacd = macdData.at(-1) || {};
+  const prevMacd = macdData.at(-2) || {};
+  const lastObv = obvData.at(-1)?.obv ?? null;
+  const prevObv = obvData.at(-2)?.obv ?? null;
+
+  if (lastRsi == null || !Number.isFinite(lastRsi)) return null;
+
+  const rsiOverbought = lastRsi >= 70;
+  const rsiOversold = lastRsi <= 30;
+
+  const macdCrossDown =
+    prevMacd.macd != null &&
+    prevMacd.signal != null &&
+    lastMacd.macd != null &&
+    lastMacd.signal != null &&
+    prevMacd.macd > prevMacd.signal &&
+    lastMacd.macd <= lastMacd.signal;
+
+  const macdCrossUp =
+    prevMacd.macd != null &&
+    prevMacd.signal != null &&
+    lastMacd.macd != null &&
+    lastMacd.signal != null &&
+    prevMacd.macd < prevMacd.signal &&
+    lastMacd.macd >= lastMacd.signal;
+
+  const obvDown =
+    lastObv != null &&
+    prevObv != null &&
+    lastObv < prevObv;
+
+  const obvUp =
+    lastObv != null &&
+    prevObv != null &&
+    lastObv > prevObv;
+
+  const timingSignals = isBubbleLate
+    ? [
+        { name:`RSI 과열 (${lastRsi.toFixed(1)})`, active:rsiOverbought, score:2 },
+        { name:"월봉 MACD 하향 크로스", active:macdCrossDown, score:2 },
+        { name:"OBV 수급 이탈", active:obvDown, score:2 },
+      ]
+    : [
+        { name:`RSI 과매도 (${lastRsi.toFixed(1)})`, active:rsiOversold, score:2 },
+        { name:"월봉 MACD 골든크로스", active:macdCrossUp, score:2 },
+        { name:"OBV 수급 재유입", active:obvUp, score:2 },
+      ];
+
+  const timingScore = timingSignals
+    .filter(s => s.active)
+    .reduce((sum, s) => sum + s.score, 0);
+
+  const maxScore = timingSignals.reduce((sum, s) => sum + s.score, 0);
+
+  const timingGrade = isBubbleLate
+    ? timingScore >= 5 ? "붕괴 임박"
+      : timingScore >= 3 ? "고위험"
+      : "경계"
+    : timingScore >= 5 ? "반등 임박"
+      : timingScore >= 3 ? "초기 반등"
+      : "관찰";
+
+  const timing = isBubbleLate
+    ? {
+        title:"버블 말기 타이밍 경고",
+        stance:"붕괴 위험 시간창",
+        color:C.red,
+        summary:"가격 과열 이후 하락 전환이 발생할 수 있는 구간입니다. 시간보다 월봉 트리거 확인이 중요합니다.",
+        windows:[
+          ["1~3M","흔들림 시작 가능"],
+          ["3~6M","급락 위험 최대"],
+          ["6M+","버블 연장 가능"],
+        ],
+        action:
+          timingScore >= 5 ? "붕괴 신호가 강합니다. 비중 축소 속도를 빠르게 높이는 구간입니다."
+          : timingScore >= 3 ? "고위험 구간입니다. 신규 매수 금지 및 단계적 축소가 유리합니다."
+          : "아직 결정적 붕괴 신호는 부족합니다. 트리거 확인이 필요합니다."
+      }
+    : {
+        title:"침체 바닥 타이밍 관찰",
+        stance:"반등 전환 시간창",
+        color:C.cyan,
+        summary:"공포가 극대화된 이후 반등 전환이 나타날 수 있는 구간입니다. 일괄매수보다 확인 후 분할 접근이 유리합니다.",
+        windows:[
+          ["1~3M","반등 시도 가능"],
+          ["3~6M","상승 전환 가능성"],
+          ["6M+","침체 장기화 가능"],
+        ],
+        action:
+          timingScore >= 5 ? "반등 신호가 강합니다. 분할매수 속도를 높일 수 있는 구간입니다."
+          : timingScore >= 3 ? "초기 회복 신호입니다. 우량주 중심 소액 분할 접근이 적합합니다."
+          : "아직 반등 확인은 부족합니다. 현금 방어와 관찰이 우선입니다."
+      };
+
+  return (
+    <div style={{
+      background:C.card,
+      border:`2px solid ${dc?.defconColor || C.orange}44`,
+      borderRadius:16,
+      padding:"16px 14px",
+      marginBottom:10,
+      boxShadow:`0 0 32px ${(dc?.defconColor || C.orange)}18`
+    }}>
+      <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
+        ⏳ v3 Timing Signal
+      </div>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+        <div style={{color:timing.color,fontSize:16,fontWeight:900}}>
+          {timing.title}
+        </div>
+        <div style={{
+          color:timing.color,
+          fontSize:9,
+          fontWeight:800,
+          background:C.card2,
+          border:`1px solid ${C.border}`,
+          borderRadius:999,
+          padding:"2px 8px",
+          whiteSpace:"nowrap"
+        }}>
+          {timing.stance}
+        </div>
+      </div>
+
+      <div style={{marginTop:8,fontSize:10,color:C.muted,lineHeight:1.6}}>
+        {timing.summary}
+      </div>
+
+      <div style={{
+        marginTop:10,
+        background:C.card2,
+        border:`1px solid ${timing.color}33`,
+        borderRadius:10,
+        padding:"8px 10px"
+      }}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <div style={{color:C.text,fontSize:10,fontWeight:800}}>
+            신호 강도
+          </div>
+          <div style={{
+            color:timing.color,
+            fontSize:10,
+            fontWeight:900,
+            fontFamily:"monospace"
+          }}>
+            {timingGrade} · {timingScore}/{maxScore}점
+          </div>
+        </div>
+
+        <div style={{background:C.dim,borderRadius:8,height:7,overflow:"hidden"}}>
+          <div style={{
+            width:`${Math.round((timingScore / maxScore) * 100)}%`,
+            height:"100%",
+            background:`linear-gradient(90deg,${timing.color}88,${timing.color})`,
+            borderRadius:8,
+            transition:"width 0.6s ease"
+          }}/>
+        </div>
+      </div>
+
+      <div style={{marginTop:10}}>
+        <div style={{color:C.text,fontSize:10,fontWeight:800,marginBottom:5}}>
+          타이밍 벨트
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+          {timing.windows.map((w,i)=>(
+            <div key={i} style={{
+              display:"flex",
+              justifyContent:"space-between",
+              gap:8,
+              background:C.card2,
+              border:`1px solid ${C.border}`,
+              borderRadius:8,
+              padding:"6px 8px",
+              fontSize:9
+            }}>
+              <span style={{color:timing.color,fontWeight:800}}>{w[0]}</span>
+              <span style={{color:C.muted}}>{w[1]}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{marginTop:10}}>
+        <div style={{color:C.text,fontSize:10,fontWeight:800,marginBottom:5}}>
+          확인 트리거
+        </div>
+
+        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+          {timingSignals.map((s,i)=>(
+            <div key={i} style={{
+              display:"flex",
+              justifyContent:"space-between",
+              alignItems:"center",
+              gap:8,
+              fontSize:10,
+              lineHeight:1.45,
+              color:s.active ? C.text : C.muted
+            }}>
+              <span>
+                {s.active ? "●" : "○"} {s.name}
+              </span>
+              <span style={{
+                color:s.active ? timing.color : C.muted,
+                fontWeight:800,
+                fontFamily:"monospace",
+                whiteSpace:"nowrap"
+              }}>
+                {s.active ? `+${s.score}` : "0"}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div style={{
+        marginTop:10,
+        background:`${timing.color}10`,
+        border:`1px solid ${timing.color}33`,
+        borderRadius:10,
+        padding:"8px 10px",
+        color:timing.color,
+        fontSize:10,
+        fontWeight:800,
+        lineHeight:1.5
+      }}>
+        {timing.action}
+      </div>
+    </div>
+  );
+})()}
        {/* ══ AEGIS 전략 엔진 카드 ══ */}
 {macroData?.regimeInsight && dc && (() => {
 
