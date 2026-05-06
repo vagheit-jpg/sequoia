@@ -4529,16 +4529,19 @@ export default function App(){
 
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {[["defcon","SEFCON"],["v3core","AEGIS"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
+              {[["defcon","SEFCON"],["v3core","AEGIS"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>{
+                const tabColor = k==="defcon" ? C.red : k==="v3core" ? C.orange : C.blue;
+                return (
                 <button key={k} onClick={()=>setMarketSub(k)}
                   style={{flex:1,padding:"7px 0",borderRadius:8,
-                    border:`1.5px solid ${marketSub===k?(k==="defcon"?C.red:C.teal):C.border}`,
-                    background:marketSub===k?`${k==="defcon"?C.red:C.teal}18`:C.card2,
-                    color:marketSub===k?(k==="defcon"?C.red:C.teal):C.muted,
+                    border:`1.5px solid ${marketSub===k?tabColor:C.border}`,
+                    background:marketSub===k?`${tabColor}18`:C.card2,
+                    color:marketSub===k?tabColor:C.muted,
                     fontSize:10,fontWeight:700,cursor:"pointer"}}>
                   {label}
                 </button>
-              ))}
+                );
+              })}
             </div>
 
             {/* ══ SEFCON 탭 ══ */}
@@ -4767,12 +4770,12 @@ export default function App(){
     title:C.text,
     text:C.text,
     muted:C.muted,
-    detail:darkMode ? "#94A3B8" : "#475569",
-    detailStrong:darkMode ? "#CBD5E1" : "#334155",
-    green:"#00C878",
+    detail:darkMode ? "#64748B" : "#475569",
+    detailStrong:darkMode ? "#94A3B8" : "#334155",
+    green:"#00D000",
     blue:"#1E72F0",
-    orange:"#FF7830",
-    red:"#FF3D5A",
+    orange:"#FF7A00",
+    red:"#FF1A1A",
     neutral:darkMode ? "#8AA8C8" : "#64748B",
   };
 
@@ -5002,10 +5005,10 @@ export default function App(){
   const activeCount = timingSignals.filter(s => s.active).length;
 
   const V3C = {
-    green:"#00C878",
+    green:"#00D000",
     blue:"#1E72F0",
-    orange:"#FF7830",
-    red:"#FF3D5A",
+    orange:"#FF7A00",
+    red:"#FF1A1A",
     neutral:darkMode ? "#8AA8C8" : "#64748B",
   };
 
@@ -5058,7 +5061,8 @@ export default function App(){
         {
           title:"초기 경고 단계",
           subtitle:"버블 내부 균열 시작",
-          color:V3C.blue,
+          duration:"평균 진행 속도 1~3M",
+          color:levelColor,
           icon:"⚠️",
           meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
           symptoms:[
@@ -5073,7 +5077,8 @@ export default function App(){
         {
           title:"위험 확대 단계",
           subtitle:"균열이 가격에 반영",
-          color:V3C.orange,
+          duration:"평균 진행 속도 3~6M",
+          color:levelColor,
           icon:"🔥",
           meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
           symptoms:[
@@ -5088,7 +5093,8 @@ export default function App(){
         {
           title:"장기 연장 가능 단계",
           subtitle:"위험하지만 유동성으로 지속",
-          color:V3C.red,
+          duration:"평균 진행 속도 6M+",
+          color:levelColor,
           icon:"🧨",
           meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
           symptoms:[
@@ -5105,7 +5111,8 @@ export default function App(){
         {
           title:"관찰 단계",
           subtitle:"하락 둔화 관찰",
-          color:V3C.neutral,
+          duration:"평균 진행 속도 1~3M",
+          color:levelColor,
           icon:"🔍",
           meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
           symptoms:[
@@ -5120,7 +5127,8 @@ export default function App(){
         {
           title:"초기 반등 단계",
           subtitle:"회복 신호 출현",
-          color:V3C.blue,
+          duration:"평균 진행 속도 3~6M",
+          color:levelColor,
           icon:"🌊",
           meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
           symptoms:[
@@ -5135,7 +5143,8 @@ export default function App(){
         {
           title:"반등 강화 단계",
           subtitle:"상승 전환 가능성 확대",
-          color:V3C.green,
+          duration:"평균 진행 속도 6M+",
+          color:levelColor,
           icon:"🚀",
           meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
           symptoms:[
@@ -5324,6 +5333,20 @@ export default function App(){
                       <div style={{color:C.muted,fontSize:9,marginTop:2}}>
                         {phase.subtitle}
                       </div>
+                      <div style={{
+                        display:"inline-flex",
+                        marginTop:6,
+                        color:active ? phase.color : C.muted,
+                        background:active ? `${phase.color}14` : C.dim,
+                        border:`1px solid ${active ? phase.color + "55" : C.border}`,
+                        borderRadius:999,
+                        padding:"2px 7px",
+                        fontSize:8,
+                        fontWeight:900,
+                        whiteSpace:"nowrap"
+                      }}>
+                        {phase.duration}
+                      </div>
                     </div>
                   </div>
 
@@ -5343,7 +5366,7 @@ export default function App(){
                   )}
                 </div>
 
-                <div style={{marginTop:12,color:C.text,fontSize:10,lineHeight:1.7}}>
+                <div style={{marginTop:12,color:active ? C.text : C.muted,fontSize:10,lineHeight:1.7}}>
                   {phase.meaning}
                 </div>
 
@@ -5370,7 +5393,7 @@ export default function App(){
                         gap:7,
                         fontSize:9,
                         lineHeight:1.5,
-                        color:C.text
+                        color:active ? C.text : C.muted
                       }}>
                         <span style={{
                           color:active ? phase.color : C.muted,
@@ -5402,7 +5425,7 @@ export default function App(){
                     투자 해석
                   </div>
 
-                  <div style={{color:C.text,fontSize:9,lineHeight:1.6}}>
+                  <div style={{color:active ? C.text : C.muted,fontSize:9,lineHeight:1.6}}>
                     {phase.interpretation}
                   </div>
                 </div>
@@ -5482,7 +5505,7 @@ export default function App(){
         fontSize:9,
         lineHeight:1.6
       }}>
-        ※ 이 단계는 정확한 폭락·반등 시점을 의미하지 않습니다.
+        ※ 평균 진행 속도는 과거 사례 기준의 참고 구간이며, 정확한 폭락·반등 시점을 의미하지 않습니다.
         <br/>
         현재 시장에서 관찰되는 증상과 월봉 트리거를 바탕으로 시장의 진행 상태를 해석합니다.
       </div>
@@ -5579,10 +5602,10 @@ export default function App(){
   const strategy = getAegisStrategy(regimeLabel, dc.defcon);
   const getRegimeColor = (label) => {
     const t = String(label || "").replace(/\s/g, "");
-    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return "#00C878";
+    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return "#00D000";
     if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return "#1E72F0";
-    if (t.includes("버블") && t.includes("말기")) return "#FF7830";
-    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return "#FF3D5A";
+    if (t.includes("버블") && t.includes("말기")) return "#FF7A00";
+    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return "#FF1A1A";
     return darkMode ? "#8AA8C8" : "#64748B";
   };
 
