@@ -4529,7 +4529,7 @@ export default function App(){
 
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {[["defcon","SEFCON"],["macro","매크로"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
+              {[["defcon","SEFCON"],["v3core","V3 CORE"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
                 <button key={k} onClick={()=>setMarketSub(k)}
                   style={{flex:1,padding:"7px 0",borderRadius:8,
                     border:`1.5px solid ${marketSub===k?(k==="defcon"?C.red:C.teal):C.border}`,
@@ -4756,21 +4756,33 @@ export default function App(){
               </div>
               );
             })()}
+            </> /* defcon 핵심 SEFCON 카드 끝 */}
 
+            {/* ══ V3 CORE 탭 ══ */}
+            {marketSub==="v3core"&&<>
 {/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
 
+  const V3C = {
+    title:"#F8FAFC",
+    text:"#E5E7EB",
+    muted:"#9CA3AF",
+    positive:"#34D399",
+    warning:"#F97316",
+    danger:"#F87171",
+    info:"#60A5FA",
+    neutral:"#CBD5E1",
+  };
+
   const getRegimeColor = (label) => {
     const t = String(label || "");
-    if (t.includes("정상") || t.includes("확장")) return C.green;
-    if (t.includes("회복")) return C.teal;
-    if (t.includes("버블")) return C.blue;
-    if (t.includes("말기")) return C.orange;
-    if (t.includes("긴축") || t.includes("금리")) return C.gold;
-    if (t.includes("유동성")) return C.purple;
-    if (t.includes("신용") || t.includes("위기")) return C.red;
-    if (t.includes("침체") || t.includes("바닥")) return C.cyan;
-    return C.muted;
+    if (t.includes("복합") || t.includes("신용") || t.includes("위기")) return V3C.danger;
+    if (t.includes("버블") && t.includes("말기")) return V3C.warning;
+    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성")) return V3C.warning;
+    if (t.includes("침체") || t.includes("바닥")) return V3C.positive;
+    if (t.includes("회복") || t.includes("정상") || t.includes("확장")) return V3C.positive;
+    if (t.includes("버블")) return V3C.info;
+    return V3C.neutral;
   };
 
   const prettyRegimeLabel = (label) => {
@@ -4829,13 +4841,13 @@ export default function App(){
   return (
     <div style={{
       background:C.card,
-      border:`2px solid ${dc?.defconColor || C.orange}44`,
+      border:`2px solid ${regimeColor}44`,
       borderRadius:16,
       padding:"16px 14px",
       marginBottom:10,
-      boxShadow:`0 0 32px ${(dc?.defconColor || C.orange)}18`
+      boxShadow:`0 0 32px ${regimeColor}18`
     }}>
-      <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
+      <div style={{color:V3C.muted,fontSize:8,marginBottom:6}}>
         🗺️ 시장 국면 지도 — v3 Regime
       </div>
 
@@ -4857,11 +4869,11 @@ export default function App(){
         </div>
       </div>
 
-      <div style={{marginTop:8,fontSize:10,color:C.muted,lineHeight:1.6}}>
-        <div><b style={{color:C.text}}>유형:</b> {found.label}</div>
-        <div><b style={{color:C.text}}>핵심특징:</b> {found.desc[0]}</div>
-        <div><b style={{color:C.text}}>대표신호:</b> {found.desc[1]}</div>
-        <div><b style={{color:C.text}}>투자해석:</b> {found.desc[2]}</div>
+      <div style={{marginTop:8,fontSize:10,color:V3C.muted,lineHeight:1.6}}>
+        <div><b style={{color:V3C.title}}>유형:</b> {found.label}</div>
+        <div><b style={{color:V3C.title}}>핵심특징:</b> {found.desc[0]}</div>
+        <div><b style={{color:V3C.title}}>대표신호:</b> {found.desc[1]}</div>
+        <div><b style={{color:V3C.title}}>투자해석:</b> {found.desc[2]}</div>
       </div>
 
       <details style={{marginTop:10}}>
@@ -4875,7 +4887,7 @@ export default function App(){
             return (
               <div key={i} style={{
                 fontSize:9,
-                color:C.muted,
+                color:V3C.muted,
                 borderLeft:`3px solid ${c}`,
                 paddingLeft:8
               }}>
@@ -4989,9 +5001,20 @@ export default function App(){
   const maxScore = 6;
   const activeCount = timingSignals.filter(s => s.active).length;
 
+  const V3C = {
+    title:"#F8FAFC",
+    text:"#E5E7EB",
+    muted:"#9CA3AF",
+    positive:"#34D399",
+    warning:"#F97316",
+    danger:"#F87171",
+    info:"#60A5FA",
+    neutral:"#CBD5E1",
+  };
+
   const levelColor = isBubbleLate
-    ? timingScore >= 5 ? C.red : timingScore >= 3 ? C.orange : C.gold
-    : timingScore >= 5 ? C.green : timingScore >= 3 ? C.cyan : C.blue;
+    ? timingScore >= 5 ? V3C.danger : timingScore >= 3 ? V3C.warning : V3C.info
+    : timingScore >= 5 ? V3C.positive : timingScore >= 3 ? V3C.info : V3C.neutral;
 
   const timingGrade = isBubbleLate
     ? timingScore >= 5 ? "붕괴 임박"
@@ -5031,7 +5054,7 @@ export default function App(){
         {
           title:"초기 경고 단계",
           subtitle:"버블 내부 균열 시작",
-          color:C.gold,
+          color:V3C.info,
           icon:"⚠️",
           meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
           symptoms:[
@@ -5046,7 +5069,7 @@ export default function App(){
         {
           title:"위험 확대 단계",
           subtitle:"균열이 가격에 반영",
-          color:C.orange,
+          color:V3C.warning,
           icon:"🔥",
           meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
           symptoms:[
@@ -5061,7 +5084,7 @@ export default function App(){
         {
           title:"장기 연장 가능 단계",
           subtitle:"위험하지만 유동성으로 지속",
-          color:C.red,
+          color:V3C.danger,
           icon:"🧨",
           meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
           symptoms:[
@@ -5078,7 +5101,7 @@ export default function App(){
         {
           title:"관찰 단계",
           subtitle:"하락 둔화 관찰",
-          color:C.blue,
+          color:V3C.neutral,
           icon:"🔍",
           meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
           symptoms:[
@@ -5093,7 +5116,7 @@ export default function App(){
         {
           title:"초기 반등 단계",
           subtitle:"회복 신호 출현",
-          color:C.cyan,
+          color:V3C.info,
           icon:"🌊",
           meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
           symptoms:[
@@ -5108,7 +5131,7 @@ export default function App(){
         {
           title:"반등 강화 단계",
           subtitle:"상승 전환 가능성 확대",
-          color:C.green,
+          color:V3C.positive,
           icon:"🚀",
           meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
           symptoms:[
@@ -5125,11 +5148,11 @@ export default function App(){
   return (
     <div style={{
       background:C.card,
-      border:`2px solid ${dc?.defconColor || C.orange}44`,
+      border:`2px solid ${levelColor}44`,
       borderRadius:16,
       padding:"16px 14px",
       marginBottom:10,
-      boxShadow:`0 0 32px ${(dc?.defconColor || C.orange)}18`
+      boxShadow:`0 0 32px ${levelColor}18`
     }}>
       <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
         ⏳ v3 Timing Signal
@@ -5550,26 +5573,32 @@ export default function App(){
   };
 
   const strategy = getAegisStrategy(regimeLabel, dc.defcon);
+  const strategyColor =
+    regimeLabel.includes("침체") || regimeLabel.includes("바닥") ? "#34D399" :
+    regimeLabel.includes("버블") || regimeLabel.includes("긴축") || regimeLabel.includes("금리") ? "#F97316" :
+    regimeLabel.includes("신용") || regimeLabel.includes("위기") || regimeLabel.includes("복합") ? "#F87171" :
+    regimeLabel.includes("회복") || regimeLabel.includes("정상") || regimeLabel.includes("확장") ? "#34D399" :
+    "#60A5FA";
 
   return (
     <div style={{
       background:C.card,
-      border:`2px solid ${dc?.defconColor || C.orange}44`,
+      border:`2px solid ${strategyColor}44`,
       borderRadius:16,
       padding:"16px 14px",
       marginBottom:10,
-      boxShadow:`0 0 32px ${(dc?.defconColor || C.orange)}18`
+      boxShadow:`0 0 32px ${strategyColor}18`
     }}>
       <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
         🛡️ AEGIS 전략 엔진
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-        <div style={{color:dc.defconColor,fontSize:16,fontWeight:900}}>
+        <div style={{color:strategyColor,fontSize:16,fontWeight:900}}>
           {strategy.stance}
         </div>
         <div style={{
-          color:dc.defconColor,
+          color:strategyColor,
           fontSize:9,
           fontWeight:800,
           background:C.card2,
@@ -5598,6 +5627,9 @@ export default function App(){
   );
 
 })()}
+            </> /* v3core 탭 끝 */}
+
+            {marketSub==="defcon"&&<>
               {/* ══ AEGIS 포트폴리오 가이드 ══ */}
             {dc&&(()=>{
               const level = dc.defcon;
