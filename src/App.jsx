@@ -4889,7 +4889,7 @@ export default function App(){
   );
 })()}
 {/* ══ 시장 진행 단계 해석: 기존 타이밍 벨트 전체 교체 수정판 ══ */}
-{(() => {
+
   const beltColor = isBubbleLate
     ? (
         timingScore >= 5 ? C.red :
@@ -5221,8 +5221,7 @@ export default function App(){
         현재 시장에서 관찰되는 증상과 월봉 트리거를 바탕으로 시장의 진행 상태를 해석합니다.
       </div>
     </div>
-  );
-})()}
+
        {/* ══ AEGIS 전략 엔진 카드 ══ */}
 {macroData?.regimeInsight && dc && (() => {
 
