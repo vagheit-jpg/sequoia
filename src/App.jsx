@@ -4888,324 +4888,341 @@ export default function App(){
     </div>
   );
 })()}
-{/* ══ 시장 진행 단계 해석: 기존 타이밍 벨트 전체 교체 ══ */}
-<div style={{marginTop:14}}>
-  <div style={{
-    display:"flex",
-    alignItems:"center",
-    justifyContent:"space-between",
-    gap:8,
-    marginBottom:10
-  }}>
-    <div style={{display:"flex",alignItems:"center",gap:7}}>
+{/* ══ 시장 진행 단계 해석: 기존 타이밍 벨트 전체 교체 수정판 ══ */}
+{(() => {
+  const beltColor = isBubbleLate
+    ? (
+        timingScore >= 5 ? C.red :
+        timingScore >= 3 ? C.orange :
+        C.gold
+      )
+    : (
+        timingScore >= 5 ? C.green :
+        timingScore >= 3 ? C.cyan :
+        C.blue
+      );
+
+  const phaseList = isBubbleLate
+    ? [
+        {
+          title:"초기 경고 단계",
+          subtitle:"버블 내부 균열 시작",
+          active:activeBeltIndex===0,
+          color:"#D6A100",
+          icon:"⚠️",
+          meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
+          symptoms:[
+            "지수는 고점권을 유지하지만 상승 탄력은 둔화",
+            "RSI 과열·과매수 신호 증가",
+            "주도주는 버티지만 종목 간 차별화 확대",
+            "일부 민감 섹터와 고평가 종목부터 선행 하락",
+            "거래량 증가세 둔화 또는 매수세 약화"
+          ],
+          interpretation:"아직 붕괴 확정은 아닙니다. 신규 공격 매수는 줄이고, 현금 비중과 과열 자산 비중을 점검하는 구간입니다."
+        },
+        {
+          title:"위험 확대 단계",
+          subtitle:"균열이 가격에 반영",
+          active:activeBeltIndex===1,
+          color:"#FF8A00",
+          icon:"🔥",
+          meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
+          symptoms:[
+            "급등 후 급락 반복",
+            "반등해도 이전 고점 돌파 실패",
+            "월봉 MACD 하락 전환 또는 데드크로스",
+            "OBV 이탈, 거래량 흐름 약화",
+            "악재에 대한 시장 반응이 커짐"
+          ],
+          interpretation:"방어 전환이 필요한 구간입니다. 레버리지 축소, 추격 매수 금지, 현금·단기채·방어주 비중 확대가 유리합니다."
+        },
+        {
+          title:"장기 연장 가능 단계",
+          subtitle:"위험하지만 유동성으로 지속",
+          active:activeBeltIndex===2,
+          color:"#FF4D4F",
+          icon:"🧨",
+          meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
+          symptoms:[
+            "밸류에이션 부담에도 상승 지속",
+            "악재는 무시하고 호재만 크게 반영",
+            "AI·성장주·테마주 중심 과열 지속",
+            "단기 조정 후 빠른 회복 반복",
+            "‘이번엔 다르다’ 논리 강화"
+          ],
+          interpretation:"성급한 전면 숏은 위험합니다. 보유 자산은 트레일링 스탑 또는 단계적 이익 실현으로 관리하고, 변동성 확대에 대비하는 구간입니다."
+        }
+      ]
+    : [
+        {
+          title:"관찰 단계",
+          subtitle:"하락 둔화 관찰",
+          active:activeBeltIndex===0,
+          color:"#3B82F6",
+          icon:"🔍",
+          meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
+          symptoms:[
+            "급락 빈도 감소",
+            "RSI 과매도 구간 진입",
+            "거래량 바닥 형성",
+            "공포 심리 극대화",
+            "우량주 저평가 확대"
+          ],
+          interpretation:"아직 반등 확정은 아닙니다. 현금 방어와 관찰 중심 접근이 적합합니다."
+        },
+        {
+          title:"초기 반등 단계",
+          subtitle:"회복 신호 출현",
+          active:activeBeltIndex===1,
+          color:"#06B6D4",
+          icon:"🌊",
+          meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
+          symptoms:[
+            "월봉 MACD 골든크로스",
+            "OBV 수급 재유입",
+            "저점이 조금씩 높아짐",
+            "낙폭과대 반등 증가",
+            "우량주 중심 수급 회복"
+          ],
+          interpretation:"분할매수를 시작할 수 있는 초기 구간입니다. 단, 급격한 몰빵보다 우량주 중심의 단계적 접근이 적합합니다."
+        },
+        {
+          title:"반등 강화 단계",
+          subtitle:"상승 전환 가능성 확대",
+          active:activeBeltIndex===2,
+          color:"#22C55E",
+          icon:"🚀",
+          meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
+          symptoms:[
+            "거래량 회복",
+            "지수 저점 상승",
+            "주도주 복귀",
+            "위험자산 선호 회복",
+            "반등 폭 확대"
+          ],
+          interpretation:"장기 우량주 중심으로 비중 확대를 고려할 수 있는 단계입니다. 다만 과열 추격보다는 분할 접근이 좋습니다."
+        }
+      ];
+
+  return (
+    <div style={{marginTop:14}}>
       <div style={{
-        width:9,
-        height:9,
-        borderRadius:"50%",
-        background:levelColor,
-        boxShadow:`0 0 14px ${levelColor}`
-      }}/>
-      <div style={{color:C.text,fontSize:11,fontWeight:900}}>
-        시장 진행 단계 해석
-      </div>
-    </div>
-
-    <div style={{
-      color:levelColor,
-      fontSize:9,
-      fontWeight:900,
-      background:`${levelColor}12`,
-      border:`1px solid ${levelColor}55`,
-      borderRadius:999,
-      padding:"3px 9px"
-    }}>
-      {isBubbleLate ? "버블 진행 단계" : "침체 회복 단계"}
-    </div>
-  </div>
-
-  <div style={{
-    color:C.muted,
-    fontSize:9,
-    lineHeight:1.6,
-    marginBottom:10
-  }}>
-    이 구간은 정확한 폭락·반등 시점 예측이 아니라, 현재 시장에서 나타나는 증상을 기준으로
-    어느 단계에 가까운지를 해석한 것입니다.
-  </div>
-
-  <div style={{display:"flex",flexDirection:"column",gap:10}}>
-    {(isBubbleLate
-      ? [
-          {
-            title:"초기 경고 단계",
-            subtitle:"버블 내부 균열 시작",
-            active:activeBeltIndex===0,
-            color:"#D6A100",
-            icon:"⚠️",
-            meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
-            symptoms:[
-              "지수는 고점권을 유지하지만 상승 탄력은 둔화",
-              "RSI 과열·과매수 신호 증가",
-              "주도주는 버티지만 종목 간 차별화 확대",
-              "일부 민감 섹터와 고평가 종목부터 선행 하락",
-              "거래량 증가세 둔화 또는 매수세 약화"
-            ],
-            interpretation:"아직 붕괴 확정은 아닙니다. 신규 공격 매수는 줄이고, 현금 비중과 과열 자산 비중을 점검하는 구간입니다."
-          },
-          {
-            title:"위험 확대 단계",
-            subtitle:"균열이 가격에 반영",
-            active:activeBeltIndex===1,
-            color:"#FF8A00",
-            icon:"🔥",
-            meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
-            symptoms:[
-              "급등 후 급락 반복",
-              "반등해도 이전 고점 돌파 실패",
-              "월봉 MACD 하락 전환 또는 데드크로스",
-              "OBV 이탈, 거래량 흐름 약화",
-              "악재에 대한 시장 반응이 커짐"
-            ],
-            interpretation:"방어 전환이 필요한 구간입니다. 레버리지 축소, 추격 매수 금지, 현금·단기채·방어주 비중 확대가 유리합니다."
-          },
-          {
-            title:"장기 연장 가능 단계",
-            subtitle:"위험하지만 유동성으로 지속",
-            active:activeBeltIndex===2,
-            color:"#FF4D4F",
-            icon:"🧨",
-            meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
-            symptoms:[
-              "밸류에이션 부담에도 상승 지속",
-              "악재는 무시하고 호재만 크게 반영",
-              "AI·성장주·테마주 중심 과열 지속",
-              "단기 조정 후 빠른 회복 반복",
-              "‘이번엔 다르다’ 논리 강화"
-            ],
-            interpretation:"성급한 전면 숏은 위험합니다. 보유 자산은 트레일링 스탑 또는 단계적 이익 실현으로 관리하고, 변동성 확대에 대비하는 구간입니다."
-          }
-        ]
-      : [
-          {
-            title:"관찰 단계",
-            subtitle:"하락 둔화 관찰",
-            active:activeBeltIndex===0,
-            color:"#3B82F6",
-            icon:"🔍",
-            meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
-            symptoms:[
-              "급락 빈도 감소",
-              "RSI 과매도 구간 진입",
-              "거래량 바닥 형성",
-              "공포 심리 극대화",
-              "우량주 저평가 확대"
-            ],
-            interpretation:"아직 반등 확정은 아닙니다. 현금 방어와 관찰 중심 접근이 적합합니다."
-          },
-          {
-            title:"초기 반등 단계",
-            subtitle:"회복 신호 출현",
-            active:activeBeltIndex===1,
-            color:"#06B6D4",
-            icon:"🌊",
-            meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
-            symptoms:[
-              "월봉 MACD 골든크로스",
-              "OBV 수급 재유입",
-              "저점이 조금씩 높아짐",
-              "낙폭과대 반등 증가",
-              "우량주 중심 수급 회복"
-            ],
-            interpretation:"분할매수를 시작할 수 있는 초기 구간입니다. 단, 급격한 몰빵보다 우량주 중심의 단계적 접근이 적합합니다."
-          },
-          {
-            title:"반등 강화 단계",
-            subtitle:"상승 전환 가능성 확대",
-            active:activeBeltIndex===2,
-            color:"#22C55E",
-            icon:"🚀",
-            meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
-            symptoms:[
-              "거래량 회복",
-              "지수 저점 상승",
-              "주도주 복귀",
-              "위험자산 선호 회복",
-              "반등 폭 확대"
-            ],
-            interpretation:"장기 우량주 중심으로 비중 확대를 고려할 수 있는 단계입니다. 다만 과열 추격보다는 분할 접근이 좋습니다."
-          }
-        ]
-    ).map((phase,i)=>(
-      <div key={i} style={{
-        position:"relative",
-        overflow:"hidden",
-        borderRadius:16,
-        padding:"14px 14px",
-        background:phase.active
-          ? `linear-gradient(135deg, ${phase.color}20, ${phase.color}08)`
-          : C.card2,
-        border:phase.active
-          ? `1.5px solid ${phase.color}99`
-          : `1px solid ${C.border}`,
-        boxShadow:phase.active
-          ? `0 0 24px ${phase.color}33`
-          : "none",
-        opacity:phase.active ? 1 : 0.78
+        display:"flex",
+        alignItems:"center",
+        justifyContent:"space-between",
+        gap:8,
+        marginBottom:10
       }}>
-        {phase.active && (
+        <div style={{display:"flex",alignItems:"center",gap:7}}>
           <div style={{
-            position:"absolute",
-            top:0,
-            left:0,
-            width:5,
-            height:"100%",
-            background:phase.color,
-            boxShadow:`0 0 18px ${phase.color}`
+            width:9,
+            height:9,
+            borderRadius:"50%",
+            background:beltColor,
+            boxShadow:`0 0 14px ${beltColor}`
           }}/>
-        )}
+          <div style={{color:C.text,fontSize:11,fontWeight:900}}>
+            시장 진행 단계 해석
+          </div>
+        </div>
 
         <div style={{
-          display:"flex",
-          justifyContent:"space-between",
-          alignItems:"center",
-          gap:10
+          color:beltColor,
+          fontSize:9,
+          fontWeight:900,
+          background:`${beltColor}12`,
+          border:`1px solid ${beltColor}55`,
+          borderRadius:999,
+          padding:"3px 9px"
         }}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {isBubbleLate ? "버블 진행 단계" : "침체 회복 단계"}
+        </div>
+      </div>
+
+      <div style={{
+        color:C.muted,
+        fontSize:9,
+        lineHeight:1.6,
+        marginBottom:10
+      }}>
+        이 구간은 정확한 폭락·반등 시점 예측이 아니라, 현재 시장에서 나타나는 증상을 기준으로
+        어느 단계에 가까운지를 해석한 것입니다.
+      </div>
+
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {phaseList.map((phase,i)=>(
+          <div key={i} style={{
+            position:"relative",
+            overflow:"hidden",
+            borderRadius:16,
+            padding:"14px 14px",
+            background:phase.active
+              ? `linear-gradient(135deg, ${phase.color}20, ${phase.color}08)`
+              : C.card2,
+            border:phase.active
+              ? `1.5px solid ${phase.color}99`
+              : `1px solid ${C.border}`,
+            boxShadow:phase.active
+              ? `0 0 24px ${phase.color}33`
+              : "none",
+            opacity:phase.active ? 1 : 0.78
+          }}>
+            {phase.active && (
+              <div style={{
+                position:"absolute",
+                top:0,
+                left:0,
+                width:5,
+                height:"100%",
+                background:phase.color,
+                boxShadow:`0 0 18px ${phase.color}`
+              }}/>
+            )}
+
             <div style={{
-              width:38,
-              height:38,
-              borderRadius:13,
-              background:phase.active ? `${phase.color}22` : C.dim,
               display:"flex",
+              justifyContent:"space-between",
               alignItems:"center",
-              justifyContent:"center",
-              fontSize:18,
-              boxShadow:phase.active ? `0 0 14px ${phase.color}44` : "none"
+              gap:10
             }}>
-              {phase.icon}
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{
+                  width:38,
+                  height:38,
+                  borderRadius:13,
+                  background:phase.active ? `${phase.color}22` : C.dim,
+                  display:"flex",
+                  alignItems:"center",
+                  justifyContent:"center",
+                  fontSize:18,
+                  boxShadow:phase.active ? `0 0 14px ${phase.color}44` : "none"
+                }}>
+                  {phase.icon}
+                </div>
+
+                <div>
+                  <div style={{
+                    color:phase.active ? phase.color : C.text,
+                    fontSize:12,
+                    fontWeight:900
+                  }}>
+                    {phase.title}
+                  </div>
+                  <div style={{color:C.muted,fontSize:9,marginTop:2}}>
+                    {phase.subtitle}
+                  </div>
+                </div>
+              </div>
+
+              {phase.active && (
+                <div style={{
+                  background:`${phase.color}22`,
+                  color:phase.color,
+                  border:`1px solid ${phase.color}66`,
+                  borderRadius:999,
+                  padding:"4px 10px",
+                  fontSize:9,
+                  fontWeight:900,
+                  whiteSpace:"nowrap"
+                }}>
+                  현재 활성
+                </div>
+              )}
             </div>
 
-            <div>
+            <div style={{
+              marginTop:12,
+              color:C.text,
+              fontSize:10,
+              lineHeight:1.7
+            }}>
+              {phase.meaning}
+            </div>
+
+            <div style={{
+              marginTop:12,
+              background:phase.active ? `${phase.color}10` : C.dim,
+              borderRadius:12,
+              padding:"10px 12px"
+            }}>
               <div style={{
                 color:phase.active ? phase.color : C.text,
-                fontSize:12,
-                fontWeight:900
+                fontSize:10,
+                fontWeight:900,
+                marginBottom:8
               }}>
-                {phase.title}
+                시장 특징
               </div>
-              <div style={{color:C.muted,fontSize:9,marginTop:2}}>
-                {phase.subtitle}
+
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {phase.symptoms.map((s,idx)=>(
+                  <div key={idx} style={{
+                    display:"flex",
+                    alignItems:"flex-start",
+                    gap:7,
+                    fontSize:9,
+                    lineHeight:1.5,
+                    color:C.text
+                  }}>
+                    <span style={{
+                      color:phase.active ? phase.color : C.muted,
+                      fontWeight:900
+                    }}>
+                      ●
+                    </span>
+                    <span>{s}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
 
-          {phase.active && (
             <div style={{
-              background:`${phase.color}22`,
-              color:phase.color,
-              border:`1px solid ${phase.color}66`,
-              borderRadius:999,
-              padding:"4px 10px",
-              fontSize:9,
-              fontWeight:900,
-              whiteSpace:"nowrap"
+              marginTop:12,
+              borderRadius:12,
+              padding:"10px 12px",
+              background:phase.active ? `${phase.color}14` : "transparent",
+              border:phase.active
+                ? `1px solid ${phase.color}44`
+                : `1px dashed ${C.border}`
             }}>
-              현재 활성
-            </div>
-          )}
-        </div>
-
-        <div style={{
-          marginTop:12,
-          color:C.text,
-          fontSize:10,
-          lineHeight:1.7
-        }}>
-          {phase.meaning}
-        </div>
-
-        <div style={{
-          marginTop:12,
-          background:phase.active ? `${phase.color}10` : C.dim,
-          borderRadius:12,
-          padding:"10px 12px"
-        }}>
-          <div style={{
-            color:phase.active ? phase.color : C.text,
-            fontSize:10,
-            fontWeight:900,
-            marginBottom:8
-          }}>
-            시장 특징
-          </div>
-
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {phase.symptoms.map((s,idx)=>(
-              <div key={idx} style={{
-                display:"flex",
-                alignItems:"flex-start",
-                gap:7,
-                fontSize:9,
-                lineHeight:1.5,
-                color:C.text
+              <div style={{
+                color:phase.active ? phase.color : C.muted,
+                fontSize:10,
+                fontWeight:900,
+                marginBottom:6
               }}>
-                <span style={{
-                  color:phase.active ? phase.color : C.muted,
-                  fontWeight:900
-                }}>
-                  ●
-                </span>
-                <span>{s}</span>
+                투자 해석
               </div>
-            ))}
-          </div>
-        </div>
 
-        <div style={{
-          marginTop:12,
-          borderRadius:12,
-          padding:"10px 12px",
-          background:phase.active ? `${phase.color}14` : "transparent",
-          border:phase.active
-            ? `1px solid ${phase.color}44`
-            : `1px dashed ${C.border}`
-        }}>
-          <div style={{
-            color:phase.active ? phase.color : C.muted,
-            fontSize:10,
-            fontWeight:900,
-            marginBottom:6
-          }}>
-            투자 해석
+              <div style={{
+                color:C.text,
+                fontSize:9,
+                lineHeight:1.6
+              }}>
+                {phase.interpretation}
+              </div>
+            </div>
           </div>
-
-          <div style={{
-            color:C.text,
-            fontSize:9,
-            lineHeight:1.6
-          }}>
-            {phase.interpretation}
-          </div>
-        </div>
+        ))}
       </div>
-    ))}
-  </div>
 
-  <div style={{
-    marginTop:12,
-    padding:"10px 12px",
-    borderRadius:12,
-    background:C.card2,
-    border:`1px dashed ${C.border}`,
-    color:C.muted,
-    fontSize:9,
-    lineHeight:1.6
-  }}>
-    ※ 이 단계는 정확한 폭락·반등 시점을 의미하지 않습니다.
-    <br/>
-    현재 시장에서 관찰되는 증상과 월봉 트리거를 바탕으로 시장의 진행 상태를 해석합니다.
-  </div>
-</div>
+      <div style={{
+        marginTop:12,
+        padding:"10px 12px",
+        borderRadius:12,
+        background:C.card2,
+        border:`1px dashed ${C.border}`,
+        color:C.muted,
+        fontSize:9,
+        lineHeight:1.6
+      }}>
+        ※ 이 단계는 정확한 폭락·반등 시점을 의미하지 않습니다.
+        <br/>
+        현재 시장에서 관찰되는 증상과 월봉 트리거를 바탕으로 시장의 진행 상태를 해석합니다.
+      </div>
+    </div>
+  );
+})()}
        {/* ══ AEGIS 전략 엔진 카드 ══ */}
 {macroData?.regimeInsight && dc && (() => {
 
