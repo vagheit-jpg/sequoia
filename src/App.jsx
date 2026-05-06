@@ -4529,7 +4529,7 @@ export default function App(){
 
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {[["defcon","SEFCON"],["v3core","V3 CORE"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
+              {[["defcon","SEFCON"],["v3core","AEGIS"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>(
                 <button key={k} onClick={()=>setMarketSub(k)}
                   style={{flex:1,padding:"7px 0",borderRadius:8,
                     border:`1.5px solid ${marketSub===k?(k==="defcon"?C.red:C.teal):C.border}`,
@@ -4758,30 +4758,30 @@ export default function App(){
             })()}
             </> /* defcon 핵심 SEFCON 카드 끝 */}
 
-            {/* ══ V3 CORE 탭 ══ */}
+            {/* ══ AEGIS 탭 ══ */}
             {marketSub==="v3core"&&<>
 {/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
 
   const V3C = {
-    title:"#F8FAFC",
-    text:"#E5E7EB",
-    muted:"#9CA3AF",
-    positive:"#34D399",
-    warning:"#F97316",
-    danger:"#F87171",
-    info:"#60A5FA",
-    neutral:"#CBD5E1",
+    title:C.text,
+    text:C.text,
+    muted:C.muted,
+    detail:darkMode ? "#94A3B8" : "#475569",
+    detailStrong:darkMode ? "#CBD5E1" : "#334155",
+    green:"#00C878",
+    blue:"#1E72F0",
+    orange:"#FF7830",
+    red:"#FF3D5A",
+    neutral:darkMode ? "#8AA8C8" : "#64748B",
   };
 
   const getRegimeColor = (label) => {
-    const t = String(label || "");
-    if (t.includes("복합") || t.includes("신용") || t.includes("위기")) return V3C.danger;
-    if (t.includes("버블") && t.includes("말기")) return V3C.warning;
-    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성")) return V3C.warning;
-    if (t.includes("침체") || t.includes("바닥")) return V3C.positive;
-    if (t.includes("회복") || t.includes("정상") || t.includes("확장")) return V3C.positive;
-    if (t.includes("버블")) return V3C.info;
+    const t = String(label || "").replace(/\s/g, "");
+    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return V3C.green;
+    if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return V3C.blue;
+    if (t.includes("버블") && t.includes("말기")) return V3C.orange;
+    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return V3C.red;
     return V3C.neutral;
   };
 
@@ -4869,11 +4869,11 @@ export default function App(){
         </div>
       </div>
 
-      <div style={{marginTop:8,fontSize:10,color:V3C.muted,lineHeight:1.6}}>
-        <div><b style={{color:V3C.title}}>유형:</b> {found.label}</div>
-        <div><b style={{color:V3C.title}}>핵심특징:</b> {found.desc[0]}</div>
-        <div><b style={{color:V3C.title}}>대표신호:</b> {found.desc[1]}</div>
-        <div><b style={{color:V3C.title}}>투자해석:</b> {found.desc[2]}</div>
+      <div style={{marginTop:8,fontSize:10,color:V3C.detail,lineHeight:1.6,fontWeight:600}}>
+        <div><b style={{color:V3C.detailStrong}}>유형:</b> {found.label}</div>
+        <div><b style={{color:V3C.detailStrong}}>핵심특징:</b> {found.desc[0]}</div>
+        <div><b style={{color:V3C.detailStrong}}>대표신호:</b> {found.desc[1]}</div>
+        <div><b style={{color:V3C.detailStrong}}>투자해석:</b> {found.desc[2]}</div>
       </div>
 
       <details style={{marginTop:10}}>
@@ -5002,19 +5002,23 @@ export default function App(){
   const activeCount = timingSignals.filter(s => s.active).length;
 
   const V3C = {
-    title:"#F8FAFC",
-    text:"#E5E7EB",
-    muted:"#9CA3AF",
-    positive:"#34D399",
-    warning:"#F97316",
-    danger:"#F87171",
-    info:"#60A5FA",
-    neutral:"#CBD5E1",
+    green:"#00C878",
+    blue:"#1E72F0",
+    orange:"#FF7830",
+    red:"#FF3D5A",
+    neutral:darkMode ? "#8AA8C8" : "#64748B",
   };
 
-  const levelColor = isBubbleLate
-    ? timingScore >= 5 ? V3C.danger : timingScore >= 3 ? V3C.warning : V3C.info
-    : timingScore >= 5 ? V3C.positive : timingScore >= 3 ? V3C.info : V3C.neutral;
+  const getRegimeColor = (label) => {
+    const t = String(label || "").replace(/\s/g, "");
+    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return V3C.green;
+    if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return V3C.blue;
+    if (t.includes("버블") && t.includes("말기")) return V3C.orange;
+    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return V3C.red;
+    return V3C.neutral;
+  };
+
+  const levelColor = getRegimeColor(regimeLabel);
 
   const timingGrade = isBubbleLate
     ? timingScore >= 5 ? "붕괴 임박"
@@ -5054,7 +5058,7 @@ export default function App(){
         {
           title:"초기 경고 단계",
           subtitle:"버블 내부 균열 시작",
-          color:V3C.info,
+          color:V3C.blue,
           icon:"⚠️",
           meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
           symptoms:[
@@ -5069,7 +5073,7 @@ export default function App(){
         {
           title:"위험 확대 단계",
           subtitle:"균열이 가격에 반영",
-          color:V3C.warning,
+          color:V3C.orange,
           icon:"🔥",
           meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
           symptoms:[
@@ -5084,7 +5088,7 @@ export default function App(){
         {
           title:"장기 연장 가능 단계",
           subtitle:"위험하지만 유동성으로 지속",
-          color:V3C.danger,
+          color:V3C.red,
           icon:"🧨",
           meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
           symptoms:[
@@ -5116,7 +5120,7 @@ export default function App(){
         {
           title:"초기 반등 단계",
           subtitle:"회복 신호 출현",
-          color:V3C.info,
+          color:V3C.blue,
           icon:"🌊",
           meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
           symptoms:[
@@ -5131,7 +5135,7 @@ export default function App(){
         {
           title:"반등 강화 단계",
           subtitle:"상승 전환 가능성 확대",
-          color:V3C.positive,
+          color:V3C.green,
           icon:"🚀",
           meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
           symptoms:[
@@ -5573,12 +5577,16 @@ export default function App(){
   };
 
   const strategy = getAegisStrategy(regimeLabel, dc.defcon);
-  const strategyColor =
-    regimeLabel.includes("침체") || regimeLabel.includes("바닥") ? "#34D399" :
-    regimeLabel.includes("버블") || regimeLabel.includes("긴축") || regimeLabel.includes("금리") ? "#F97316" :
-    regimeLabel.includes("신용") || regimeLabel.includes("위기") || regimeLabel.includes("복합") ? "#F87171" :
-    regimeLabel.includes("회복") || regimeLabel.includes("정상") || regimeLabel.includes("확장") ? "#34D399" :
-    "#60A5FA";
+  const getRegimeColor = (label) => {
+    const t = String(label || "").replace(/\s/g, "");
+    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return "#00C878";
+    if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return "#1E72F0";
+    if (t.includes("버블") && t.includes("말기")) return "#FF7830";
+    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return "#FF3D5A";
+    return darkMode ? "#8AA8C8" : "#64748B";
+  };
+
+  const strategyColor = getRegimeColor(regimeLabel);
 
   return (
     <div style={{
@@ -5627,7 +5635,7 @@ export default function App(){
   );
 
 })()}
-            </> /* v3core 탭 끝 */}
+            </> /* AEGIS 탭 끝 */}
 
             {marketSub==="defcon"&&<>
               {/* ══ AEGIS 포트폴리오 가이드 ══ */}
