@@ -4530,7 +4530,7 @@ export default function App(){
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
               {[["defcon","SEFCON"],["v3core","AEGIS"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>{
-                const tabColor = k==="defcon" ? C.red : k==="v3core" ? C.orange : C.blue;
+                const tabColor = k==="defcon" ? C.red : k==="v3core" ? "#2F6F5E" : C.blue;
                 return (
                 <button key={k} onClick={()=>setMarketSub(k)}
                   style={{flex:1,padding:"7px 0",borderRadius:8,
@@ -4881,7 +4881,7 @@ export default function App(){
 
       <details style={{marginTop:10}}>
         <summary style={{color:C.muted,fontSize:9,cursor:"pointer"}}>
-          레짐 전체 범례 보기
+          시장 국면 유형표 보기
         </summary>
 
         <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
@@ -5022,6 +5022,7 @@ export default function App(){
   };
 
   const levelColor = getRegimeColor(regimeLabel);
+  const uiColor = darkMode ? "#2F6F5E" : "#2F6F5E"; // AEGIS 딥 틸: 내부 UI 강조색
 
   const timingGrade = isBubbleLate
     ? timingScore >= 5 ? "붕괴 임박"
@@ -5062,7 +5063,7 @@ export default function App(){
           title:"초기 경고 단계",
           subtitle:"버블 내부 균열 시작",
           duration:"평균 진행 속도 1~3M",
-          color:levelColor,
+          color:uiColor,
           icon:"⚠️",
           meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
           symptoms:[
@@ -5078,7 +5079,7 @@ export default function App(){
           title:"위험 확대 단계",
           subtitle:"균열이 가격에 반영",
           duration:"평균 진행 속도 3~6M",
-          color:levelColor,
+          color:uiColor,
           icon:"🔥",
           meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
           symptoms:[
@@ -5094,7 +5095,7 @@ export default function App(){
           title:"장기 연장 가능 단계",
           subtitle:"위험하지만 유동성으로 지속",
           duration:"평균 진행 속도 6M+",
-          color:levelColor,
+          color:uiColor,
           icon:"🧨",
           meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
           symptoms:[
@@ -5112,7 +5113,7 @@ export default function App(){
           title:"관찰 단계",
           subtitle:"하락 둔화 관찰",
           duration:"평균 진행 속도 1~3M",
-          color:levelColor,
+          color:uiColor,
           icon:"🔍",
           meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
           symptoms:[
@@ -5128,7 +5129,7 @@ export default function App(){
           title:"초기 반등 단계",
           subtitle:"회복 신호 출현",
           duration:"평균 진행 속도 3~6M",
-          color:levelColor,
+          color:uiColor,
           icon:"🌊",
           meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
           symptoms:[
@@ -5144,7 +5145,7 @@ export default function App(){
           title:"반등 강화 단계",
           subtitle:"상승 전환 가능성 확대",
           duration:"평균 진행 속도 6M+",
-          color:levelColor,
+          color:uiColor,
           icon:"🚀",
           meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
           symptoms:[
@@ -5213,7 +5214,7 @@ export default function App(){
           <div style={{
             width:`${Math.round((timingScore / maxScore) * 100)}%`,
             height:"100%",
-            background:`linear-gradient(90deg,${levelColor}88,${levelColor})`,
+            background:`linear-gradient(90deg,${uiColor}88,${uiColor})`,
             borderRadius:8,
             transition:"width 0.6s ease"
           }}/>
@@ -5246,8 +5247,8 @@ export default function App(){
               width:9,
               height:9,
               borderRadius:"50%",
-              background:levelColor,
-              boxShadow:`0 0 14px ${levelColor}`
+              background:uiColor,
+              boxShadow:`0 0 14px ${uiColor}`
             }}/>
             <div style={{color:C.text,fontSize:11,fontWeight:900}}>
               시장 진행 단계 해석
@@ -5255,11 +5256,11 @@ export default function App(){
           </div>
 
           <div style={{
-            color:levelColor,
+            color:uiColor,
             fontSize:9,
             fontWeight:900,
-            background:`${levelColor}14`,
-            border:`1px solid ${levelColor}55`,
+            background:`${uiColor}14`,
+            border:`1px solid ${uiColor}55`,
             borderRadius:999,
             padding:"3px 9px",
             whiteSpace:"nowrap"
