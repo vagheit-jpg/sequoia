@@ -4429,11 +4429,83 @@ else {
             const dnProb=100-upProb;
             const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
             const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
-            const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=36?"단기 하락 주의":"1~2개월 이내 하락";
 
-            // ── 거시환경 연동 코멘트 (SEFCON × 지수 위치)
+            // ── 지수 전용 AEGIS 타이밍 엔진
+            // 기존 기술적 지표 판독은 유지하고, 그 결과를 지수용 레짐/시간축 시나리오로 번역합니다.
             const sefScore=dc?.totalScore??50;
             const macroRisk=sefScore<35?"위험":sefScore<50?"경계":sefScore<70?"중립":"양호";
+            const bandLevel=lastGap==null?"QMA":lastGap>=150?"EH":lastGap>=100?"VH":lastGap>=50?"H":lastGap<=-40?"VL":lastGap<=-20?"L":"QMA";
+            const macdWeak=lastMACD&&prevMACD?iLastHist<iPrevHist:false;
+            const macdStrong=lastMACD&&prevMACD?iLastHist>iPrevHist:false;
+            const obvWeak=lastOBV!=null&&prevOBV!=null?lastOBV<prevOBV:false;
+            const obvStrong=lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV:false;
+            const indexTiming=(()=>{
+              const overheat=(bandLevel==="EH"||bandLevel==="VH"||lastGap>=100);
+              const extreme=(bandLevel==="EH"||lastGap>=150||(lastRSI??0)>=85);
+              const bottom=(bandLevel==="VL"||bandLevel==="L"||lastGap<=-20);
+              const deepBottom=(bandLevel==="VL"||lastGap<=-40);
+              const macroBad=sefScore<50;
+              const macroGood=sefScore>=70;
+              const momentumWeak=macdWeak||obvWeak||sIHistSlope<0||sMACD<0;
+              const momentumStrong=macdStrong||obvStrong||sIHistSlope>0||sMACD>0;
+
+              if(extreme&&momentumWeak&&macroBad){
+                return{
+                  base:"1~3개월 내 변동성 확대 경계",
+                  alt:"유동성 지속 시 EH 과열 연장 가능",
+                  note:`${bandLevel} 과열 · RSI ${lastRSI!=null?lastRSI.toFixed(0):"-"} · SEFCON ${sefScore}pt`
+                };
+              }
+              if(overheat&&momentumWeak){
+                return{
+                  base:"3~6개월 내 과열 해소 우세",
+                  alt:macroGood?"거시 양호 시 EH 확장 가능":"반등 실패 시 조정 가속 가능",
+                  note:`${bandLevel}권 · 이격 ${lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"-"} · 모멘텀 둔화`
+                };
+              }
+              if(overheat){
+                return{
+                  base:"과열 유지 중, 단기 변동성 경계",
+                  alt:"추세 지속 시 추가 상승 후 후행 조정",
+                  note:`${bandLevel}권 · RSI ${lastRSI!=null?lastRSI.toFixed(0):"-"} · 수급 확인 필요`
+                };
+              }
+              if(deepBottom&&momentumStrong){
+                return{
+                  base:"1~3개월 내 평균회귀 반등 우세",
+                  alt:"경기충격 지속 시 저평가 장기화",
+                  note:`${bandLevel} 저평가 · MACD/수급 개선 확인`
+                };
+              }
+              if(bottom){
+                return{
+                  base:"1~6개월 내 반등 시도 가능",
+                  alt:"거시 악화 시 바닥권 횡보 지속",
+                  note:`${bandLevel}권 · 이격 ${lastGap!=null?`${lastGap>0?"+":""}${lastGap}%`:"-"}`
+                };
+              }
+              if(upProb>=60&&momentumStrong){
+                return{
+                  base:"1~3개월 상승 흐름 유지 가능",
+                  alt:"과열권 접근 시 속도 조절 필요",
+                  note:`QMA 상단 · 모멘텀 개선 · SEFCON ${sefScore}pt`
+                };
+              }
+              if(dnProb>=60&&momentumWeak){
+                return{
+                  base:"1~3개월 약세 압력 우세",
+                  alt:"QMA 방어 시 중립 복귀 가능",
+                  note:`QMA 부근 · 모멘텀 둔화 · 수급 확인 필요`
+                };
+              }
+              return{
+                base:"방향성 확인 구간",
+                alt:"상방·하방 모두 열려 있음",
+                note:`QMA 중립권 · SEFCON ${sefScore}pt · 추가 신호 대기`
+              };
+            })();
+
+            // ── 거시환경 연동 코멘트 (SEFCON × 지수 위치)
             let macroComment="";
             if(sefScore<35&&lastGap>50)       macroComment="⚠️ 거시 위험 + 지수 고평가 — 이중 하방 압력";
             else if(sefScore<35&&lastGap<-10)  macroComment="⚡ 거시 위험하나 지수 저점권 — 반등 vs 추가 하락 경합";
@@ -4505,8 +4577,11 @@ else {
                     <div style={{color:C.red,fontSize:19,fontWeight:900,fontFamily:"monospace"}}>{dnProb}%</div>
                   </div>
                   <div style={{flex:1,minWidth:110}}>
-                    <div style={{color:outColor,fontSize:12,fontWeight:900,marginBottom:2}}>{outlook}</div>
-                    <div style={{color:C.muted,fontSize:7}}>기대 전환: <span style={{color:outColor,fontWeight:700}}>{period}</span></div>
+                    <div style={{color:outColor,fontSize:12,fontWeight:900,marginBottom:3}}>{outlook}</div>
+                    <div style={{display:"grid",gap:2,lineHeight:1.25}}>
+                      <div style={{color:C.muted,fontSize:8}}>기본: <span style={{color:outColor,fontWeight:800}}>{indexTiming.base}</span></div>
+                      <div style={{color:C.muted,fontSize:8}}>대안: <span style={{color:C.muted,fontWeight:700}}>{indexTiming.alt}</span></div>
+                    </div>
                   </div>
                 </div>
                 {/* 확률 바 */}
