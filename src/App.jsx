@@ -720,6 +720,15 @@ const buildAegisMarketSnapshot=({market,monthly,macroData})=>{
     up_probability:upProb,
     down_probability:downProb,
     sefcon_score:sefScore,
+    // Bubble Energy: Supabase Table Editor에서 바로 보이도록 핵심값을 별도 컬럼에도 저장
+    bubble_energy_score:bubbleEnergy?.score??null,
+    bubble_energy_level:bubbleEnergy?.level??null,
+    bubble_energy_level_ko:bubbleEnergy?.levelKo??null,
+    bubble_expected_drawdown:bubbleEnergy?.expectedDrawdown?.text??null,
+    bubble_expected_duration:bubbleEnergy?.expectedDuration?.text??null,
+    bubble_ret12:bubbleEnergy?.ret12??null,
+    bubble_ret24:bubbleEnergy?.ret24??null,
+    bubble_similar_cases:bubbleEnergy?.similarCases??[],
     raw_data:raw,
     updated_at:now.toISOString(),
   };
@@ -2058,8 +2067,11 @@ export default function App(){
 
   // AEGIS 시장 스냅샷: KOSPI/KOSDAQ 월 1회 자동 Supabase upsert
   // snapshot_key = AEGIS_MARKET_V3_YYYY-MM_KOSPI / KOSDAQ
+  // 주의: 로컬 전송 캐시는 앱 저장 스키마 버전까지 포함한다.
+  //      그래서 Bubble Energy 같은 신규 필드가 추가되면 같은 달이라도 1회 재전송되어 DB가 보강된다.
   useEffect(()=>{
     if(!marketLoaded||!macroData)return;
+    const SNAPSHOT_STORAGE_SCHEMA="BE_COLUMNS_V1";
     const items=[
       buildAegisMarketSnapshot({market:"KOSPI",monthly:kospiMonthly,macroData}),
       buildAegisMarketSnapshot({market:"KOSDAQ",monthly:kosdaqMonthly,macroData}),
@@ -2067,13 +2079,13 @@ export default function App(){
     if(!items.length)return;
 
     items.forEach(async(snapshot)=>{
-      const localKey=`sq_snapshot_sent_${snapshot.snapshot_key}`;
+      const localKey=`sq_snapshot_sent_${SNAPSHOT_STORAGE_SCHEMA}_${snapshot.snapshot_key}`;
       try{
-        // 같은 브라우저에서는 월 1회만 전송. 다른 기기에서는 같은 snapshot_key로 upsert되어 중복 저장 방지.
+        // 같은 브라우저에서는 월+스키마버전 기준 1회만 전송. 다른 기기에서는 같은 snapshot_key로 upsert되어 중복 저장 방지.
         if(localStorage.getItem(localKey))return;
         await sbUpsertPredictionSnapshot(snapshot);
         localStorage.setItem(localKey,new Date().toISOString());
-        console.info("[AEGIS snapshot saved]",snapshot.snapshot_key);
+        console.info("[AEGIS snapshot saved]",snapshot.snapshot_key,snapshot.bubble_energy_score);
       }catch(e){
         console.warn("[AEGIS snapshot save failed]",snapshot.snapshot_key,e?.message||e);
       }
