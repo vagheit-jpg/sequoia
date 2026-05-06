@@ -4888,26 +4888,34 @@ export default function App(){
     </div>
   );
 })()}
-{/* ══ 시장 진행 단계 해석: 기존 타이밍 벨트 전체 교체 수정판 ══ */}
+{/* ══ 시장 진행 단계 해석: 타이밍 벨트 최종판 ══ */}
+{(() => {
+  const localIsBubbleLate =
+    typeof isBubbleLate !== "undefined"
+      ? isBubbleLate
+      : (
+          macroData?.regimeInsight?.regime?.primaryLabel || ""
+        ).includes("버블") &&
+        (
+          macroData?.regimeInsight?.regime?.primaryLabel || ""
+        ).includes("말기");
 
-  const beltColor = isBubbleLate
-    ? (
-        timingScore >= 5 ? C.red :
-        timingScore >= 3 ? C.orange :
-        C.gold
-      )
-    : (
-        timingScore >= 5 ? C.green :
-        timingScore >= 3 ? C.cyan :
-        C.blue
-      );
+  const localScore = Number.isFinite(timingScore) ? timingScore : 0;
 
-  const phaseList = isBubbleLate
+  const beltColor = localIsBubbleLate
+    ? localScore >= 5 ? C.red : localScore >= 3 ? C.orange : C.gold
+    : localScore >= 5 ? C.green : localScore >= 3 ? C.cyan : C.blue;
+
+  const localActiveBeltIndex =
+    typeof activeBeltIndex !== "undefined"
+      ? activeBeltIndex
+      : localScore <= 2 ? 0 : localScore <= 4 ? 1 : 2;
+
+  const phaseList = localIsBubbleLate
     ? [
         {
           title:"초기 경고 단계",
           subtitle:"버블 내부 균열 시작",
-          active:activeBeltIndex===0,
           color:"#D6A100",
           icon:"⚠️",
           meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
@@ -4923,7 +4931,6 @@ export default function App(){
         {
           title:"위험 확대 단계",
           subtitle:"균열이 가격에 반영",
-          active:activeBeltIndex===1,
           color:"#FF8A00",
           icon:"🔥",
           meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
@@ -4939,7 +4946,6 @@ export default function App(){
         {
           title:"장기 연장 가능 단계",
           subtitle:"위험하지만 유동성으로 지속",
-          active:activeBeltIndex===2,
           color:"#FF4D4F",
           icon:"🧨",
           meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
@@ -4957,7 +4963,6 @@ export default function App(){
         {
           title:"관찰 단계",
           subtitle:"하락 둔화 관찰",
-          active:activeBeltIndex===0,
           color:"#3B82F6",
           icon:"🔍",
           meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
@@ -4973,7 +4978,6 @@ export default function App(){
         {
           title:"초기 반등 단계",
           subtitle:"회복 신호 출현",
-          active:activeBeltIndex===1,
           color:"#06B6D4",
           icon:"🌊",
           meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
@@ -4989,7 +4993,6 @@ export default function App(){
         {
           title:"반등 강화 단계",
           subtitle:"상승 전환 가능성 확대",
-          active:activeBeltIndex===2,
           color:"#22C55E",
           icon:"🚀",
           meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
@@ -5008,8 +5011,8 @@ export default function App(){
     <div style={{marginTop:14}}>
       <div style={{
         display:"flex",
-        alignItems:"center",
         justifyContent:"space-between",
+        alignItems:"center",
         gap:8,
         marginBottom:10
       }}>
@@ -5030,12 +5033,13 @@ export default function App(){
           color:beltColor,
           fontSize:9,
           fontWeight:900,
-          background:`${beltColor}12`,
+          background:`${beltColor}14`,
           border:`1px solid ${beltColor}55`,
           borderRadius:999,
-          padding:"3px 9px"
+          padding:"3px 9px",
+          whiteSpace:"nowrap"
         }}>
-          {isBubbleLate ? "버블 진행 단계" : "침체 회복 단계"}
+          {localIsBubbleLate ? "버블 진행 단계" : "침체 회복 단계"}
         </div>
       </div>
 
@@ -5045,165 +5049,169 @@ export default function App(){
         lineHeight:1.6,
         marginBottom:10
       }}>
-        이 구간은 정확한 폭락·반등 시점 예측이 아니라, 현재 시장에서 나타나는 증상을 기준으로
+        이 구간은 정확한 폭락·반등 시점 예측이 아니라, 현재 시장에서 관찰되는 증상을 기준으로
         어느 단계에 가까운지를 해석한 것입니다.
       </div>
 
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {phaseList.map((phase,i)=>(
-          <div key={i} style={{
-            position:"relative",
-            overflow:"hidden",
-            borderRadius:16,
-            padding:"14px 14px",
-            background:phase.active
-              ? `linear-gradient(135deg, ${phase.color}20, ${phase.color}08)`
-              : C.card2,
-            border:phase.active
-              ? `1.5px solid ${phase.color}99`
-              : `1px solid ${C.border}`,
-            boxShadow:phase.active
-              ? `0 0 24px ${phase.color}33`
-              : "none",
-            opacity:phase.active ? 1 : 0.78
-          }}>
-            {phase.active && (
-              <div style={{
-                position:"absolute",
-                top:0,
-                left:0,
-                width:5,
-                height:"100%",
-                background:phase.color,
-                boxShadow:`0 0 18px ${phase.color}`
-              }}/>
-            )}
+        {phaseList.map((phase,i)=>{
+          const active = i === localActiveBeltIndex;
 
-            <div style={{
-              display:"flex",
-              justifyContent:"space-between",
-              alignItems:"center",
-              gap:10
+          return (
+            <div key={i} style={{
+              position:"relative",
+              overflow:"hidden",
+              borderRadius:16,
+              padding:"14px 14px",
+              background:active
+                ? `linear-gradient(135deg, ${phase.color}22, ${phase.color}08)`
+                : C.card2,
+              border:active
+                ? `1.5px solid ${phase.color}99`
+                : `1px solid ${C.border}`,
+              boxShadow:active
+                ? `0 0 24px ${phase.color}33`
+                : "none",
+              opacity:active ? 1 : 0.78
             }}>
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
+              {active && (
                 <div style={{
-                  width:38,
-                  height:38,
-                  borderRadius:13,
-                  background:phase.active ? `${phase.color}22` : C.dim,
-                  display:"flex",
-                  alignItems:"center",
-                  justifyContent:"center",
-                  fontSize:18,
-                  boxShadow:phase.active ? `0 0 14px ${phase.color}44` : "none"
-                }}>
-                  {phase.icon}
-                </div>
-
-                <div>
-                  <div style={{
-                    color:phase.active ? phase.color : C.text,
-                    fontSize:12,
-                    fontWeight:900
-                  }}>
-                    {phase.title}
-                  </div>
-                  <div style={{color:C.muted,fontSize:9,marginTop:2}}>
-                    {phase.subtitle}
-                  </div>
-                </div>
-              </div>
-
-              {phase.active && (
-                <div style={{
-                  background:`${phase.color}22`,
-                  color:phase.color,
-                  border:`1px solid ${phase.color}66`,
-                  borderRadius:999,
-                  padding:"4px 10px",
-                  fontSize:9,
-                  fontWeight:900,
-                  whiteSpace:"nowrap"
-                }}>
-                  현재 활성
-                </div>
+                  position:"absolute",
+                  top:0,
+                  left:0,
+                  width:5,
+                  height:"100%",
+                  background:phase.color,
+                  boxShadow:`0 0 18px ${phase.color}`
+                }}/>
               )}
-            </div>
 
-            <div style={{
-              marginTop:12,
-              color:C.text,
-              fontSize:10,
-              lineHeight:1.7
-            }}>
-              {phase.meaning}
-            </div>
-
-            <div style={{
-              marginTop:12,
-              background:phase.active ? `${phase.color}10` : C.dim,
-              borderRadius:12,
-              padding:"10px 12px"
-            }}>
               <div style={{
-                color:phase.active ? phase.color : C.text,
-                fontSize:10,
-                fontWeight:900,
-                marginBottom:8
+                display:"flex",
+                justifyContent:"space-between",
+                alignItems:"center",
+                gap:10
               }}>
-                시장 특징
-              </div>
-
-              <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {phase.symptoms.map((s,idx)=>(
-                  <div key={idx} style={{
+                <div style={{display:"flex",alignItems:"center",gap:10}}>
+                  <div style={{
+                    width:38,
+                    height:38,
+                    borderRadius:13,
+                    background:active ? `${phase.color}22` : C.dim,
                     display:"flex",
-                    alignItems:"flex-start",
-                    gap:7,
-                    fontSize:9,
-                    lineHeight:1.5,
-                    color:C.text
+                    alignItems:"center",
+                    justifyContent:"center",
+                    fontSize:18,
+                    boxShadow:active ? `0 0 14px ${phase.color}44` : "none"
                   }}>
-                    <span style={{
-                      color:phase.active ? phase.color : C.muted,
+                    {phase.icon}
+                  </div>
+
+                  <div>
+                    <div style={{
+                      color:active ? phase.color : C.text,
+                      fontSize:12,
                       fontWeight:900
                     }}>
-                      ●
-                    </span>
-                    <span>{s}</span>
+                      {phase.title}
+                    </div>
+                    <div style={{color:C.muted,fontSize:9,marginTop:2}}>
+                      {phase.subtitle}
+                    </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
 
-            <div style={{
-              marginTop:12,
-              borderRadius:12,
-              padding:"10px 12px",
-              background:phase.active ? `${phase.color}14` : "transparent",
-              border:phase.active
-                ? `1px solid ${phase.color}44`
-                : `1px dashed ${C.border}`
-            }}>
-              <div style={{
-                color:phase.active ? phase.color : C.muted,
-                fontSize:10,
-                fontWeight:900,
-                marginBottom:6
-              }}>
-                투자 해석
+                {active && (
+                  <div style={{
+                    background:`${phase.color}22`,
+                    color:phase.color,
+                    border:`1px solid ${phase.color}66`,
+                    borderRadius:999,
+                    padding:"4px 10px",
+                    fontSize:9,
+                    fontWeight:900,
+                    whiteSpace:"nowrap"
+                  }}>
+                    현재 활성
+                  </div>
+                )}
               </div>
 
               <div style={{
+                marginTop:12,
                 color:C.text,
-                fontSize:9,
-                lineHeight:1.6
+                fontSize:10,
+                lineHeight:1.7
               }}>
-                {phase.interpretation}
+                {phase.meaning}
+              </div>
+
+              <div style={{
+                marginTop:12,
+                background:active ? `${phase.color}10` : C.dim,
+                borderRadius:12,
+                padding:"10px 12px"
+              }}>
+                <div style={{
+                  color:active ? phase.color : C.text,
+                  fontSize:10,
+                  fontWeight:900,
+                  marginBottom:8
+                }}>
+                  시장 특징
+                </div>
+
+                <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                  {phase.symptoms.map((s,idx)=>(
+                    <div key={idx} style={{
+                      display:"flex",
+                      alignItems:"flex-start",
+                      gap:7,
+                      fontSize:9,
+                      lineHeight:1.5,
+                      color:C.text
+                    }}>
+                      <span style={{
+                        color:active ? phase.color : C.muted,
+                        fontWeight:900
+                      }}>
+                        ●
+                      </span>
+                      <span>{s}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{
+                marginTop:12,
+                borderRadius:12,
+                padding:"10px 12px",
+                background:active ? `${phase.color}14` : "transparent",
+                border:active
+                  ? `1px solid ${phase.color}44`
+                  : `1px dashed ${C.border}`
+              }}>
+                <div style={{
+                  color:active ? phase.color : C.muted,
+                  fontSize:10,
+                  fontWeight:900,
+                  marginBottom:6
+                }}>
+                  투자 해석
+                </div>
+
+                <div style={{
+                  color:C.text,
+                  fontSize:9,
+                  lineHeight:1.6
+                }}>
+                  {phase.interpretation}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <div style={{
@@ -5221,7 +5229,8 @@ export default function App(){
         현재 시장에서 관찰되는 증상과 월봉 트리거를 바탕으로 시장의 진행 상태를 해석합니다.
       </div>
     </div>
-
+  );
+})()}
        {/* ══ AEGIS 전략 엔진 카드 ══ */}
 {macroData?.regimeInsight && dc && (() => {
 
