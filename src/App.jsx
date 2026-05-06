@@ -3280,7 +3280,37 @@ export default function App(){
               const dnProb=100-upProb;
               const outlook=upProb>=80?"🚀 강한 상승":upProb>=70?"📈 상승 우세":upProb>=60?"🟢 소폭 상승":upProb>=55?"🟡 약한 상승":upProb>=46?"⚖️ 중립":upProb>=41?"🟠 약한 하락":upProb>=36?"🟠 소폭 하락 우세":upProb>=21?"📉 하락 우세":"🔴 강한 하락";
               const outColor=upProb>=70?C.green:upProb>=60?C.teal:upProb>=55?C.gold:upProb>=46?C.muted:upProb>=41?C.orange:C.red;
-              const period=upProb>=65?"1~2개월 이내 반등":upProb>=55?"단기 상승 유효":upProb>=46?"방향성 불분명":upProb>=36?"단기 하락 주의":"1~2개월 이내 하락";
+              // ── 월봉 기반 기간 엔진: 기존 UI는 유지하고, 고정 1~2개월 문구만 기술 패턴별로 세분화
+              const obvUp=lastOBV!=null&&prevOBV!=null?lastOBV>prevOBV:false;
+              const macdBull=lastHist>0;
+              const macdBear=lastHist<0;
+              const extremeOverheat=(priceZone==="EH"||gap>200)&&(lastRSI??0)>=75;
+              const highOverheat=(priceZone==="VH"||gap>100)&&(lastRSI??0)>=70;
+              const bottomZone=(priceZone==="VL"||priceZone==="L"||gap<-30);
+              const deepBottom=(priceZone==="VL"||gap<-45)&&(lastRSI==null||lastRSI<=40);
+              const bullishReversal=bottomZone&&(macdBull||scores.histSlope>0||obvUp);
+              const bearishBreak=(macdBear||scores.histSlope<0)&&!obvUp;
+              let period="방향성 불분명 · 관찰";
+              if(upProb>=70){
+                if(deepBottom&&bullishReversal) period="장기 바닥 반전 · 6~12개월";
+                else if(bullishReversal) period="바닥 회복 신호 · 3~6개월";
+                else if(macdBull&&obvUp) period="추세 재진입 · 2~4개월";
+                else period="상승 반응 신호 · 1~3개월";
+              } else if(upProb>=60){
+                if(bottomZone) period="과매도 회복 시도 · 2~4개월";
+                else period="상승 우위 관찰 · 1~3개월";
+              } else if(upProb>=55){
+                period="약한 상승 신호 · 1~2개월";
+              } else if(upProb>=46){
+                period="중립 대기 · 추가 확인 필요";
+              } else if(upProb>=36){
+                period=bearishBreak?"추세 약화 경고 · 1~3개월":"약한 하락 신호 · 1~2개월";
+              } else {
+                if(extremeOverheat) period="극단 과열 경고 · 2~6주";
+                else if(highOverheat) period="고점 과열 경고 · 1~3개월";
+                else if(bearishBreak) period="추세 훼손 경고 · 2~4개월";
+                else period="하락 압력 신호 · 1~3개월";
+              }
               return(
               <div style={{background:`${outColor}0e`,border:`1.5px solid ${outColor}44`,borderRadius:12,padding:"12px 14px",marginBottom:10}}>
                 <div style={{color:outColor,fontSize:10,fontWeight:800,marginBottom:6}}>🔭 월봉 기술적 종합 전망 (참고용)</div>
@@ -3295,7 +3325,7 @@ export default function App(){
                   </div>
                   <div style={{flex:1,minWidth:120}}>
                     <div style={{color:outColor,fontSize:13,fontWeight:900,marginBottom:3}}>{outlook}</div>
-                    <div style={{color:C.muted,fontSize:8}}>기대 방향 전환 시점: <span style={{color:outColor,fontWeight:700}}>{period}</span></div>
+                    <div style={{color:C.muted,fontSize:8}}>월봉 신호 유효기간: <span style={{color:outColor,fontWeight:700}}>{period}</span></div>
                   </div>
                 </div>
                 {/* 확률 바 */}
