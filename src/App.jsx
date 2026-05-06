@@ -4944,14 +4944,44 @@ export default function App(){
 
   const timingSignals = isBubbleLate
     ? [
-        { name:`RSI 과열 (${lastRsi.toFixed(1)})`, active:rsiOverbought, score:2 },
-        { name:"월봉 MACD 하향 크로스", active:macdCrossDown, score:2 },
-        { name:"OBV 수급 이탈", active:obvDown, score:2 },
+        {
+          name:`RSI 과열 (${lastRsi.toFixed(1)})`,
+          desc:"가격이 너무 빨리 오른 상태입니다.",
+          active:rsiOverbought,
+          score:2
+        },
+        {
+          name:"월봉 MACD 하향 크로스",
+          desc:"상승 추세가 꺾이기 시작하는 신호입니다.",
+          active:macdCrossDown,
+          score:2
+        },
+        {
+          name:"OBV 수급 이탈",
+          desc:"가격은 버티지만 거래량 흐름이 빠지는 신호입니다.",
+          active:obvDown,
+          score:2
+        },
       ]
     : [
-        { name:`RSI 과매도 (${lastRsi.toFixed(1)})`, active:rsiOversold, score:2 },
-        { name:"월봉 MACD 골든크로스", active:macdCrossUp, score:2 },
-        { name:"OBV 수급 재유입", active:obvUp, score:2 },
+        {
+          name:`RSI 과매도 (${lastRsi.toFixed(1)})`,
+          desc:"가격이 과하게 눌린 상태입니다.",
+          active:rsiOversold,
+          score:2
+        },
+        {
+          name:"월봉 MACD 골든크로스",
+          desc:"하락 추세가 상승으로 바뀌기 시작하는 신호입니다.",
+          active:macdCrossUp,
+          score:2
+        },
+        {
+          name:"OBV 수급 재유입",
+          desc:"거래량 흐름이 다시 들어오는 신호입니다.",
+          active:obvUp,
+          score:2
+        },
       ];
 
   const timingScore = timingSignals
@@ -4968,12 +4998,29 @@ export default function App(){
       : timingScore >= 3 ? "초기 반등"
       : "관찰";
 
+  const levelColor = isBubbleLate
+    ? (
+        timingScore >= 5 ? C.red :
+        timingScore >= 3 ? C.orange :
+        C.gold
+      )
+    : (
+        timingScore >= 5 ? C.green :
+        timingScore >= 3 ? C.cyan :
+        C.blue
+      );
+
+  const activeBeltIndex =
+    timingScore <= 2 ? 0 :
+    timingScore <= 4 ? 1 :
+    1;
+
   const timing = isBubbleLate
     ? {
         title:"버블 말기 타이밍 경고",
         stance:"붕괴 위험 시간창",
-        color:C.red,
-        summary:"가격 과열 이후 하락 전환이 발생할 수 있는 구간입니다. 시간보다 월봉 트리거 확인이 중요합니다.",
+        mainColor:C.red,
+        summary:"버블 말기 국면입니다. 다만 실제 붕괴 여부는 월봉 트리거가 몇 개 켜졌는지로 판단합니다.",
         windows:[
           ["1~3M","흔들림 시작 가능"],
           ["3~6M","급락 위험 최대"],
@@ -4981,14 +5028,14 @@ export default function App(){
         ],
         action:
           timingScore >= 5 ? "붕괴 신호가 강합니다. 비중 축소 속도를 빠르게 높이는 구간입니다."
-          : timingScore >= 3 ? "고위험 구간입니다. 신규 매수 금지 및 단계적 축소가 유리합니다."
-          : "아직 결정적 붕괴 신호는 부족합니다. 트리거 확인이 필요합니다."
+          : timingScore >= 3 ? "위험 신호가 누적되고 있습니다. 신규 매수 금지 및 단계적 축소가 유리합니다."
+          : "현재는 1개 신호만 켜진 경계 단계입니다. 아직 붕괴 확정은 아니며, MACD·OBV 추가 확인이 필요합니다."
       }
     : {
         title:"침체 바닥 타이밍 관찰",
         stance:"반등 전환 시간창",
-        color:C.cyan,
-        summary:"공포가 극대화된 이후 반등 전환이 나타날 수 있는 구간입니다. 일괄매수보다 확인 후 분할 접근이 유리합니다.",
+        mainColor:C.cyan,
+        summary:"침체 바닥 국면입니다. 실제 반등 여부는 월봉 회복 트리거가 몇 개 켜졌는지로 판단합니다.",
         windows:[
           ["1~3M","반등 시도 가능"],
           ["3~6M","상승 전환 가능성"],
@@ -5014,18 +5061,19 @@ export default function App(){
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-        <div style={{color:timing.color,fontSize:16,fontWeight:900}}>
+        <div style={{color:timing.mainColor,fontSize:16,fontWeight:900}}>
           {timing.title}
         </div>
         <div style={{
-          color:timing.color,
+          color:levelColor,
           fontSize:9,
           fontWeight:800,
           background:C.card2,
-          border:`1px solid ${C.border}`,
+          border:`1px solid ${levelColor}55`,
           borderRadius:999,
           padding:"2px 8px",
-          whiteSpace:"nowrap"
+          whiteSpace:"nowrap",
+          boxShadow:`0 0 10px ${levelColor}22`
         }}>
           {timing.stance}
         </div>
@@ -5038,16 +5086,17 @@ export default function App(){
       <div style={{
         marginTop:10,
         background:C.card2,
-        border:`1px solid ${timing.color}33`,
+        border:`1px solid ${levelColor}55`,
         borderRadius:10,
-        padding:"8px 10px"
+        padding:"8px 10px",
+        boxShadow:`0 0 12px ${levelColor}18`
       }}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
           <div style={{color:C.text,fontSize:10,fontWeight:800}}>
             신호 강도
           </div>
           <div style={{
-            color:timing.color,
+            color:levelColor,
             fontSize:10,
             fontWeight:900,
             fontFamily:"monospace"
@@ -5060,10 +5109,25 @@ export default function App(){
           <div style={{
             width:`${Math.round((timingScore / maxScore) * 100)}%`,
             height:"100%",
-            background:`linear-gradient(90deg,${timing.color}88,${timing.color})`,
+            background:`linear-gradient(90deg,${levelColor}88,${levelColor})`,
             borderRadius:8,
             transition:"width 0.6s ease"
           }}/>
+        </div>
+
+        <div style={{color:C.muted,fontSize:9,marginTop:6,lineHeight:1.45}}>
+          {isBubbleLate
+            ? timingScore >= 5
+              ? "월봉상 붕괴 트리거가 대부분 켜진 상태입니다."
+              : timingScore >= 3
+                ? "위험 신호가 늘고 있습니다. 하락 전환 가능성이 커졌습니다."
+                : "아직은 초기 경계입니다. 버블 말기이지만 붕괴 확정 신호는 부족합니다."
+            : timingScore >= 5
+              ? "월봉상 반등 트리거가 대부분 켜진 상태입니다."
+              : timingScore >= 3
+                ? "회복 신호가 늘고 있습니다. 반등 가능성이 커졌습니다."
+                : "아직은 관찰 단계입니다. 바닥 가능성은 있지만 확인 신호는 부족합니다."
+          }
         </div>
       </div>
 
@@ -5072,22 +5136,38 @@ export default function App(){
           타이밍 벨트
         </div>
 
-        <div style={{display:"flex",flexDirection:"column",gap:5}}>
-          {timing.windows.map((w,i)=>(
-            <div key={i} style={{
-              display:"flex",
-              justifyContent:"space-between",
-              gap:8,
-              background:C.card2,
-              border:`1px solid ${C.border}`,
-              borderRadius:8,
-              padding:"6px 8px",
-              fontSize:9
-            }}>
-              <span style={{color:timing.color,fontWeight:800}}>{w[0]}</span>
-              <span style={{color:C.muted}}>{w[1]}</span>
-            </div>
-          ))}
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {timing.windows.map((w,i)=>{
+            const activeBelt = i === activeBeltIndex;
+            return (
+              <div key={i} style={{
+                display:"flex",
+                justifyContent:"space-between",
+                alignItems:"center",
+                gap:8,
+                background:activeBelt ? `${levelColor}14` : C.card2,
+                border:`1.5px solid ${activeBelt ? levelColor+"99" : C.border}`,
+                borderRadius:10,
+                padding:"7px 9px",
+                fontSize:9,
+                boxShadow:activeBelt ? `0 0 12px ${levelColor}33` : "none"
+              }}>
+                <span style={{
+                  color:activeBelt ? levelColor : C.muted,
+                  fontWeight:activeBelt ? 900 : 700
+                }}>
+                  {activeBelt ? "● " : "○ "}{w[0]}
+                </span>
+
+                <span style={{
+                  color:activeBelt ? levelColor : C.muted,
+                  fontWeight:activeBelt ? 900 : 400
+                }}>
+                  {w[1]}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -5096,23 +5176,34 @@ export default function App(){
           확인 트리거
         </div>
 
-        <div style={{display:"flex",flexDirection:"column",gap:5}}>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {timingSignals.map((s,i)=>(
             <div key={i} style={{
               display:"flex",
               justifyContent:"space-between",
-              alignItems:"center",
+              alignItems:"flex-start",
               gap:8,
+              background:s.active ? `${levelColor}12` : "transparent",
+              border:s.active ? `1px solid ${levelColor}55` : `1px solid transparent`,
+              borderRadius:8,
+              padding:s.active ? "6px 8px" : "3px 0",
               fontSize:10,
               lineHeight:1.45,
-              color:s.active ? C.text : C.muted
+              color:s.active ? C.text : C.muted,
+              boxShadow:s.active ? `0 0 10px ${levelColor}22` : "none"
             }}>
-              <span>
-                {s.active ? "●" : "○"} {s.name}
-              </span>
+              <div>
+                <div style={{fontWeight:800,color:s.active ? levelColor : C.muted}}>
+                  {s.active ? "●" : "○"} {s.name}
+                </div>
+                <div style={{fontSize:9,color:C.muted,marginTop:2}}>
+                  {s.desc}
+                </div>
+              </div>
+
               <span style={{
-                color:s.active ? timing.color : C.muted,
-                fontWeight:800,
+                color:s.active ? levelColor : C.muted,
+                fontWeight:900,
                 fontFamily:"monospace",
                 whiteSpace:"nowrap"
               }}>
@@ -5125,11 +5216,11 @@ export default function App(){
 
       <div style={{
         marginTop:10,
-        background:`${timing.color}10`,
-        border:`1px solid ${timing.color}33`,
+        background:`${levelColor}10`,
+        border:`1px solid ${levelColor}44`,
         borderRadius:10,
         padding:"8px 10px",
-        color:timing.color,
+        color:levelColor,
         fontSize:10,
         fontWeight:800,
         lineHeight:1.5
