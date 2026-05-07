@@ -73,3 +73,58 @@ export const calcMFI = (monthly, n = 14) =>
       mfi: +(neg === 0 ? 100 : 100 - 100 / (1 + pos / neg)).toFixed(1),
     };
   });
+
+export const calcMA60 = (monthly) => {
+  const len = monthly.length;
+  const N = len >= 60 ? 60 : len >= 15 ? 15 : len >= 3 ? len : 0;
+
+  if (N === 0) {
+    return monthly.map((d) => ({ ...d, ma60: null, gap60: null }));
+  }
+
+  return monthly.map((d, i) => {
+    if (i < N - 1) return { ...d, ma60: null, gap60: null };
+
+    const avg = monthly
+      .slice(i - N + 1, i + 1)
+      .reduce((s, x) => s + x.price, 0) / N;
+
+    return {
+      ...d,
+      ma60: +avg.toFixed(0),
+      gap60: +((d.price / avg - 1) * 100).toFixed(2),
+    };
+  });
+};
+
+export const calcMAN = (monthly, N) => {
+  if (!monthly || monthly.length < N) return null;
+
+  const slice = monthly.slice(-N);
+  return Math.round(slice.reduce((s, x) => s + x.price, 0) / N);
+};
+
+export const calcSignalPoints = (data) => {
+  const pts = [];
+
+  data.forEach((d, i) => {
+    if (d.gap60 === null || d.ma60 === null) return;
+
+    const prev = i > 0 ? data[i - 1] : null;
+    if (!prev || prev.gap60 === null) return;
+
+    if (prev.gap60 > -20 && d.gap60 <= -20) {
+      pts.push({ label: d.label, price: d.price, type: "적극매수", color: "#00C878", arrow: "▲", pos: "bottom" });
+    } else if (prev.gap60 > 0 && d.gap60 <= 0) {
+      pts.push({ label: d.label, price: d.price, type: "매수", color: "#10A898", arrow: "▲", pos: "bottom" });
+    } else if (prev.gap60 < 100 && d.gap60 >= 100) {
+      pts.push({ label: d.label, price: d.price, type: "매도", color: "#FF7830", arrow: "▼", pos: "top" });
+    } else if (prev.gap60 < 200 && d.gap60 >= 200) {
+      pts.push({ label: d.label, price: d.price, type: "적극매도", color: "#FF3D5A", arrow: "▼", pos: "top" });
+    } else if (prev.gap60 < 300 && d.gap60 >= 300) {
+      pts.push({ label: d.label, price: d.price, type: "극단매도", color: "#8855FF", arrow: "▼", pos: "top" });
+    }
+  });
+
+  return pts;
+};
