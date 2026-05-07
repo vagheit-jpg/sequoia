@@ -1,4 +1,5 @@
 import { ema } from "./mathEngine";
+import { DARK } from "../constants/theme";
 
 export const calcMACD = (monthly) => {
   const cl = monthly.map((d) => d.price);
