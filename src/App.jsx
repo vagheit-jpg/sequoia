@@ -853,69 +853,6 @@ const parseExcel=(file)=>new Promise((resolve,reject)=>{
   reader.readAsBinaryString(file);
 });
 
-// ══════════════════════════════════════════════════════════════
-// 6. 종목 목록
-// ══════════════════════════════════════════════════════════════
-
-
-// 폴백용 기본 목록 (/api/corplist 실패 시)
-const FALLBACK_STOCKS = [
-  {name:"삼성전자",ticker:"005930",market:"KS"},{name:"SK하이닉스",ticker:"000660",market:"KS"},
-  {name:"LG에너지솔루션",ticker:"373220",market:"KS"},{name:"삼성바이오로직스",ticker:"207940",market:"KS"},
-  {name:"현대차",ticker:"005380",market:"KS"},{name:"기아",ticker:"000270",market:"KS"},
-  {name:"POSCO홀딩스",ticker:"005490",market:"KS"},{name:"LG화학",ticker:"051910",market:"KS"},
-  {name:"셀트리온",ticker:"068270",market:"KS"},{name:"KB금융",ticker:"105560",market:"KS"},
-  {name:"신한지주",ticker:"055550",market:"KS"},{name:"하나금융지주",ticker:"086790",market:"KS"},
-  {name:"카카오",ticker:"035720",market:"KS"},{name:"NAVER",ticker:"035420",market:"KS"},
-  {name:"삼성SDI",ticker:"006400",market:"KS"},{name:"현대모비스",ticker:"012330",market:"KS"},
-  {name:"LG전자",ticker:"066570",market:"KS"},{name:"SK텔레콤",ticker:"017670",market:"KS"},
-  {name:"한국전력",ticker:"015760",market:"KS"},{name:"크래프톤",ticker:"259960",market:"KS"},
-  {name:"삼성물산",ticker:"028260",market:"KS"},{name:"현대건설",ticker:"000720",market:"KS"},
-  {name:"삼성생명",ticker:"032830",market:"KS"},{name:"SK이노베이션",ticker:"096770",market:"KS"},
-  {name:"한화솔루션",ticker:"009830",market:"KS"},{name:"두산에너빌리티",ticker:"034020",market:"KS"},
-  {name:"카카오뱅크",ticker:"323410",market:"KS"},{name:"현대중공업",ticker:"329180",market:"KS"},
-  {name:"HD현대",ticker:"267250",market:"KS"},{name:"한국조선해양",ticker:"009540",market:"KS"},
-  {name:"대한항공",ticker:"003490",market:"KS"},{name:"CJ제일제당",ticker:"097950",market:"KS"},
-  {name:"오리온",ticker:"271560",market:"KS"},{name:"GS건설",ticker:"006360",market:"KS"},
-  {name:"롯데쇼핑",ticker:"023530",market:"KS"},{name:"이마트",ticker:"139480",market:"KS"},
-  {name:"호텔신라",ticker:"008770",market:"KS"},{name:"강원랜드",ticker:"035250",market:"KS"},
-  {name:"한국가스공사",ticker:"036460",market:"KS"},{name:"SK가스",ticker:"018670",market:"KS"},
-  {name:"엔씨소프트",ticker:"036570",market:"KS"},{name:"넷마블",ticker:"251270",market:"KS"},
-  {name:"코웨이",ticker:"021240",market:"KS"},{name:"고려아연",ticker:"010130",market:"KS"},
-  {name:"현대글로비스",ticker:"086280",market:"KS"},{name:"KT",ticker:"030200",market:"KS"},
-  {name:"LG유플러스",ticker:"032640",market:"KS"},{name:"우리금융지주",ticker:"316140",market:"KS"},
-  {name:"메리츠금융지주",ticker:"138040",market:"KS"},{name:"DB손해보험",ticker:"005830",market:"KS"},
-  {name:"한국금융지주",ticker:"071050",market:"KS"},{name:"삼성화재",ticker:"000810",market:"KS"},
-  {name:"현대해상",ticker:"001450",market:"KS"},{name:"미래에셋증권",ticker:"006800",market:"KS"},
-  {name:"키움증권",ticker:"039490",market:"KS"},{name:"NH투자증권",ticker:"005940",market:"KS"},
-  // KOSDAQ
-  {name:"엠아이텍",ticker:"179290",market:"KQ"},{name:"고려신용정보",ticker:"049720",market:"KQ"},
-  {name:"한국기업평가",ticker:"034950",market:"KQ"},{name:"에코프로비엠",ticker:"247540",market:"KQ"},
-  {name:"에코프로",ticker:"086520",market:"KQ"},{name:"카카오게임즈",ticker:"293490",market:"KQ"},
-  {name:"펄어비스",ticker:"263750",market:"KQ"},{name:"HLB",ticker:"028300",market:"KQ"},
-  {name:"알테오젠",ticker:"196170",market:"KQ"},{name:"리가켐바이오",ticker:"141080",market:"KQ"},
-  {name:"포스코DX",ticker:"022100",market:"KQ"},{name:"레인보우로보틱스",ticker:"277810",market:"KQ"},
-  {name:"비트로셀",ticker:"396270",market:"KQ"},{name:"퍼스텍",ticker:"010820",market:"KQ"},
-  {name:"셀트리온헬스케어",ticker:"091990",market:"KQ"},{name:"실리콘투",ticker:"257720",market:"KQ"},
-  {name:"클래시스",ticker:"214150",market:"KQ"},{name:"휴젤",ticker:"145020",market:"KQ"},
-  {name:"파마리서치",ticker:"214450",market:"KQ"},{name:"오스코텍",ticker:"039200",market:"KQ"},
-  {name:"메디톡스",ticker:"086900",market:"KQ"},{name:"바디텍메드",ticker:"206640",market:"KQ"},
-  {name:"루닛",ticker:"328130",market:"KQ"},{name:"뷰노",ticker:"338220",market:"KQ"},
-  {name:"씨젠",ticker:"096530",market:"KQ"},{name:"피씨엘",ticker:"241820",market:"KQ"},
-  {name:"솔브레인",ticker:"357780",market:"KQ"},{name:"원익IPS",ticker:"240810",market:"KQ"},
-  {name:"리노공업",ticker:"058470",market:"KQ"},{name:"HPSP",ticker:"403870",market:"KQ"},
-  {name:"이오테크닉스",ticker:"039030",market:"KQ"},{name:"테크윙",ticker:"089030",market:"KQ"},
-  {name:"피엔티",ticker:"137400",market:"KQ"},{name:"코스메카코리아",ticker:"241710",market:"KQ"},
-  {name:"한국콜마",ticker:"024720",market:"KQ"},{name:"코스맥스",ticker:"044820",market:"KQ"},
-  {name:"F&F",ticker:"383220",market:"KQ"},{name:"크리스에프앤씨",ticker:"110790",market:"KQ"},
-  {name:"오리온홀딩스",ticker:"001800",market:"KQ"},{name:"매일유업",ticker:"267980",market:"KQ"},
-  {name:"삼양식품",ticker:"003230",market:"KQ"},{name:"농심",ticker:"004370",market:"KQ"},
-  {name:"NHN",ticker:"181710",market:"KQ"},{name:"더블유게임즈",ticker:"192080",market:"KQ"},
-  {name:"컴투스",ticker:"078340",market:"KQ"},{name:"게임빌",ticker:"063080",market:"KQ"},
-  {name:"에스엠",ticker:"041510",market:"KQ"},{name:"와이지엔터테인먼트",ticker:"122870",market:"KQ"},
-  {name:"JYP Ent",ticker:"035900",market:"KQ"},{name:"하이브",ticker:"352820",market:"KS"},
-  {name:"카카오엔터테인먼트",ticker:"352820",market:"KQ"},{name:"위메이드",ticker:"112040",market:"KQ"},
-];
 
 // ══════════════════════════════════════════════════════════════
 // 7. 공통 UI
