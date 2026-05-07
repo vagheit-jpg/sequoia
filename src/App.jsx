@@ -21,7 +21,15 @@ import {
   calc3LineSignal,
   buildBandsFromQtr,
 } from "./engines/technicalEngine";
-
+import {
+  calcDCF_rate,
+  calcDCF_graham,
+  calcDCF_roe,
+  buildDCFHistory,
+  calcOwnerEarnings,
+  calcDCF_owner,
+  calcReverseDCF,
+} from "./engines/dcfEngine";
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
 // ══════════════════════════════════════════════════════════════
