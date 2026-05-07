@@ -30,40 +30,18 @@ import {
   calcDCF_owner,
   calcReverseDCF,
 } from "./engines/dcfEngine";
+import {
+  sbGetStocks,
+  sbUpsertStock,
+  sbUpsertPredictionSnapshot,
+  sbDeleteStock,
+  rowToStock,
+} from "./services/supabaseService";
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
 // ══════════════════════════════════════════════════════════════
 
 let C=DARK;
-
-// ══════════════════════════════════════════════════════════════
-// 1. Supabase
-// ══════════════════════════════════════════════════════════════
-
-const sbFetch=async(path,opts={})=>{
-  const {headers:extraHeaders={},...restOpts}=opts;
-  const r=await fetch(`${SB_URL}/rest/v1/${path}`,{
-    headers:{"apikey":SB_KEY,"Authorization":`Bearer ${SB_KEY}`,"Content-Type":"application/json","Prefer":"return=representation",...extraHeaders},
-    ...restOpts,
-  });
-  const txt=await r.text();
-  return txt?JSON.parse(txt):null;
-};
-const sbGetStocks=()=>sbFetch("stocks?select=*&order=name");
-const sbUpsertStock=(s)=>sbFetch("stocks?on_conflict=ticker",{method:"POST",
-  headers:{"Prefer":"resolution=merge-duplicates,return=representation"},
-  body:JSON.stringify({ticker:s.ticker,name:s.name,ann_data:s.annData||[],qtr_data:s.qtrData||[],div_data:s.divData||[],updated_at:new Date().toISOString()}),
-});
-// AEGIS/SEFCON 예측 스냅샷 저장소
-// - Supabase: public.sefcon_prediction_snapshots
-// - snapshot_key 기준 월 1회 upsert
-// - raw_data는 향후 성과검증/재학습용 원본 패킷
-const sbUpsertPredictionSnapshot=(snapshot)=>sbFetch("sefcon_prediction_snapshots?on_conflict=snapshot_key",{method:"POST",
-  headers:{"Prefer":"resolution=merge-duplicates,return=minimal"},
-  body:JSON.stringify(snapshot),
-});
-const sbDeleteStock=(ticker)=>sbFetch(`stocks?ticker=eq.${ticker}`,{method:"DELETE"});
-const rowToStock=(r)=>({ticker:r.ticker,name:r.name,annData:r.ann_data||[],qtrData:r.qtr_data||[],divData:r.div_data||[]});
 
 // ══════════════════════════════════════════════════════════════
 // 2. 주가: 키움 REST API 서버리스 중계 + localStorage 캐시
