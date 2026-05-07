@@ -58,7 +58,56 @@ let C=DARK;
 // ══════════════════════════════════════════════════════════════
 // 7. 공통 UI
 // ══════════════════════════════════════════════════════════════
+const QTick=({x,y,payload,yearOnly})=>{
+  if(!payload?.value)return null;
+  const parts=payload.value.split(".");
+  const yr=parseInt(parts[0]),mo=parseInt(parts[1]||"1");
+  const qMap={1:"Q1",4:"Q2",7:"Q3",10:"Q4"};
+  const q=qMap[mo];
+  if(yearOnly){
+    if(mo!==1)return null;
+    return(
+      <g transform={`translate(${x},${y+4})`}>
+        <text textAnchor="middle" fill={C.muted} fontSize={10} fontFamily="monospace">{yr}</text>
+      </g>
+    );
+  }
+  if(!q)return null;
+  const isQ1=mo===1;
+  return(
+    <g transform={`translate(${x},${y+2})`}>
+      {isQ1&&<text y={0} textAnchor="middle" fill={C.text} fontSize={10} fontWeight={700} fontFamily="monospace">{yr}</text>}
+      <text y={isQ1?14:0} textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{q}</text>
+    </g>
+  );
+};
 
+const FinTick=({x,y,payload})=>(
+  <g transform={`translate(${x},${y+4})`}>
+    <text textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{payload?.value}</text>
+  </g>
+);
+
+const MTip=({active,payload,label})=>{
+  if(!active||!payload?.length)return null;
+  return(
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 11px",fontSize:11,minWidth:120}}>
+      <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontFamily:"monospace"}}>{label}</div>
+      {payload.map((p,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:2}}>
+          <span style={{color:C.muted}}>{p.name}</span>
+          <span style={{color:p.color||C.text,fontFamily:"monospace",fontWeight:700}}>
+            {typeof p.value==="number"
+              ?(Number.isInteger(p.value)
+                ?p.value.toLocaleString()
+                :p.value.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1}))
+              :p.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+};
 // ══════════════════════════════════════════════════════════════
 // 8. 메인 앱
 // ══════════════════════════════════════════════════════════════
