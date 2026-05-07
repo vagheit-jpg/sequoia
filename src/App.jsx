@@ -1,18 +1,16 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import {
   ComposedChart, AreaChart, Area, Bar, Line, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ReferenceLine, ReferenceArea, ReferenceDot,
 } from "recharts";
 import { DARK, LIGHT } from "./constants/theme";
-import { PRICE_CACHE_TTL } from "./constants/cache";
 import {
   calcMACD,
   calcRSI,
   calcOBV,
   calcMFI,
   calcMA60,
-  calcMAN,
   calcSignalPoints,
   calcPositionBands,
   calc3LineSignal,
@@ -23,7 +21,6 @@ import {
   calcDCF_graham,
   calcDCF_roe,
   buildDCFHistory,
-  calcOwnerEarnings,
   calcDCF_owner,
   calcReverseDCF,
 } from "./engines/dcfEngine";
