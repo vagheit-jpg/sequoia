@@ -2038,7 +2038,7 @@ export default function App(){
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
     // localStorage 캐시 우선 (24시간 TTL)
-    const MACRO_CACHE_TTL=24*60*60*1000;
+    const MACRO_CACHE_TTL=6*60*60*1000;
     let cached=null;
     try{
       const raw=localStorage.getItem("sq_macro_v1");
