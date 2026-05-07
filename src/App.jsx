@@ -7,6 +7,7 @@ import {
 } from "recharts";
 import { DARK, LIGHT } from "./constants/theme";
 import { PRICE_CACHE_TTL } from "./constants/cache";
+import { SB_URL, SB_KEY } from "./constants/supabase";
 
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
@@ -17,8 +18,7 @@ let C=DARK;
 // ══════════════════════════════════════════════════════════════
 // 1. Supabase
 // ══════════════════════════════════════════════════════════════
-const SB_URL="https://ozbosdkdwechddpdajgy.supabase.co";
-const SB_KEY="sb_publishable_m6hqPF2sFbHJDlm5iYtjfQ_WhXBBQSV";
+
 const sbFetch=async(path,opts={})=>{
   const {headers:extraHeaders={},...restOpts}=opts;
   const r=await fetch(`${SB_URL}/rest/v1/${path}`,{
