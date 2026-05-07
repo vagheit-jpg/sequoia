@@ -43,6 +43,11 @@ import OutsiderTab from "./tabs/OutsiderTab";
 import MoatTab from "./tabs/MoatTab";
 import BuffettTab from "./tabs/BuffettTab";
 import Tag from "./components/common/Tag";
+import Box from "./components/common/Box";
+import ST from "./components/common/SectionTitle";
+import CW from "./components/common/ChartWrapper";
+import ViewToggle from "./components/common/ViewToggle";
+import colorRef from "./components/common/colorRef";
 
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
@@ -53,56 +58,16 @@ let C=DARK;
 // ══════════════════════════════════════════════════════════════
 // 7. 공통 UI
 // ══════════════════════════════════════════════════════════════
-const Box=({children,p="12px 14px",mb=12,style={}})=>(
-  <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:11,padding:p,marginBottom:mb,...style}}>{children}</div>
-);
-const ST=({children,accent,right})=>(
-  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,marginTop:4}}>
-    <div style={{color:accent,fontSize:12,fontWeight:700,letterSpacing:"0.05em",borderLeft:`3px solid ${accent}`,paddingLeft:8}}>{children}</div>
-    {right&&<div style={{color:C.muted,fontSize:10}}>{right}</div>}
-  </div>
-);
-const CW=({children,h=200})=>(
-  <div style={{marginBottom:16}}><ResponsiveContainer width="100%" height={h}>{children}</ResponsiveContainer></div>
-);
-const QTick=({x,y,payload,yearOnly})=>{
-  if(!payload?.value)return null;
-  const parts=payload.value.split(".");
-  const yr=parseInt(parts[0]),mo=parseInt(parts[1]||"1");
-  const qMap={1:"Q1",4:"Q2",7:"Q3",10:"Q4"};const q=qMap[mo];
-  if(yearOnly){if(mo!==1)return null;return(<g transform={`translate(${x},${y+4})`}><text textAnchor="middle" fill={C.muted} fontSize={10} fontFamily="monospace">{yr}</text></g>);}
-  if(!q)return null;const isQ1=mo===1;
-  return(<g transform={`translate(${x},${y+2})`}>
-    {isQ1&&<text y={0} textAnchor="middle" fill={C.text} fontSize={10} fontWeight={700} fontFamily="monospace">{yr}</text>}
-    <text y={isQ1?14:0} textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{q}</text>
-  </g>);
-};
-const FinTick=({x,y,payload})=>(<g transform={`translate(${x},${y+4})`}><text textAnchor="middle" fill={C.muted} fontSize={9} fontFamily="monospace">{payload?.value}</text></g>);
-const MTip=({active,payload,label})=>{
-  if(!active||!payload?.length)return null;
-  return(<div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,padding:"8px 11px",fontSize:11,minWidth:120}}>
-    <div style={{color:C.gold,fontWeight:700,marginBottom:4,fontFamily:"monospace"}}>{label}</div>
-    {payload.map((p,i)=>(<div key={i} style={{display:"flex",justifyContent:"space-between",gap:10,marginBottom:2}}>
-      <span style={{color:C.muted}}>{p.name}</span>
-      <span style={{color:p.color||C.text,fontFamily:"monospace",fontWeight:700}}>{typeof p.value==="number"?(Number.isInteger(p.value)?p.value.toLocaleString():p.value.toLocaleString(undefined,{minimumFractionDigits:1,maximumFractionDigits:1})):p.value}</span>
-    </div>))}
-  </div>);
-};
-const ViewToggle=({view,setView})=>(
-  <div style={{display:"flex",gap:4,marginBottom:10}}>
-    {["연간","분기"].map(v=>(<button key={v} onClick={()=>setView(v)}
-      style={{background:view===v?`${C.blue}22`:"transparent",color:view===v?C.blue:C.muted,
-        border:`1px solid ${view===v?C.blue:C.border}`,borderRadius:6,padding:"4px 14px",fontSize:11,cursor:"pointer",fontWeight:view===v?700:400}}>{v}</button>))}
-  </div>
-);
 
 // ══════════════════════════════════════════════════════════════
 // 8. 메인 앱
 // ══════════════════════════════════════════════════════════════
- 
+
+
 export default function App(){
   const [darkMode,setDarkMode]=useState(false);
   C=darkMode?DARK:LIGHT;
+  colorRef.current=C;
 
   const [stocks,setStocks]=useState([]);
   const [activeIdx,setActiveIdx]=useState(0);
