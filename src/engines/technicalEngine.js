@@ -128,3 +128,45 @@ export const calcSignalPoints = (data) => {
 
   return pts;
 };
+
+export const calcPositionBands = (monthly) => {
+  if (!monthly || monthly.length === 0) return [];
+
+  return monthly.map((d, i) => {
+    const currentWindowSize = Math.min(i + 1, 60);
+
+    if (currentWindowSize < 3) {
+      return {
+        ...d,
+        bFloor: null,
+        bKnee: null,
+        bBase: null,
+        bShoulder: null,
+        bTop: null,
+        bPeak: null,
+      };
+    }
+
+    const window = monthly.slice(
+      i - currentWindowSize + 1,
+      i + 1
+    );
+
+    const sum = window.reduce(
+      (s, x) => s + (x.price || 0),
+      0
+    );
+
+    const ma = sum / window.length;
+
+    return {
+      ...d,
+      bFloor: Math.round(ma * 0.6),
+      bKnee: Math.round(ma * 0.8),
+      bBase: Math.round(ma * 1.0),
+      bShoulder: Math.round(ma * 1.5),
+      bTop: Math.round(ma * 2.0),
+      bPeak: Math.round(ma * 2.5),
+    };
+  });
+};
