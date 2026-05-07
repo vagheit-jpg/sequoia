@@ -42,6 +42,7 @@ import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
 import MoatTab from "./tabs/MoatTab";
 import BuffettTab from "./tabs/BuffettTab";
+import Tag from "./components/common/Tag";
 
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
