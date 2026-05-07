@@ -9,6 +9,7 @@ import { DARK, LIGHT } from "./constants/theme";
 import { PRICE_CACHE_TTL } from "./constants/cache";
 import { SB_URL, SB_KEY } from "./constants/supabase";
 import { ema } from "./engines/mathEngine";
+import { calcMACD } from "./engines/technicalEngine";
 
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
