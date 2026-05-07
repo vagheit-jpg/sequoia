@@ -404,3 +404,121 @@ export const calc3LineSignal=(monthly, fin={})=>{
   };
 };
 
+export const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
+  if(!monthly.length)return monthly;
+  // 연간 데이터: EPS/BPS/PER/PBR 모두 맵으로 저장
+  const epsMap={},bpsMap={},perLoMap={},perMidMap={},perHiMap={},pbrLoMap={},pbrMidMap={},pbrHiMap={};
+  const ann=annData||[];
+
+  if(bandCfg){
+    // ── 수동모드: 사용자가 입력한 배수 × 보간된 EPS/BPS
+    ann.forEach(r=>{
+      if(r.eps!=null)epsMap[`${r.year}.12`]=r.eps;
+      if(r.bps!=null)bpsMap[`${r.year}.12`]=r.bps;
+    });
+    const interp=(label,map)=>{
+      const keys=Object.keys(map).sort();if(!keys.length)return null;
+      const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
+      let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
+      let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
+      if(!k0)return null;
+      if(!k1)return map[k0]||0;
+      const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
+      const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
+      return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
+    };
+    return monthly.map(d=>{
+      const eVal=interp(d.label,epsMap);
+      const bVal=interp(d.label,bpsMap);
+      return{...d,
+        perLo :eVal!=null?Math.round(eVal*bandCfg.perLo):null,
+        perMid:eVal!=null?Math.round(eVal*bandCfg.perMid):null,
+        perHi :eVal!=null?Math.round(eVal*bandCfg.perHi):null,
+        pbrLo :bVal!=null?Math.round(bVal*bandCfg.pbrLo):null,
+        pbrMid:bVal!=null?Math.round(bVal*bandCfg.pbrMid):null,
+        pbrHi :bVal!=null?Math.round(bVal*bandCfg.pbrHi):null,
+        _adaptive:bandCfg,
+      };
+    });
+  }
+
+  // ── 자동모드: 연도별 실제 PER/PBR × 해당연도 EPS/BPS
+  // 각 연도의 실제 PER(min/mid/max), PBR(min/mid/max)를 연도별로 직접 저장
+  // min=해당연도PER, mid=해당연도PER, max=해당연도PER (1개면 동일)
+  // 여러 연도 데이터로 연도별 Lo/Mid/Hi 밴드를 구성:
+  // ── 1단계: 기본 유효 데이터 (EPS/BPS 있고 명백한 이상치 제거)
+  const rawValidPer=ann.filter(r=>r.per>0&&r.per<200&&r.eps!=null&&r.eps>0);
+  const rawValidPbr=ann.filter(r=>r.pbr>0&&r.pbr<30&&r.bps!=null&&r.bps>0);
+
+  // ── 2단계: 중앙값 먼저 산출
+  const medOf=(arr,fn)=>{const s=[...arr].sort((a,b)=>fn(a)-fn(b));return s.length?fn(s[Math.floor((s.length-1)/2)]):null;};
+  const medPer=medOf(rawValidPer,r=>r.per)||13;
+  const medPbr=medOf(rawValidPbr,r=>r.pbr)||2.0;
+
+  // ── 3단계: 중앙값 기준 ×0.2~×4 이내만 최종 허용 (이상치 제거)
+  const validPer=rawValidPer.filter(r=>r.per>=medPer*0.2&&r.per<=medPer*4);
+  const validPbr=rawValidPbr.filter(r=>r.pbr>=medPbr*0.2&&r.pbr<=medPbr*4);
+
+  // ── midPer/midPbr: 필터 후 중앙값 재산출
+  const midPer=medOf(validPer,r=>r.per)||medPer;
+  const midPbr=medOf(validPbr,r=>r.pbr)||medPbr;
+
+  // ── Lo/Hi: midPer 기준 대칭 배수 (중간선이 항상 중앙에)
+  // 실제 데이터 범위도 참고하되 midPer ±60% 이내로 클램프
+  const rawMinPer=validPer.length?Math.min(...validPer.map(r=>r.per)):null;
+  const rawMaxPer=validPer.length?Math.max(...validPer.map(r=>r.per)):null;
+  const rawMinPbr=validPbr.length?Math.min(...validPbr.map(r=>r.pbr)):null;
+  const rawMaxPbr=validPbr.length?Math.max(...validPbr.map(r=>r.pbr)):null;
+
+  // 실제 min/max 범위를 midPer 기준으로 비율화 후 대칭 적용
+  const perSpread=rawMinPer&&rawMaxPer?Math.max((midPer-rawMinPer)/midPer,(rawMaxPer-midPer)/midPer):0.5;
+  const pbrSpread=rawMinPbr&&rawMaxPbr?Math.max((midPbr-rawMinPbr)/midPbr,(rawMaxPbr-midPbr)/midPbr):0.5;
+  const perLo=+(midPer*(1-Math.min(perSpread,0.6))).toFixed(1);
+  const perHi=+(midPer*(1+Math.min(perSpread,0.6))).toFixed(1);
+  const pbrLo=+(midPbr*(1-Math.min(pbrSpread,0.6))).toFixed(2);
+  const pbrHi=+(midPbr*(1+Math.min(pbrSpread,0.6))).toFixed(2);
+
+  const interp=(label,map)=>{
+    const keys=Object.keys(map).sort();if(!keys.length)return null;
+    const [yr,mo]=label.split(".").map(Number),val=yr*12+(mo||6);
+    let k0=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)<=val;}).slice(-1)[0];
+    let k1=keys.filter(k=>{const[y,m]=k.split(".").map(Number);return y*12+(m||6)>val;})[0];
+    if(!k0)return null;
+    if(!k1)return map[k0]||0;
+    const[y0,m0]=k0.split(".").map(Number),[y1,m1]=k1.split(".").map(Number);
+    const t=(val-(y0*12+(m0||6)))/((y1*12+(m1||6))-(y0*12+(m0||6)));
+    return (map[k0]||0)+((map[k1]||0)-(map[k0]||0))*t;
+  };
+
+  // ── 연도별 밴드맵: midPer/Lo/Hi 고정 배수 × EPS 보간
+  ann.forEach(r=>{
+    const key=`${r.year}.12`;
+    if(r.eps!=null&&r.eps>0){
+      epsMap[key]=r.eps;
+      perLoMap[key]=Math.round(r.eps*perLo);
+      perMidMap[key]=Math.round(r.eps*midPer);
+      perHiMap[key]=Math.round(r.eps*perHi);
+    }
+    if(r.bps!=null&&r.bps>0){
+      bpsMap[key]=r.bps;
+      pbrLoMap[key]=Math.round(r.bps*pbrLo);
+      pbrMidMap[key]=Math.round(r.bps*midPbr);
+      pbrHiMap[key]=Math.round(r.bps*pbrHi);
+    }
+  });
+
+  const _adaptive={
+    perLo:perLo,perMid:+midPer.toFixed(1),perHi:perHi,
+    pbrLo:pbrLo,pbrMid:+midPbr.toFixed(2),pbrHi:pbrHi,
+  };
+
+  return monthly.map(d=>({...d,
+    perLo :interp(d.label,perLoMap),
+    perMid:interp(d.label,perMidMap),
+    perHi :interp(d.label,perHiMap),
+    pbrLo :interp(d.label,pbrLoMap),
+    pbrMid:interp(d.label,pbrMidMap),
+    pbrHi :interp(d.label,pbrHiMap),
+    _adaptive,
+  }));
+};
