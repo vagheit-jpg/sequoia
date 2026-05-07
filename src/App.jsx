@@ -36,6 +36,7 @@ import {
   rowToStock,
 } from "./services/supabaseService";
 import { fetchPrice } from "./services/priceService";
+import { buildBubbleEnergyModel } from "./engines/bubbleEngine";
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
 // ══════════════════════════════════════════════════════════════
