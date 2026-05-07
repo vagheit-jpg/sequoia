@@ -322,11 +322,7 @@ const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
   for(let j=1;j<sl.length;j++){const df=sl[j].price-sl[j-1].price;if(df>0)g+=df;else l-=df;}
   return{...d,rsi:+(l===0?100:100-(100/(1+g/l/n*(n)))).toFixed(1)};
 });
-const calcMACD=(monthly)=>{
-  const cl=monthly.map(d=>d.price),e12=ema(cl,12),e26=ema(cl,26);
-  const macd=cl.map((_,i)=>+(e12[i]-e26[i])),sig=ema(macd,9);
-  return monthly.map((d,i)=>({...d,macd:macd[i],signal:sig[i],hist:+(macd[i]-sig[i])}));
-};
+
 const calcOBV=(monthly)=>{let obv=0;return monthly.map((d,i)=>{
   if(i===0)return{...d,obv:0};
   obv+=d.price>monthly[i-1].price?d.volume:d.price<monthly[i-1].price?-d.volume:0;
