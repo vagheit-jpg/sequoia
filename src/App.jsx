@@ -6,6 +6,7 @@ import {
   ReferenceLine, ReferenceArea, ReferenceDot,
 } from "recharts";
 import { DARK, LIGHT } from "./constants/theme";
+import { PRICE_CACHE_TTL } from "./constants/cache";
 
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
@@ -46,7 +47,6 @@ const rowToStock=(r)=>({ticker:r.ticker,name:r.name,annData:r.ann_data||[],qtrDa
 // ══════════════════════════════════════════════════════════════
 // 2. 주가: 키움 REST API 서버리스 중계 + localStorage 캐시
 // ══════════════════════════════════════════════════════════════
-const PRICE_CACHE_TTL=60*60*1000;
 
 const fetchPrice=async(ticker,market)=>{
   try{
