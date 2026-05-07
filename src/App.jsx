@@ -35,6 +35,7 @@ import {
   sbDeleteStock,
   rowToStock,
 } from "./services/supabaseService";
+import { fetchPrice } from "./services/priceService";
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
 // ══════════════════════════════════════════════════════════════
