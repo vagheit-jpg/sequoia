@@ -1931,7 +1931,7 @@ export default function App(){
   const [bandDraft,setBandDraft]=useState(null); // null=자동모드
   const [bandApplied,setBandApplied]=useState(null); // null=자동모드
   // 전체 종목 목록 (KRX 동적 로드)
-  const [stockList,setStockList]=useState(FALLBACK_STOCKS);
+  const [stockList,setStockList]=useState([]);
   const fileRef=useRef();
   const searchRef=useRef();
   const RANGES=[{label:"10년",months:120},{label:"5년",months:60},{label:"3년",months:36},{label:"1년",months:12}];
