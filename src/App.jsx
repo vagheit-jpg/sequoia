@@ -321,24 +321,7 @@ const calc3LineSignal=(monthly, fin={})=>{
     dimension,
   };
 };
-const calcRSI=(monthly,n=14)=>monthly.map((d,i)=>{
-  if(i<n)return{...d,rsi:null};
-  const sl=monthly.slice(i-n+1,i+1);let g=0,l=0;
-  for(let j=1;j<sl.length;j++){const df=sl[j].price-sl[j-1].price;if(df>0)g+=df;else l-=df;}
-  return{...d,rsi:+(l===0?100:100-(100/(1+g/l/n*(n)))).toFixed(1)};
-});
 
-const calcOBV=(monthly)=>{let obv=0;return monthly.map((d,i)=>{
-  if(i===0)return{...d,obv:0};
-  obv+=d.price>monthly[i-1].price?d.volume:d.price<monthly[i-1].price?-d.volume:0;
-  return{...d,obv};
-});};
-const calcMFI=(monthly,n=14)=>monthly.map((d,i)=>{
-  if(i<n)return{...d,mfi:null};
-  const sl=monthly.slice(i-n+1,i+1);let pos=0,neg=0;
-  sl.forEach((s,j)=>{if(j===0)return;const mfr=s.price*s.volume;if(s.price>sl[j-1].price)pos+=mfr;else neg+=mfr;});
-  return{...d,mfi:+(neg===0?100:100-(100/(1+pos/neg))).toFixed(1)};
-});
 // 가격 위치 밴드 — ma60 배수 기반 통일
 // 무릎x0.8 / 기준=x1.0 / 어깨x1.5 / 상투x2.0 / 초과열 상단x2.5
 const calcPositionBands = (monthly) => {
