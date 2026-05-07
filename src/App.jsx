@@ -8,6 +8,7 @@ import {
 import { DARK, LIGHT } from "./constants/theme";
 import { PRICE_CACHE_TTL } from "./constants/cache";
 import { SB_URL, SB_KEY } from "./constants/supabase";
+import { ema } from "./engines/mathEngine";
 
 // ══════════════════════════════════════════════════════════════
 // 0. 색상
@@ -67,7 +68,6 @@ const fetchPrice=async(ticker,market)=>{
 // ══════════════════════════════════════════════════════════════
 // 3. 기술적 지표
 // ══════════════════════════════════════════════════════════════
-const ema=(arr,n)=>{const k=2/(n+1);let e=arr[0];return arr.map((v,i)=>{if(i===0)return e;e=v*k+e*(1-k);return+e.toFixed(2);});};
 
 const calcMA60=(monthly)=>{
   const len=monthly.length;
