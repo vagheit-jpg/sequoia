@@ -404,3 +404,18 @@ export const calc3LineSignal=(monthly, fin={})=>{
   };
 };
 
+export const buildBandsFromQtr = (qtr = []) => {
+  if (!qtr || qtr.length === 0) return [];
+
+  return qtr.map((q) => {
+    const eps = q.eps || 0;
+
+    return {
+      ...q,
+      lowBand: Math.round(eps * 8),
+      fairBand: Math.round(eps * 15),
+      highBand: Math.round(eps * 25),
+      extremeBand: Math.round(eps * 40),
+    };
+  });
+};
