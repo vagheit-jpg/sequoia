@@ -45,14 +45,6 @@ import { buildAegisMarketSnapshot } from "./engines/aegisEngine";
 let C=DARK;
 
 // ══════════════════════════════════════════════════════════════
-// 3-A. AEGIS 시장 스냅샷 엔진 — 월 1회 Supabase 저장용
-// ══════════════════════════════════════════════════════════════
-const sqClamp=(v,min,max)=>Math.min(max,Math.max(min,v));
-const sqNum=(v,d=2)=>Number.isFinite(Number(v))?+Number(v).toFixed(d):null;
-const sqMonthKey=(date=new Date())=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}`;
-
-
-// ══════════════════════════════════════════════════════════════
 // 3-B. Bubble Energy v1 — 급등 에너지/평균회귀 위험 추정 엔진
 // ══════════════════════════════════════════════════════════════
 // 주의: 아래 사례값은 정밀 예언이 아니라 역사적 버블·충격 구간의 대표 범위(anchor)입니다.
