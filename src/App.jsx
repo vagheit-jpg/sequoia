@@ -3324,8 +3324,8 @@ else {
       marginBottom:10,
       boxShadow:`0 0 32px ${regimeColor}18`
     }}>
-      <div style={{color:V3C.muted,fontSize:8,marginBottom:6}}>
-        🗺️ 시장 국면 지도 — v3 Regime
+      <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.06em",marginBottom:7,opacity:0.7}}>
+        🗺️ 시장 국면 지도
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
