@@ -154,7 +154,7 @@ export default function App(){
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
-    // localStorage 캐시 우선 (24시간 TTL)
+    // localStorage 캐시 우선 (6시간 TTL)
     const MACRO_CACHE_TTL=6*60*60*1000;
     let cached=null;
     try{
