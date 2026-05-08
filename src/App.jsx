@@ -3290,15 +3290,51 @@ else {
   };
 
   const regimeLegend = [
-    { key:"정상", label:"정상 확장형", desc:["성장 + 유동성 양호","수출↑, LEI↑, 신용 안정","리스크온"] },
-    { key:"회복", label:"회복 초입형", desc:["실물 회복 + 유동성 완화","수출↑, LEI↑, 금리↓","초기 상승"] },
-    { key:"버블초입", label:"버블 초입형", desc:["유동성 과잉","M2↑, 자산↑","상승 지속"] },
-    { key:"버블말기", label:"버블 말기형", desc:["가격 과열","주가↑, 실물 둔화","고점 형성"] },
-    { key:"긴축", label:"긴축·금리충격형", desc:["금리 상승","DXY↑, 유동성↓","밸류 압축"] },
-    { key:"유동성", label:"유동성 위기형", desc:["환율↑, 외국인↓","달러 강세","신흥국 위험"] },
-    { key:"신용", label:"신용경색형", desc:["HY↑, SLOOS↑","스프레드 확대","위기 초입"] },
-    { key:"복합", label:"복합 위기형", desc:["실물+신용 동시 악화","LEI↓, 수출↓","금융위기"] },
-    { key:"침체", label:"침체 바닥형", desc:["공포 극대","금리↓ 전환","기회 구간"] },
+    { key:"정상", label:"정상 확장형", desc:[
+      "경기 성장 + 자금 흐름 양호",
+      "수출↑ · 경기선행지수(LEI)↑ · 신용 안정",
+      "위험자산(주식) 보유에 유리한 환경"
+    ]},
+    { key:"회복", label:"회복 초입형", desc:[
+      "침체 이후 경기가 살아나는 초기 단계",
+      "수출↑ · 경기선행지수(LEI)↑ · 금리 인하 시작",
+      "우량주 중심 분할매수를 시작할 수 있는 구간"
+    ]},
+    { key:"버블초입", label:"버블 초입형", desc:[
+      "시중에 돈(유동성)이 넘쳐나며 자산가격 상승",
+      "통화량(M2)↑ · 주식·부동산 동반 상승",
+      "상승 지속되나 과열 징조 주시 필요"
+    ]},
+    { key:"버블말기", label:"버블 말기형", desc:[
+      "가격은 고점권, 내부 체력은 약해지는 단계",
+      "주가↑ 이지만 실물경기는 둔화",
+      "고점 가능성 — 신규 매수 자제, 비중 점검"
+    ]},
+    { key:"긴축", label:"긴축·금리충격형", desc:[
+      "중앙은행 금리 인상으로 돈 빌리기가 비싸지는 단계",
+      "달러인덱스(DXY)↑ · 시중 유동성 감소",
+      "성장주·고PER 종목 가격(밸류) 압축 구간"
+    ]},
+    { key:"유동성", label:"유동성 위기형", desc:[
+      "환율 급등 + 외국인 자금 이탈로 시장이 흔들리는 단계",
+      "원/달러↑ · 외국인 순매도 · 달러 강세",
+      "신흥국(한국 포함) 자산 위험 — 현금 비중 확대"
+    ]},
+    { key:"신용", label:"신용경색형", desc:[
+      "돈이 돌지 않아 기업·금융기관이 자금 조달에 막히는 단계",
+      "하이일드 스프레드(HY)↑ · 은행 대출 기준 강화(SLOOS)↑",
+      "시스템 위험 경계 — 레버리지·저유동성 자산 회피"
+    ]},
+    { key:"복합", label:"복합 위기형", desc:[
+      "경기·신용·환율이 동시에 무너지는 최고 위험 단계",
+      "경기선행지수(LEI)↓ · 수출↓ · 전방위 악화",
+      "생존 최우선 — 현금·국채 중심, 공격 매수 금지"
+    ]},
+    { key:"침체", label:"침체 바닥형", desc:[
+      "경기가 최저점에 근접, 공포 심리가 극에 달한 단계",
+      "금리 인하 시작 · 시장 과매도 구간 진입",
+      "장기 기회 구간 — 우량주 분할매수 준비"
+    ]},
   ];
 
   const regimeLabel =
@@ -3312,6 +3348,7 @@ else {
     { label:"혼합/불확실형", desc:["신호 엇갈림","지표 상충","관망"] };
 
   const adj = macroData?.v3Adjustment?.adjustment ?? 0;
+  const adjReason = macroData?.v3Adjustment?.reason ?? "";
   const adjText =
     adj === 0 ? "보정 없음" : `${adj > 0 ? "+" : ""}${adj}점 보정`;
 
@@ -3332,21 +3369,25 @@ else {
         <div style={{color:regimeColor,fontSize:16,fontWeight:900}}>
           {displayLabel}
         </div>
-        <div style={{
-          color:adj < 0 ? C.red : adj > 0 ? C.green : C.muted,
-          fontSize:9,
-          fontWeight:800,
-          background:C.card2,
-          border:`1px solid ${C.border}`,
-          borderRadius:999,
-          padding:"2px 8px",
-          whiteSpace:"nowrap"
-        }}>
-          {adjText}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:3}}>
+          <div style={{
+            color:adj < 0 ? C.red : adj > 0 ? C.green : C.muted,
+            fontSize:9,fontWeight:800,
+            background:adj !== 0 ? (adj < 0 ? `${C.red}18` : `${C.green}18`) : C.card2,
+            border:`1px solid ${adj < 0 ? C.red+"44" : adj > 0 ? C.green+"44" : C.border}`,
+            borderRadius:999,padding:"2px 9px",whiteSpace:"nowrap",
+          }}>
+            {adjText}
+          </div>
+          {adj !== 0 && adjReason && (
+            <div style={{color:C.muted,fontSize:7,textAlign:"right",maxWidth:120,lineHeight:1.4}}>
+              {adjReason}
+            </div>
+          )}
         </div>
       </div>
 
-      <div style={{marginTop:8,fontSize:10,color:V3C.detail,lineHeight:1.6,fontWeight:600}}>
+      <div style={{marginTop:8,fontSize:10,color:V3C.detail,lineHeight:1.8,fontWeight:600}}>
         <div><b style={{color:V3C.detailStrong}}>유형:</b> {found.label}</div>
         <div><b style={{color:V3C.detailStrong}}>핵심특징:</b> {found.desc[0]}</div>
         <div><b style={{color:V3C.detailStrong}}>대표신호:</b> {found.desc[1]}</div>
@@ -3358,17 +3399,20 @@ else {
           시장 국면 유형표 보기
         </summary>
 
-        <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:6}}>
+        <div style={{marginTop:8,display:"flex",flexDirection:"column",gap:8}}>
           {regimeLegend.map((r,i)=>{
             const c = getRegimeColor(r.label);
             return (
               <div key={i} style={{
-                fontSize:9,
-                color:V3C.muted,
                 borderLeft:`3px solid ${c}`,
-                paddingLeft:8
+                paddingLeft:8,
               }}>
-                <b style={{color:c}}>{r.label}</b> — {r.desc.join(" / ")}
+                <div style={{color:c,fontSize:9,fontWeight:800,marginBottom:3}}>{r.label}</div>
+                <div style={{color:V3C.muted,fontSize:8,lineHeight:1.7}}>
+                  <div>📌 {r.desc[0]}</div>
+                  <div>📊 {r.desc[1]}</div>
+                  <div>💡 {r.desc[2]}</div>
+                </div>
               </div>
             );
           })}
@@ -4216,7 +4260,7 @@ else {
       marginBottom:10,
       boxShadow:`0 0 32px ${strategyColor}18`
     }}>
-      <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
+      <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.06em",marginBottom:7,opacity:0.7}}>
         🛡️ AEGIS 전략 엔진
       </div>
 
