@@ -1293,7 +1293,16 @@ function calcSequoiaCIndex(defconData) {
         fredT10Y2Y:fredT10Y2YRaw.length, fredHY:fredHYRaw.length, fredDGS10:fredDGS10Raw.length,
         fredVIX:fredVIXRaw.length, fredUNRATE:fredUNRATE.length,
         krSloos:krSloosRaw.length, fredSLOOS:fredSLOOSRaw.length, fredLEI:fredLEIRaw.length, fredICSA:fredICSARaw.length,
-        fredBAML:fredBAMLRaw.length,
+        // ── BAML/M2 진단 ──
+        fredBAML_raw:fredBAMLRaw.length,       // 0이면 FRED API 호출 자체 실패
+        fredBAML_monthly:fredBAML.length,       // 0이면 dailyToMonthly 후 소실 ("." 문제)
+        fredBAML_sample:fredBAMLRaw.slice(-3),  // 실제 값 형태 확인용
+        fredM2SL_raw:fredM2SLRaw.length,        // 0이면 FRED M2SL 호출 실패
+        usM2_parsed:usM2.length,                // 0이면 날짜 파싱 버그
+        usM2YoY_len:usM2YoY.length,
+        usM2_sample:fredM2SLRaw.slice(-3),      // raw 날짜 형태 확인용
+        usM2_parsed_sample:usM2.slice(-3),      // 파싱 후 날짜 형태 확인용
+        // ──────────────────
         fredSamples:{
           t10y2y:fredT10Y2YRaw.slice(-2),
           baa:fredHYRaw.slice(-2),
