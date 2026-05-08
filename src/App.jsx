@@ -3236,19 +3236,29 @@ else {
     muted:C.muted,
     detail:darkMode ? "#64748B" : "#475569",
     detailStrong:darkMode ? "#94A3B8" : "#334155",
-    green:"#00D000",
-    blue:"#1E72F0",
-    orange:"#FF7A00",
-    red:"#FF1A1A",
+    green:"#10B981",
+    blue:"#3B82F6",
+    orange:"#F97316",
+    amber:"#F59E0B",
+    red:"#EF4444",
+    deepRed:"#DC2626",
+    darkRed:"#991B1B",
+    cyan:"#06B6D4",
+    violet:"#A78BFA",
     neutral:darkMode ? "#8AA8C8" : "#64748B",
   };
 
   const getRegimeColor = (label) => {
     const t = String(label || "").replace(/\s/g, "");
-    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return V3C.green;
-    if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return V3C.blue;
+    if (t.includes("복합")) return V3C.darkRed;
+    if (t.includes("신용")) return V3C.deepRed;
+    if (t.includes("유동성")) return V3C.red;
+    if (t.includes("긴축") || t.includes("금리")) return V3C.amber;
     if (t.includes("버블") && t.includes("말기")) return V3C.orange;
-    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return V3C.red;
+    if (t.includes("버블") && t.includes("초입")) return V3C.violet;
+    if (t.includes("침체") || t.includes("바닥")) return V3C.cyan;
+    if (t.includes("정상") || t.includes("확장")) return V3C.green;
+    if (t.includes("회복")) return V3C.blue;
     return V3C.neutral;
   };
 
@@ -3510,25 +3520,44 @@ else {
   const maxScore = 6;
   const activeCount = timingSignals.filter(s => s.active).length;
 
-  const V3C = {
-    green:"#00D000",
-    blue:"#1E72F0",
-    orange:"#FF7A00",
-    red:"#FF1A1A",
-    neutral:darkMode ? "#8AA8C8" : "#64748B",
+  // ── 레짐별 세분화 색상 팔레트
+  const regimeColors = {
+    bubbleLate:  "#F97316",   // 주황 — 버블말기
+    bottom:      "#06B6D4",   // 시안 — 침체바닥(기회)
+    tightening:  "#F59E0B",   // 앰버 — 긴축금리(위험하지만 시스템 위기 아님)
+    liquidity:   "#EF4444",   // 레드 — 유동성위기
+    credit:      "#DC2626",   // 딥레드 — 신용경색
+    complex:     "#991B1B",   // 다크레드 — 복합위기(최고 위험)
+    normal:      "#10B981",   // 에메랄드 — 정상확장
+    recovery:    "#3B82F6",   // 파랑 — 회복
+    bubbleEarly: "#A78BFA",   // 보라 — 버블초입
+    neutral:     darkMode ? "#8AA8C8" : "#64748B",
   };
 
   const getRegimeColor = (label) => {
     const t = String(label || "").replace(/\s/g, "");
-    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return V3C.green;
-    if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return V3C.blue;
-    if (t.includes("버블") && t.includes("말기")) return V3C.orange;
-    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return V3C.red;
-    return V3C.neutral;
+    if (t.includes("복합")) return regimeColors.complex;
+    if (t.includes("신용")) return regimeColors.credit;
+    if (t.includes("유동성")) return regimeColors.liquidity;
+    if (t.includes("긴축") || t.includes("금리")) return regimeColors.tightening;
+    if (t.includes("버블") && t.includes("말기")) return regimeColors.bubbleLate;
+    if (t.includes("버블") && t.includes("초입")) return regimeColors.bubbleEarly;
+    if (t.includes("침체") || t.includes("바닥")) return regimeColors.bottom;
+    if (t.includes("정상") || t.includes("확장")) return regimeColors.normal;
+    if (t.includes("회복")) return regimeColors.recovery;
+    return regimeColors.neutral;
   };
 
-  const levelColor = getRegimeColor(regimeLabel);
-  const uiColor = darkMode ? "#2F6F5E" : "#2F6F5E"; // AEGIS 딥 틸: 내부 UI 강조색
+  const levelColor = isBubbleLate ? regimeColors.bubbleLate
+    : isBottom      ? regimeColors.bottom
+    : isTightening  ? regimeColors.tightening
+    : isLiquidity   ? regimeColors.liquidity
+    : isCredit      ? regimeColors.credit
+    : isComplex     ? regimeColors.complex
+    : regimeColors.neutral;
+
+  // phase 카드 강조색 = levelColor 연동 (이전 uiColor 틸 고정 제거)
+  const phaseActiveColor = levelColor;
 
   const timingGrade = isBubbleLate
     ? timingScore >= 5 ? "붕괴 임박"
@@ -3551,203 +3580,206 @@ else {
     timingScore <= 4 ? 1 :
     2;
 
+  // ── timing 카드 상단 메타 (제목/뱃지/요약/keyPoints/행동지침)
   const timing = isBubbleLate
     ? {
-        title:"버블 말기 타이밍 경고",
+        title:"버블 말기 — 균열 감시 구간",
         badge:"위험 감시",
         badgeExtra:null,
-        summary:"버블 말기 국면입니다. 실제 붕괴 여부는 아래 월봉 신호가 몇 개 켜졌는지로 판단합니다.",
-        keyPoints:["RSI 과열·MACD 하향 동시 출현","고평가 종목 선행 하락","거래량 흐름 약화"],
+        summary:"고점권에서 내부 균열이 시작되는 국면입니다. 아래 3개 신호가 켜지는 순서대로 위험이 커집니다.",
+        keyPoints:["고평가 종목 선행 하락","거래량 흐름 약화","RSI 과열 + MACD 하향 동시"],
         action:
-          timingScore >= 5 ? "붕괴 신호가 강합니다. 비중 축소 속도를 높이는 구간입니다."
-          : timingScore >= 3 ? "위험 신호가 늘고 있습니다. 신규 매수는 피하고 단계적 축소가 유리합니다."
-          : "현재는 초기 경계입니다. 버블 말기이지만 아직 붕괴 확정 신호는 부족합니다."
+          timingScore >= 5 ? "3개 신호 모두 켜짐 — 비중 축소를 서두르세요. 신규 매수는 금지입니다."
+          : timingScore >= 3 ? "2개 신호 켜짐 — 추격 매수를 멈추고 고평가 종목부터 단계적으로 줄이세요."
+          : "아직 신호가 약합니다. 보유 종목 점검을 시작하되 급하게 움직이지 마세요."
       }
     : isBottom
     ? {
-        title:"침체 바닥 타이밍 관찰",
+        title:"침체 바닥 — 반등 신호 관찰 구간",
         badge:"기회 감시",
         badgeExtra:null,
-        summary:"침체 바닥 국면입니다. 실제 반등 여부는 아래 월봉 회복 신호가 몇 개 켜졌는지로 판단합니다.",
-        keyPoints:["RSI 과매도 진입","MACD 골든크로스 대기","OBV 수급 재유입 확인"],
+        summary:"하락이 둔화되고 반등 신호를 기다리는 국면입니다. 신호가 쌓일수록 분할매수 비중을 늘립니다.",
+        keyPoints:["RSI 과매도 진입","MACD 상향 전환 대기","거래량 수급 재유입 확인"],
         action:
-          timingScore >= 5 ? "반등 신호가 강합니다. 분할매수 속도를 높일 수 있는 구간입니다."
-          : timingScore >= 3 ? "초기 회복 신호입니다. 우량주 중심 소액 분할 접근이 적합합니다."
-          : "아직은 관찰 단계입니다. 바닥 가능성은 있지만 확인 신호는 부족합니다."
+          timingScore >= 5 ? "3개 신호 모두 켜짐 — 우량주 중심 분할매수를 적극적으로 진행하세요."
+          : timingScore >= 3 ? "2개 신호 켜짐 — 소액 분할매수를 시작할 수 있습니다. 한 번에 몰지 마세요."
+          : "신호가 아직 부족합니다. 현금을 지키며 추가 확인을 기다리세요."
       }
     : isTightening
     ? {
-        title:"긴축·금리충격 압박 단계",
+        title:"긴축·금리충격 — 밸류 압축 국면",
         badge:"밸류 압축",
         badgeExtra:null,
-        summary:"금리 상승 → 유동성 축소 → 밸류 압축이 진행되는 국면입니다. 성장주와 고PER 종목에 집중적인 조정 압력이 가해집니다.",
-        keyPoints:["성장주·고PER 종목 밸류 압축","달러강세 및 환율 불안","레버리지 축소 필요","현금흐름·저부채 기업 선호"],
+        summary:"금리 상승으로 성장주·고PER 종목의 적정 가격(밸류에이션)이 눌리는 국면입니다. 돈의 가치가 올라갈수록 미래 이익의 현재 가치는 낮아집니다.",
+        keyPoints:["성장주·고PER 종목 선행 하락","달러 강세 + 원화 약세","레버리지(빚) 많은 기업 타격"],
         action:
-          timingScore >= 5 ? "압박이 심화되고 있습니다. 방어 자산 비중을 높이고 성장주 노출을 줄이는 구간입니다."
-          : timingScore >= 3 ? "압박 신호가 누적되고 있습니다. 현금흐름 우량주 중심으로 선별적 접근이 필요합니다."
-          : "초기 압박 단계입니다. 고평가 종목 비중 점검을 시작하는 구간입니다."
+          timingScore >= 5 ? "압박이 강합니다. 성장주·테마주 비중을 줄이고 현금흐름이 탄탄한 종목 위주로 재편하세요."
+          : timingScore >= 3 ? "압박이 누적되고 있습니다. 고평가 종목 정리를 시작하세요."
+          : "초기 압박입니다. 포트폴리오를 점검하되 급격한 변경은 아직 이릅니다."
       }
     : isLiquidity
     ? {
-        title:"유동성 위기 압박 단계",
-        badge:"유동성 주의",
+        title:"유동성 위기 — 자금 이탈 국면",
+        badge:"자금 이탈",
         badgeExtra:null,
-        summary:"시장 내부 균열이 확대되는 국면입니다. 환율 급등과 외국인 이탈로 자산시장 전반에 압력이 가해집니다.",
-        keyPoints:["환율 급등 및 외국인 이탈","변동성 확대","자산시장 동반 약세","급락 자산 반등 매수 신중"],
+        summary:"환율 급등과 외국인 매도로 시장에서 돈이 빠져나가는 국면입니다. 유동성(현금화 가능성)이 빠르게 말라가는 상황입니다.",
+        keyPoints:["원/달러 환율 급등","외국인 순매도 가속","주식·채권 동반 약세"],
         action:
-          timingScore >= 5 ? "유동성 압박이 심각합니다. 현금 비중을 높이고 리스크 자산 노출을 줄이는 구간입니다."
-          : timingScore >= 3 ? "압박 신호가 확인되고 있습니다. 방어적 포지션을 강화하고 분할매도를 검토하세요."
-          : "초기 압박 단계입니다. 환율과 외국인 수급 흐름을 주시하는 구간입니다."
+          timingScore >= 5 ? "자금 이탈이 심각합니다. 현금 비중을 최우선으로 높이고 달러 자산을 점검하세요."
+          : timingScore >= 3 ? "이탈 신호가 확인됩니다. 변동성 높은 자산 비중을 낮추세요."
+          : "초기 단계입니다. 환율과 외국인 수급 흐름을 매일 확인하세요."
       }
     : isCredit
     ? {
-        title:"신용경색 위험 단계",
-        badge:"최중요",
-        badgeExtra:"시스템 리스크",
-        summary:"신용 시스템 경색 위험이 높아지는 국면입니다. HY 스프레드 확대와 단기자금 경색이 금융기관 전반으로 전이될 수 있습니다.",
-        keyPoints:["HY 스프레드 급격한 확대","단기자금·회사채 시장 위축","금융기관 유동성 압박","신용 이벤트 전염 가능성","현금흐름 최우선 대응"],
+        title:"신용경색 — 시스템 위험 국면",
+        badge:"시스템 위험",
+        badgeExtra:"최중요",
+        summary:"돈을 빌리기 어려워지는 신용경색 국면입니다. 기업과 금융기관의 자금 조달이 막히면 연쇄 부실로 이어질 수 있습니다.",
+        keyPoints:["하이일드 채권 스프레드 급등","단기자금·회사채 시장 위축","금융기관 유동성 압박","부실 기업 연쇄 위험"],
         action:
-          timingScore >= 5 ? "신용경색 신호가 강합니다. 현금흐름 최우선, 레버리지·저유동성 자산 즉각 회피가 필요합니다."
-          : timingScore >= 3 ? "위험 신호가 확인됩니다. 레버리지 축소와 유동성 높은 자산 중심 재편을 검토하세요."
-          : "경계 단계입니다. 신용 지표 모니터링을 강화하고 방어 체계를 준비하세요."
+          timingScore >= 5 ? "위기 신호가 강합니다. 레버리지·저유동성 자산을 즉각 줄이고 현금흐름 최우선으로 방어하세요."
+          : timingScore >= 3 ? "위험이 확인됩니다. 빚 많은 기업과 유동성 낮은 자산을 정리하세요."
+          : "경계 단계입니다. 신용 관련 지표(HY 스프레드, CD금리)를 집중 모니터링하세요."
       }
     : {
-        title:"복합 위기 확산 단계",
-        badge:"최종위기",
-        badgeExtra:"공격 매수 금지",
-        summary:"실물·신용·환율 악화가 동시에 진행되는 위기 전이 확산 국면입니다. 정책 대응 실패 가능성과 금융시장 패닉이 극단적으로 확대될 수 있습니다.",
-        keyPoints:["실물+신용+환율 동시 악화","정책 대응 실패 가능성","금융시장 패닉 확대","변동성 극단 구간 진입"],
+        title:"복합 위기 — 생존 최우선 국면",
+        badge:"복합 위기",
+        badgeExtra:"매수 금지",
+        summary:"실물경기·신용·환율이 동시에 무너지는 최고 위험 국면입니다. 어느 하나만의 문제가 아니라 전방위적 위기가 확산되는 상황입니다.",
+        keyPoints:["실물+신용+환율 동시 악화","금융시장 패닉 확산","정책 대응 여력 한계"],
         action:
-          timingScore >= 5 ? "최고 위험 단계입니다. 생존 우선 — 현금/국채 중심으로 전환하고 공격적 매수를 즉각 중단하세요."
-          : timingScore >= 3 ? "위기 신호가 복합적으로 확인됩니다. 현금 비중 극대화와 리스크 자산 청산을 검토하세요."
-          : "복합 위기 경계 단계입니다. 추가 신호를 예의 주시하며 방어 준비를 완료하세요."
+          timingScore >= 5 ? "최고 위험입니다. 현금·국채 중심으로 즉각 전환하세요. 공격적 매수는 절대 금지입니다."
+          : timingScore >= 3 ? "위기가 확산 중입니다. 리스크 자산 비중을 최대한 줄이세요."
+          : "경계 구간입니다. 방어 포지션을 완료하고 추가 신호를 기다리세요."
       };
 
+  // ── phaseList: 3단계 진행 카드 (제목 중복 제거 + 내용 명확화)
   const phaseList = isBubbleLate
     ? [
         {
-          title:"초기 경고 단계",subtitle:"버블 내부 균열 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"⚠️",
-          meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
-          symptoms:["지수는 고점권을 유지하지만 상승 탄력은 둔화","RSI 과열·과매수 신호 증가","주도주는 버티지만 종목 간 차별화 확대","일부 민감 섹터와 고평가 종목부터 선행 하락","거래량 증가세 둔화 또는 매수세 약화"],
-          interpretation:"아직 붕괴 확정은 아닙니다. 신규 공격 매수는 줄이고, 현금 비중과 과열 자산 비중을 점검하는 구간입니다."
+          title:"균열 시작",subtitle:"고점권인데 힘이 빠지기 시작",duration:"1~3개월",
+          color:phaseActiveColor,icon:"⚠️",
+          symptoms:["지수는 고점 부근이지만 오르는 힘이 약해짐","인기 종목들이 뒤처지기 시작","거래량은 많지만 주가가 안 오름"],
+          interpretation:"아직 팔 때는 아닙니다. 단, 신규 매수는 줄이고 과열 종목의 비중을 점검하세요."
         },
         {
-          title:"위험 확대 단계",subtitle:"균열이 가격에 반영",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🔥",
-          meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
-          symptoms:["급등 후 급락 반복","반등해도 이전 고점 돌파 실패","월봉 MACD 하락 전환 또는 데드크로스","OBV 이탈, 거래량 흐름 약화","악재에 대한 시장 반응이 커짐"],
-          interpretation:"방어 전환이 필요한 구간입니다. 레버리지 축소, 추격 매수 금지, 현금·단기채·방어주 비중 확대가 유리합니다."
+          title:"균열 확산",subtitle:"고점 돌파 실패 + 급등락 반복",duration:"3~6개월",
+          color:phaseActiveColor,icon:"🔥",
+          symptoms:["급등 후 급락이 반복되며 방향을 못 잡음","반등해도 전 고점을 못 뚫음","나쁜 뉴스에 시장이 과민 반응"],
+          interpretation:"방어로 전환할 시점입니다. 레버리지(빚 투자)를 줄이고 현금·방어주 비중을 높이세요."
         },
         {
-          title:"장기 연장 가능 단계",subtitle:"위험하지만 유동성으로 지속",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🧨",
-          meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
-          symptoms:["밸류에이션 부담에도 상승 지속","악재는 무시하고 호재만 크게 반영","AI·성장주·테마주 중심 과열 지속","단기 조정 후 빠른 회복 반복","'이번엔 다르다' 논리 강화"],
-          interpretation:"성급한 전면 숏은 위험합니다. 보유 자산은 단계적 이익 실현으로 관리하고, 변동성 확대에 대비하는 구간입니다."
+          title:"유동성으로 연장",subtitle:"위험하지만 시장은 아직 버팀",duration:"6개월+",
+          color:phaseActiveColor,icon:"🧨",
+          symptoms:["밸류가 비싸도 상승이 계속됨","나쁜 뉴스는 무시, 좋은 뉴스만 반영","'이번엔 다르다'는 논리가 퍼짐"],
+          interpretation:"전면 매도는 성급합니다. 보유 자산을 단계적으로 줄이며 변동성 확대에 대비하세요."
         }
       ]
     : isBottom
     ? [
         {
-          title:"관찰 단계",subtitle:"하락 둔화 관찰",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"🔍",
-          meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
-          symptoms:["급락 빈도 감소","RSI 과매도 구간 진입","거래량 바닥 형성","공포 심리 극대화","우량주 저평가 확대"],
-          interpretation:"아직 반등 확정은 아닙니다. 현금 방어와 관찰 중심 접근이 적합합니다."
+          title:"하락 둔화",subtitle:"급락이 줄고 바닥을 탐색 중",duration:"1~3개월",
+          color:phaseActiveColor,icon:"🔍",
+          symptoms:["갑자기 큰 폭으로 떨어지는 날이 줄어듦","RSI가 30 이하 과매도 구간 진입","공포 심리가 극에 달함"],
+          interpretation:"아직 반등이 확정된 건 아닙니다. 현금을 지키며 신호를 기다리세요."
         },
         {
-          title:"초기 반등 단계",subtitle:"회복 신호 출현",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🌊",
-          meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
-          symptoms:["월봉 MACD 골든크로스","OBV 수급 재유입","저점이 조금씩 높아짐","낙폭과대 반등 증가","우량주 중심 수급 회복"],
-          interpretation:"분할매수를 시작할 수 있는 초기 구간입니다. 단, 급격한 몰빵보다 우량주 중심의 단계적 접근이 적합합니다."
+          title:"반등 신호 출현",subtitle:"회복의 초기 흔적이 보임",duration:"3~6개월",
+          color:phaseActiveColor,icon:"🌊",
+          symptoms:["MACD가 위로 꺾이기 시작(골든크로스)","저점이 조금씩 높아짐","우량주에 먼저 매수세 들어옴"],
+          interpretation:"소액 분할매수를 시작할 수 있습니다. 한 번에 몰아넣지 말고 우량주 중심으로 나눠 사세요."
         },
         {
-          title:"반등 강화 단계",subtitle:"상승 전환 가능성 확대",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🚀",
-          meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
-          symptoms:["거래량 회복","지수 저점 상승","주도주 복귀","위험자산 선호 회복","반등 폭 확대"],
-          interpretation:"장기 우량주 중심으로 비중 확대를 고려할 수 있는 단계입니다. 다만 과열 추격보다는 분할 접근이 좋습니다."
+          title:"추세 전환",subtitle:"상승으로 방향이 잡히기 시작",duration:"6개월+",
+          color:phaseActiveColor,icon:"🚀",
+          symptoms:["거래량 증가하며 지수 저점이 높아짐","주도주들이 다시 살아남","위험자산 선호 심리 회복"],
+          interpretation:"우량주 중심으로 비중을 늘릴 수 있습니다. 단, 과열 추격은 피하고 분할 접근을 유지하세요."
         }
       ]
     : isTightening
     ? [
         {
-          title:"초기 압박 단계",subtitle:"밸류 부담 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"📉",
-          meaning:"금리 상승으로 성장주와 고PER 종목에 밸류 압축 압력이 시작되는 구간입니다.",
-          symptoms:["성장주·고PER 종목 선행 하락","시장 금리 상승 지속","달러강세 경향","레버리지 높은 기업 타격 시작"],
-          interpretation:"고평가 종목 비중을 줄이고 현금흐름·저부채 기업 중심으로 재편하는 구간입니다."
+          title:"밸류 압축 시작",subtitle:"성장주·고PER 종목 먼저 하락",duration:"1~3개월",
+          color:phaseActiveColor,icon:"📉",
+          symptoms:["금리 상승 뉴스에 성장주가 크게 빠짐","PER이 높은(비싼) 종목들 선행 하락","달러 강세 + 원화 약세 시작"],
+          interpretation:"고평가 종목 비중을 줄이고 현금흐름이 꾸준한 저평가 종목으로 이동하세요."
         },
         {
-          title:"압박 확대 단계",subtitle:"전반적 조정 확산",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"⚙️",
-          meaning:"금리 부담이 시장 전반으로 확산되며 조정 폭이 넓어지는 단계입니다.",
-          symptoms:["시장 전반적 멀티플 축소","배당·가치주 상대적 방어","신용스프레드 확대 시작","소비심리 둔화 반영"],
-          interpretation:"방어적 포지션 강화 구간입니다. 현금흐름 우량주와 단기채 비중을 높이는 시점입니다."
+          title:"조정 전반 확산",subtitle:"전체 시장으로 조정이 퍼짐",duration:"3~6개월",
+          color:phaseActiveColor,icon:"⚙️",
+          symptoms:["성장주뿐 아니라 시장 전체가 조정","배당주·가치주가 상대적으로 덜 빠짐","회사채 금리가 국채보다 빠르게 오름"],
+          interpretation:"방어주(배당·필수소비재)와 단기채 비중을 높이는 시점입니다."
         },
         {
-          title:"압박 심화 단계",subtitle:"긴축 정점 또는 피벗 대기",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🔄",
-          meaning:"금리 긴축이 정점에 가까워지거나 피벗(전환) 기대가 형성되는 구간입니다.",
-          symptoms:["경기침체 우려 증폭","장단기 금리차 역전 심화","정책 전환 시그널 탐색","리스크온/오프 급격한 전환 반복"],
-          interpretation:"피벗 신호 확인 시 점진적 리스크온 전환을 검토할 수 있습니다. 서두르지 않는 것이 중요합니다."
+          title:"금리 정점 탐색",subtitle:"인상 속도 둔화 + 피벗 기대",duration:"6개월+",
+          color:phaseActiveColor,icon:"🔄",
+          symptoms:["중앙은행 금리 인상 속도가 느려짐","장기금리가 단기금리보다 낮아짐(역전)","경기 침체 우려가 본격화"],
+          interpretation:"금리 인하(피벗) 신호가 나오면 점진적으로 리스크 자산 비중을 늘릴 수 있습니다."
         }
       ]
     : isLiquidity
     ? [
         {
-          title:"균열 확대 단계",subtitle:"유동성 이탈 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"💧",
-          meaning:"시장 내부 균열이 외환·자금시장에 나타나기 시작하는 구간입니다.",
-          symptoms:["환율 급등 시작","외국인 순매도 증가","변동성 확대","신흥국 자산 동반 약세"],
-          interpretation:"현금 비중을 높이고 달러 자산 비중을 점검하는 구간입니다."
+          title:"자금 이탈 시작",subtitle:"외국인 매도 + 환율 상승",duration:"1~3개월",
+          color:phaseActiveColor,icon:"💧",
+          symptoms:["원/달러 환율이 빠르게 오름","외국인이 주식을 팔고 나감","신흥국 전체가 동반 약세"],
+          interpretation:"현금 비중을 높이고 달러 자산(달러예금, 달러ETF)을 점검하세요."
         },
         {
-          title:"압박 심화 단계",subtitle:"자산 동반 약세",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🌊",
-          meaning:"유동성 이탈이 심화되며 주식·채권·환율이 동시에 압박을 받는 구간입니다.",
-          symptoms:["자산시장 동반 약세 확대","신용스프레드 동반 확대","변동성 극대화","안전자산 선호 급증"],
-          interpretation:"안전자산(현금·국채·달러) 중심 포지션이 필요한 구간입니다. 반등 매수는 신중히 접근하세요."
+          title:"자산 동반 약세",subtitle:"주식·채권·환율 모두 하락",duration:"3~6개월",
+          color:phaseActiveColor,icon:"🌊",
+          symptoms:["주식과 채권이 같이 빠짐(피할 곳 없음)","변동성이 극도로 높아짐","안전자산(달러·금·국채)으로 자금 집중"],
+          interpretation:"현금·달러·국채 중심으로 포지션을 지키세요. 반등 매수는 정책 신호 확인 후에 하세요."
         },
         {
-          title:"안정화 또는 위기 전이",subtitle:"정책 대응 또는 확산",duration:"평균 진행 속도 6M+",color:uiColor,icon:"⚖️",
-          meaning:"정책 대응 여부에 따라 안정화되거나 더 큰 위기로 전이되는 분기점입니다.",
-          symptoms:["정책 개입 여부가 핵심 변수","변동성 지속 또는 급격한 회복","신용위기 전이 여부 확인 필요","외국인 수급 회복 확인"],
-          interpretation:"정책 대응을 확인 후 조심스러운 리스크 재진입을 검토하는 구간입니다."
+          title:"정책 대응 분기점",subtitle:"개입 성공 여부에 따라 방향 결정",duration:"6개월+",
+          color:phaseActiveColor,icon:"⚖️",
+          symptoms:["정부·중앙은행 개입 여부가 핵심","개입 성공 시 빠른 회복 가능","개입 실패 시 더 큰 위기로 전이"],
+          interpretation:"정책 대응이 효과를 내는지 확인 후에 조심스럽게 재진입을 검토하세요."
         }
       ]
     : isCredit
     ? [
         {
-          title:"신용 경계 단계",subtitle:"스프레드 확대 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"⚠️",
-          meaning:"하이일드 스프레드가 확대되며 신용시장 경색의 전조가 나타나는 구간입니다.",
-          symptoms:["HY 스프레드 확대 시작","회사채 발행 축소","단기자금 시장 경직","레버리지 기업 주가 선행 하락"],
-          interpretation:"레버리지·저유동성 자산 비중을 줄이고 현금흐름 우량 기업 중심으로 재편하는 구간입니다."
+          title:"신용 경계",subtitle:"회사채 금리 상승 + 발행 위축",duration:"1~3개월",
+          color:phaseActiveColor,icon:"⚠️",
+          symptoms:["하이일드(고위험) 채권 금리가 급격히 오름","회사채 신규 발행이 줄어듦","빚 많은 기업 주가가 먼저 빠짐"],
+          interpretation:"레버리지(빚투)와 유동성 낮은 자산을 줄이고 현금흐름 우량 기업 중심으로 재편하세요."
         },
         {
-          title:"신용 경색 단계",subtitle:"시스템 리스크 확산",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🔥",
-          meaning:"신용 시스템이 경색되며 금융기관 전반에 유동성 압박이 확산되는 단계입니다.",
-          symptoms:["금융기관 자금 조달 비용 급등","중소기업·고위험 기업 도산 증가","HY 스프레드 급격한 확대","자산 강제 청산 우려","신용 이벤트 전염 가능성"],
-          interpretation:"현금흐름 최우선 단계입니다. 레버리지·저유동성 자산은 즉각 회피하고 시스템 리스크에 대응해야 합니다."
+          title:"신용 경색",subtitle:"돈이 돌지 않는 시스템 위기",duration:"3~6개월",
+          color:phaseActiveColor,icon:"🔥",
+          symptoms:["은행도 서로 돈 빌리기를 꺼림","중소기업·고위험 기업 자금 조달 불가","자산 강제 매각(마진콜) 우려 확산"],
+          interpretation:"현금흐름이 최우선입니다. 레버리지와 유동성이 낮은 자산은 즉각 줄이세요."
         },
         {
-          title:"정책 대응 또는 위기 심화",subtitle:"중앙은행 개입 여부가 핵심",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🏛️",
-          meaning:"정책 당국의 대응 강도에 따라 안정화 또는 복합위기 전이가 결정되는 분기점입니다.",
-          symptoms:["중앙은행 유동성 공급 여부","금융 규제 완화 가능성","신용경색 해소 또는 심화","경기침체 연동 여부"],
-          interpretation:"정책 개입 신호 확인 후 조심스럽게 대응하는 구간입니다. 서두른 매수는 위험합니다."
+          title:"중앙은행 개입 대기",subtitle:"정책 개입으로 안정화 or 위기 심화",duration:"6개월+",
+          color:phaseActiveColor,icon:"🏛️",
+          symptoms:["중앙은행의 유동성 공급 여부가 관건","개입 시 신용경색 완화 가능","방치 시 복합위기로 전이 위험"],
+          interpretation:"정책 개입 신호가 나올 때까지 방어 포지션을 유지하세요. 섣부른 매수는 위험합니다."
         }
       ]
     : [
         {
-          title:"위기 전이 초기",subtitle:"복합 악재 동시 진행",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"🔴",
-          meaning:"실물·신용·환율 악화가 동시에 진행되며 위기가 빠르게 전이되는 구간입니다.",
-          symptoms:["실물경기 급격한 악화","신용스프레드 동반 급등","환율 불안 심화","정책 대응 여력 축소"],
-          interpretation:"공격적 매수 금지 구간입니다. 현금과 국채 중심으로 생존 포지션을 구축해야 합니다."
+          title:"위기 전이 시작",subtitle:"실물·신용·환율 동시 악화",duration:"1~3개월",
+          color:phaseActiveColor,icon:"🔴",
+          symptoms:["경제지표·신용·환율이 한꺼번에 나빠짐","정책 당국이 대응할 여력이 줄어듦","투자자 공포 심리가 빠르게 확산"],
+          interpretation:"공격적 매수 금지 구간입니다. 현금과 국채 중심으로 생존 포지션을 구축하세요."
         },
         {
-          title:"위기 확산 단계",subtitle:"금융시장 패닉 확대",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"💥",
-          meaning:"패닉이 금융시장 전반으로 확산되며 변동성이 극단적으로 높아지는 단계입니다.",
-          symptoms:["금융시장 패닉 매도","모든 자산 동반 급락","변동성 극단 구간","정책 대응 실패 가능성","강제 청산·마진콜 연쇄"],
-          interpretation:"생존 최우선 단계입니다. 현금/국채/달러 중심이며 반등 매수 시도는 절대 금지합니다."
+          title:"패닉 확산",subtitle:"모든 자산 동반 급락 + 강제 청산",duration:"3~6개월",
+          color:phaseActiveColor,icon:"💥",
+          symptoms:["주식·채권·원자재 모두 동시 급락","빚투 투자자 강제 청산(마진콜) 연쇄","정책 대응이 효과 없는 것처럼 보임"],
+          interpretation:"생존이 최우선입니다. 현금·국채·달러 외에는 보유하지 마세요. 반등 시도는 절대 하지 마세요."
         },
         {
-          title:"정점 또는 정책 전환",subtitle:"위기 정점 또는 대규모 개입",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🏛️",
-          meaning:"대규모 정책 개입 또는 위기 정점을 통과하며 방향이 결정되는 분기점입니다.",
-          symptoms:["대규모 유동성 공급","금리 인하 또는 긴급 조치","변동성 서서히 감소","패닉 저점 형성 가능성"],
-          interpretation:"정책 전환이 확인된 후 매우 조심스럽게 분할매수를 검토하는 구간입니다."
+          title:"위기 정점 통과",subtitle:"대규모 정책 개입으로 방향 결정",duration:"6개월+",
+          color:phaseActiveColor,icon:"🏛️",
+          symptoms:["대규모 유동성 공급 또는 금리 인하 긴급 조치","변동성이 서서히 줄어들기 시작","패닉 저점에서 반등 가능성"],
+          interpretation:"정책 전환이 확인된 후에만 아주 조심스럽게 분할매수를 검토하세요."
         }
       ];
+
   return (
     <div style={{
       background:C.card,
@@ -3757,37 +3789,32 @@ else {
       marginBottom:10,
       boxShadow:`0 0 32px ${levelColor}18`
     }}>
-      <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
+      {/* 카드 헤더 레이블 */}
+      <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",marginBottom:7,opacity:0.6}}>
         ⏳ 시장 진행 단계 신호
       </div>
 
+      {/* 제목 + 뱃지 */}
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
-        <div style={{color:levelColor,fontSize:16,fontWeight:900}}>
+        <div style={{color:levelColor,fontSize:15,fontWeight:900,lineHeight:1.3}}>
           {timing.title}
         </div>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
           <div style={{
-            color:levelColor,
-            fontSize:9,
-            fontWeight:800,
+            color:levelColor,fontSize:9,fontWeight:800,
             background:C.card2,
             border:`1px solid ${levelColor}66`,
-            borderRadius:999,
-            padding:"2px 8px",
-            whiteSpace:"nowrap",
-            boxShadow:`0 0 12px ${levelColor}33`
+            borderRadius:999,padding:"2px 9px",
+            whiteSpace:"nowrap",boxShadow:`0 0 10px ${levelColor}22`
           }}>
             {timing.badge}
           </div>
           {timing.badgeExtra&&(
             <div style={{
-              color:"#fff",
-              fontSize:8,
-              fontWeight:900,
+              color:"#fff",fontSize:8,fontWeight:900,
               background:levelColor,
-              borderRadius:999,
-              padding:"2px 8px",
-              whiteSpace:"nowrap",
+              borderRadius:999,padding:"2px 9px",
+              whiteSpace:"nowrap",letterSpacing:"0.04em"
             }}>
               {timing.badgeExtra}
             </div>
@@ -3795,10 +3822,12 @@ else {
         </div>
       </div>
 
-      <div style={{marginTop:8,fontSize:10,color:C.muted,lineHeight:1.6}}>
+      {/* 요약 */}
+      <div style={{marginTop:9,fontSize:10,color:C.muted,lineHeight:1.7}}>
         {timing.summary}
       </div>
 
+      {/* keyPoints 태그 */}
       {timing.keyPoints&&timing.keyPoints.length>0&&(
         <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:4}}>
           {timing.keyPoints.map((pt,i)=>(
@@ -3807,347 +3836,273 @@ else {
               color:levelColor,
               background:`${levelColor}14`,
               border:`1px solid ${levelColor}33`,
-              borderRadius:6,
-              padding:"2px 7px",
+              borderRadius:6,padding:"2px 8px",
             }}>{pt}</span>
           ))}
         </div>
       )}
 
+      {/* 신호 강도 게이지 */}
       <div style={{
-        marginTop:10,
+        marginTop:12,
         background:C.card2,
-        border:`1px solid ${levelColor}55`,
+        border:`1px solid ${levelColor}44`,
         borderRadius:10,
-        padding:"8px 10px",
-        boxShadow:`0 0 12px ${levelColor}18`
+        padding:"10px 12px",
       }}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:7}}>
           <div style={{color:C.text,fontSize:10,fontWeight:800}}>신호 강도</div>
           <div style={{color:levelColor,fontSize:10,fontWeight:900,fontFamily:"monospace"}}>
             {timingGrade} · {activeCount}/3개 ON · {timingScore}/{maxScore}점
           </div>
         </div>
-
-        <div style={{background:C.dim,borderRadius:8,height:7,overflow:"hidden"}}>
+        <div style={{background:C.dim,borderRadius:6,height:10,overflow:"hidden"}}>
           <div style={{
-            width:`${Math.round((timingScore / maxScore) * 100)}%`,
+            width:`${Math.round((timingScore/maxScore)*100)}%`,
             height:"100%",
-            background:`linear-gradient(90deg,${uiColor}88,${uiColor})`,
-            borderRadius:8,
+            background:`linear-gradient(90deg,${levelColor}88,${levelColor})`,
+            borderRadius:6,
             transition:"width 0.6s ease"
           }}/>
         </div>
-
-        <div style={{color:C.muted,fontSize:9,marginTop:6,lineHeight:1.45}}>
+        <div style={{color:C.muted,fontSize:9,marginTop:7,lineHeight:1.5}}>
           {isBubbleLate
-            ? activeCount === 0
-              ? "켜진 신호가 없습니다. 버블 말기지만 아직 붕괴 트리거는 약합니다."
-              : activeCount === 1
-                ? "1개 신호만 켜졌습니다. 아직 급락 확정은 아니며 추가 확인이 필요합니다."
-                : activeCount === 2
-                  ? "2개 신호가 켜졌습니다. 하락 전환 위험이 꽤 커졌습니다."
-                  : "3개 신호가 모두 켜졌습니다. 붕괴 위험이 매우 높습니다."
+            ? activeCount===0 ? "아직 신호가 없습니다. 버블 말기지만 붕괴 트리거는 아직 미약합니다."
+              : activeCount===1 ? "신호 1개 켜짐 — 추격 매수를 멈추고 과열 종목을 점검하세요."
+              : activeCount===2 ? "신호 2개 켜짐 — 하락 위험이 커졌습니다. 단계적 축소를 시작하세요."
+              : "신호 3개 모두 켜짐 — 붕괴 위험이 높습니다. 비중 축소를 서두르세요."
             : isBottom
-            ? activeCount === 0
-              ? "켜진 신호가 없습니다. 바닥 가능성은 있지만 아직 확인은 부족합니다."
-              : activeCount === 1
-                ? "1개 회복 신호만 켜졌습니다. 아직은 관찰 단계입니다."
-                : activeCount === 2
-                  ? "2개 회복 신호가 켜졌습니다. 반등 가능성이 커졌습니다."
-                  : "3개 회복 신호가 모두 켜졌습니다. 반등 가능성이 매우 높습니다."
-            : isCredit || isComplex
-            ? activeCount === 0
-              ? "켜진 위험 신호가 없습니다. 경계 단계이나 트리거는 아직 미약합니다."
-              : activeCount === 1
-                ? "1개 위험 신호가 켜졌습니다. 리스크 관리를 강화하세요."
-                : activeCount === 2
-                  ? "2개 위험 신호가 켜졌습니다. 방어 포지션 전환을 검토하세요."
-                  : "3개 위험 신호가 모두 켜졌습니다. 즉각적인 대응이 필요합니다."
-            : activeCount === 0
-              ? "켜진 압박 신호가 없습니다. 경계는 필요하지만 즉각 대응은 불필요합니다."
-              : activeCount === 1
-                ? "1개 압박 신호가 확인됩니다. 고평가 자산 비중을 점검하세요."
-                : activeCount === 2
-                  ? "2개 압박 신호가 확인됩니다. 방어적 재편을 검토하세요."
-                  : "3개 압박 신호가 모두 켜졌습니다. 적극적인 방어 전환이 필요합니다."
+            ? activeCount===0 ? "아직 신호가 없습니다. 바닥 가능성은 있으나 섣부른 매수는 이릅니다."
+              : activeCount===1 ? "신호 1개 켜짐 — 소액 시험 매수를 고려할 수 있습니다."
+              : activeCount===2 ? "신호 2개 켜짐 — 반등 가능성이 커졌습니다. 분할매수를 시작하세요."
+              : "신호 3개 모두 켜짐 — 반등 신호가 강합니다. 분할매수 비중을 높이세요."
+            : isCredit||isComplex
+            ? activeCount===0 ? "아직 신호가 없습니다. 경계 구간이나 즉각 대응은 아직 불필요합니다."
+              : activeCount===1 ? "신호 1개 켜짐 — 리스크 관리를 강화하고 레버리지를 줄이세요."
+              : activeCount===2 ? "신호 2개 켜짐 — 방어 포지션으로 전환을 검토하세요."
+              : "신호 3개 모두 켜짐 — 즉각 대응이 필요합니다. 현금을 최우선으로 확보하세요."
+            : activeCount===0 ? "아직 신호가 없습니다. 경계는 필요하지만 급격한 변경은 이릅니다."
+              : activeCount===1 ? "신호 1개 켜짐 — 고평가 자산 비중을 점검하세요."
+              : activeCount===2 ? "신호 2개 켜짐 — 방어적 재편을 시작하세요."
+              : "신호 3개 모두 켜짐 — 적극적인 방어 전환이 필요합니다."
           }
         </div>
       </div>
 
+      {/* 3단계 진행 카드 */}
       <div style={{marginTop:14}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:10}}>
           <div style={{display:"flex",alignItems:"center",gap:7}}>
             <div style={{
-              width:9,
-              height:9,
-              borderRadius:"50%",
-              background:uiColor,
-              boxShadow:`0 0 14px ${uiColor}`
+              width:8,height:8,borderRadius:"50%",
+              background:levelColor,
+              boxShadow:`0 0 10px ${levelColor}`
             }}/>
             <div style={{color:C.text,fontSize:11,fontWeight:900}}>
-              시장 진행 단계 해석
+              시장 진행 단계
             </div>
           </div>
-
           <div style={{
-            color:uiColor,
-            fontSize:9,
-            fontWeight:900,
-            background:`${uiColor}14`,
-            border:`1px solid ${uiColor}55`,
-            borderRadius:999,
-            padding:"3px 9px",
+            color:levelColor,fontSize:9,fontWeight:800,
+            background:`${levelColor}14`,
+            border:`1px solid ${levelColor}44`,
+            borderRadius:999,padding:"3px 9px",
             whiteSpace:"nowrap"
           }}>
-            {isBubbleLate ? "버블 진행 단계" : isBottom ? "침체 회복 단계" : isCredit ? "신용위기 단계" : isComplex ? "복합위기 단계" : isTightening ? "긴축 압박 단계" : "유동성 압박 단계"}
+            {isBubbleLate?"버블 진행":isBottom?"침체 회복":isCredit?"신용위기":isComplex?"복합위기":isTightening?"긴축 압박":"유동성 압박"}
           </div>
         </div>
 
-        <div style={{color:C.muted,fontSize:9,lineHeight:1.6,marginBottom:10}}>
-          정확한 폭락·반등 시점 예측이 아니라, 현재 시장에서 관찰되는 증상을 기준으로
-          어느 단계에 가까운지를 해석합니다.
+        <div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginBottom:10}}>
+          현재 시장에서 관찰되는 증상을 기준으로 어느 단계에 가까운지를 해석합니다. 정확한 시점 예측이 아닌 참고용입니다.
         </div>
 
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {phaseList.map((phase,i)=>{
             const active = i === activeBeltIndex;
-
             return (
               <div key={i} style={{
                 position:"relative",
                 overflow:"hidden",
-                borderRadius:16,
-                padding:"14px 14px",
+                borderRadius:14,
+                padding:"12px 14px",
                 background:active
-                  ? `linear-gradient(135deg, ${phase.color}22, ${phase.color}08)`
+                  ? `linear-gradient(135deg, ${phase.color}20, ${phase.color}08)`
                   : C.card2,
                 border:active
-                  ? `1.5px solid ${phase.color}99`
+                  ? `1.5px solid ${phase.color}88`
                   : `1px solid ${C.border}`,
-                boxShadow:active
-                  ? `0 0 24px ${phase.color}33`
-                  : "none",
-                opacity:active ? 1 : 0.72
+                boxShadow:active ? `0 0 20px ${phase.color}28` : "none",
+                opacity:active ? 1 : 0.42,
+                filter:active ? "none" : "grayscale(25%)",
+                transition:"opacity 0.3s"
               }}>
-                {active && (
+                {active&&(
                   <div style={{
-                    position:"absolute",
-                    top:0,
-                    left:0,
-                    width:5,
-                    height:"100%",
+                    position:"absolute",top:0,left:0,
+                    width:4,height:"100%",
                     background:phase.color,
-                    boxShadow:`0 0 18px ${phase.color}`
+                    boxShadow:`0 0 12px ${phase.color}`
                   }}/>
                 )}
 
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
                   <div style={{display:"flex",alignItems:"center",gap:10}}>
                     <div style={{
-                      width:38,
-                      height:38,
-                      borderRadius:13,
-                      background:active ? `${phase.color}22` : C.dim,
-                      display:"flex",
-                      alignItems:"center",
-                      justifyContent:"center",
-                      fontSize:18,
-                      boxShadow:active ? `0 0 14px ${phase.color}44` : "none"
+                      width:36,height:36,borderRadius:10,
+                      background:active ? `${phase.color}20` : C.dim,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:17,
+                      boxShadow:active ? `0 0 12px ${phase.color}33` : "none"
                     }}>
                       {phase.icon}
                     </div>
-
                     <div>
-                      <div style={{
-                        color:active ? phase.color : C.text,
-                        fontSize:12,
-                        fontWeight:900
-                      }}>
+                      <div style={{color:active ? phase.color : C.text,fontSize:12,fontWeight:900}}>
                         {phase.title}
                       </div>
-                      <div style={{color:C.muted,fontSize:9,marginTop:2}}>
+                      <div style={{color:C.muted,fontSize:9,marginTop:1}}>
                         {phase.subtitle}
                       </div>
                       <div style={{
-                        display:"inline-flex",
-                        marginTop:6,
+                        display:"inline-flex",marginTop:5,
                         color:active ? phase.color : C.muted,
                         background:active ? `${phase.color}14` : C.dim,
-                        border:`1px solid ${active ? phase.color + "55" : C.border}`,
-                        borderRadius:999,
-                        padding:"2px 7px",
-                        fontSize:8,
-                        fontWeight:900,
-                        whiteSpace:"nowrap"
+                        border:`1px solid ${active ? phase.color+"44" : C.border}`,
+                        borderRadius:999,padding:"1px 7px",
+                        fontSize:8,fontWeight:800,whiteSpace:"nowrap"
                       }}>
-                        {phase.duration}
+                        평균 {phase.duration}
                       </div>
                     </div>
                   </div>
-
-                  {active && (
+                  {active&&(
                     <div style={{
-                      background:`${phase.color}22`,
-                      color:phase.color,
-                      border:`1px solid ${phase.color}66`,
-                      borderRadius:999,
-                      padding:"4px 10px",
-                      fontSize:9,
-                      fontWeight:900,
-                      whiteSpace:"nowrap"
+                      background:`${phase.color}20`,color:phase.color,
+                      border:`1px solid ${phase.color}55`,
+                      borderRadius:999,padding:"3px 9px",
+                      fontSize:9,fontWeight:900,whiteSpace:"nowrap"
                     }}>
                       현재 활성
                     </div>
                   )}
                 </div>
 
-                <div style={{marginTop:12,color:active ? C.text : C.muted,fontSize:10,lineHeight:1.7}}>
-                  {phase.meaning}
-                </div>
-
-                <div style={{
-                  marginTop:12,
-                  background:active ? `${phase.color}10` : C.dim,
-                  borderRadius:12,
-                  padding:"10px 12px"
-                }}>
-                  <div style={{
-                    color:active ? phase.color : C.text,
-                    fontSize:10,
-                    fontWeight:900,
-                    marginBottom:8
-                  }}>
-                    시장 특징
-                  </div>
-
-                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {phase.symptoms.map((s,idx)=>(
-                      <div key={idx} style={{
-                        display:"flex",
-                        alignItems:"flex-start",
-                        gap:7,
-                        fontSize:9,
-                        lineHeight:1.5,
-                        color:active ? C.text : C.muted
-                      }}>
-                        <span style={{
-                          color:active ? phase.color : C.muted,
-                          fontWeight:900
-                        }}>
-                          ●
-                        </span>
-                        <span>{s}</span>
+                {active&&(
+                  <>
+                    <div style={{
+                      marginTop:10,
+                      background:`${phase.color}0e`,
+                      borderRadius:10,padding:"8px 10px"
+                    }}>
+                      <div style={{color:phase.color,fontSize:9,fontWeight:800,marginBottom:5}}>
+                        지금 시장에서 보이는 것
                       </div>
-                    ))}
-                  </div>
-                </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                        {phase.symptoms.map((s,idx)=>(
+                          <div key={idx} style={{
+                            display:"flex",alignItems:"flex-start",gap:6,
+                            fontSize:9,lineHeight:1.5,color:C.text
+                          }}>
+                            <span style={{color:phase.color,fontWeight:900,marginTop:1}}>▸</span>
+                            <span>{s}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-                <div style={{
-                  marginTop:12,
-                  borderRadius:12,
-                  padding:"10px 12px",
-                  background:active ? `${phase.color}14` : "transparent",
-                  border:active
-                    ? `1px solid ${phase.color}44`
-                    : `1px dashed ${C.border}`
-                }}>
-                  <div style={{
-                    color:active ? phase.color : C.muted,
-                    fontSize:10,
-                    fontWeight:900,
-                    marginBottom:6
-                  }}>
-                    투자 해석
-                  </div>
-
-                  <div style={{color:active ? C.text : C.muted,fontSize:9,lineHeight:1.6}}>
-                    {phase.interpretation}
-                  </div>
-                </div>
+                    <div style={{
+                      marginTop:8,
+                      borderRadius:10,padding:"8px 10px",
+                      background:`${phase.color}14`,
+                      border:`1px solid ${phase.color}33`
+                    }}>
+                      <div style={{color:phase.color,fontSize:9,fontWeight:800,marginBottom:4}}>
+                        지금 해야 할 것
+                      </div>
+                      <div style={{color:C.text,fontSize:9,lineHeight:1.6}}>
+                        {phase.interpretation}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      <div style={{marginTop:10}}>
-        <div style={{color:C.text,fontSize:10,fontWeight:800,marginBottom:5}}>
-          확인 트리거
+      {/* 확인 트리거 */}
+      <div style={{marginTop:12}}>
+        <div style={{color:C.text,fontSize:10,fontWeight:800,marginBottom:6}}>
+          확인 트리거 — {activeCount}개 켜짐
         </div>
-
-        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        <div style={{display:"flex",flexDirection:"column",gap:5}}>
           {timingSignals.map((s,i)=>(
             <div key={i} style={{
-              display:"flex",
-              justifyContent:"space-between",
-              alignItems:"flex-start",
-              gap:8,
-              background:s.active ? `${levelColor}12` : "transparent",
-              border:s.active ? `1px solid ${levelColor}55` : `1px solid ${C.border}22`,
-              borderRadius:8,
-              padding:"6px 8px",
-              fontSize:10,
-              lineHeight:1.45,
-              color:s.active ? C.text : C.muted,
-              boxShadow:s.active ? `0 0 10px ${levelColor}22` : "none"
+              display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,
+              background:s.active ? `${levelColor}10` : C.card2,
+              border:s.active ? `1px solid ${levelColor}44` : `1px solid ${C.border}`,
+              borderRadius:8,padding:"7px 10px",
+              opacity:s.active ? 1 : 0.55,
             }}>
               <div>
-                <div style={{fontWeight:800,color:s.active ? levelColor : C.muted}}>
-                  {s.active ? "●" : "○"} {s.name}
+                <div style={{
+                  fontWeight:800,fontSize:10,
+                  color:s.active ? levelColor : C.muted,
+                  display:"flex",alignItems:"center",gap:5
+                }}>
+                  <span style={{
+                    fontSize:8,
+                    color:s.active ? levelColor : C.border,
+                    background:s.active ? `${levelColor}20` : C.dim,
+                    borderRadius:"50%",width:16,height:16,
+                    display:"inline-flex",alignItems:"center",justifyContent:"center"
+                  }}>
+                    {s.active ? "●" : "–"}
+                  </span>
+                  {s.name}
                 </div>
-                <div style={{fontSize:9,color:s.active ? C.text : C.muted,marginTop:2}}>
+                <div style={{fontSize:9,color:s.active ? C.text : C.muted,marginTop:2,paddingLeft:21}}>
                   {s.simple}
                 </div>
-                <div style={{fontSize:8,color:C.muted,marginTop:2}}>
-                  {s.desc}
-                </div>
               </div>
-
               <span style={{
                 color:s.active ? levelColor : C.muted,
-                fontWeight:900,
-                fontFamily:"monospace",
-                whiteSpace:"nowrap"
+                fontWeight:900,fontFamily:"monospace",
+                fontSize:11,whiteSpace:"nowrap",
+                opacity:s.active ? 1 : 0.4
               }}>
-                {s.active ? `+${s.score}` : "0"}
+                {s.active ? `+${s.score}` : "–"}
               </span>
             </div>
           ))}
         </div>
       </div>
 
+      {/* 행동 지침 */}
       <div style={{
-        marginTop:10,
-        background:`${levelColor}10`,
-        border:`1px solid ${levelColor}44`,
-        borderRadius:10,
-        padding:"8px 10px",
-        color:levelColor,
-        fontSize:10,
-        fontWeight:800,
-        lineHeight:1.5
+        marginTop:12,
+        background:`${levelColor}12`,
+        border:`1.5px solid ${levelColor}44`,
+        borderRadius:10,padding:"10px 12px",
+        color:levelColor,fontSize:10,fontWeight:800,lineHeight:1.6
       }}>
         {timing.action}
       </div>
 
+      {/* 면책 고지 */}
       <div style={{
-        marginTop:12,
-        padding:"10px 12px",
-        borderRadius:12,
-        background:C.card2,
-        border:`1px dashed ${C.border}`,
-        color:C.muted,
-        fontSize:9,
-        lineHeight:1.6
+        marginTop:10,padding:"8px 12px",borderRadius:10,
+        background:C.card2,border:`1px dashed ${C.border}`,
+        color:C.muted,fontSize:8,lineHeight:1.6
       }}>
-        ※ 평균 진행 속도는 과거 사례 기준의 참고 구간이며, 정확한 폭락·반등 시점을 의미하지 않습니다.
-        <br/>
-        현재 시장에서 관찰되는 증상과 월봉 트리거를 바탕으로 시장의 진행 상태를 해석합니다.
+        ※ 과거 사례 기반 참고 구간이며, 정확한 폭락·반등 시점을 의미하지 않습니다. 투자 판단의 보조 참고용으로만 활용하세요.
       </div>
     </div>
   );
 })()}
+
        {/* ══ AEGIS 전략 엔진 카드 ══ */}
 {macroData?.regimeInsight && dc && (() => {
 
@@ -4238,10 +4193,15 @@ else {
   const strategy = getAegisStrategy(regimeLabel, dc.defcon);
   const getRegimeColor = (label) => {
     const t = String(label || "").replace(/\s/g, "");
-    if (t.includes("침체") || t.includes("바닥") || t.includes("정상") || t.includes("확장")) return "#00D000";
-    if (t.includes("회복") || (t.includes("버블") && t.includes("초입"))) return "#1E72F0";
-    if (t.includes("버블") && t.includes("말기")) return "#FF7A00";
-    if (t.includes("긴축") || t.includes("금리") || t.includes("유동성") || t.includes("신용") || t.includes("복합") || t.includes("위기")) return "#FF1A1A";
+    if (t.includes("복합")) return "#991B1B";
+    if (t.includes("신용")) return "#DC2626";
+    if (t.includes("유동성")) return "#EF4444";
+    if (t.includes("긴축") || t.includes("금리")) return "#F59E0B";
+    if (t.includes("버블") && t.includes("말기")) return "#F97316";
+    if (t.includes("버블") && t.includes("초입")) return "#A78BFA";
+    if (t.includes("침체") || t.includes("바닥")) return "#06B6D4";
+    if (t.includes("정상") || t.includes("확장")) return "#10B981";
+    if (t.includes("회복")) return "#3B82F6";
     return darkMode ? "#8AA8C8" : "#64748B";
   };
 
