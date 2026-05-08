@@ -158,7 +158,7 @@ export default function App(){
     // localStorage 캐시 우선 (6시간 TTL)
     // v2_usfix: 빈 캐시 생존 문제 방지 + 핵심 US 배열 검증 강화
     const MACRO_CACHE_TTL=6*60*60*1000;
-    const CACHE_KEY="sq_macro_v2_usfix";
+    const CACHE_KEY="sq_macro_v1";
 
     // 핵심 US 배열 유효성 검사 — 비어 있으면 캐시 무효
     const isValidMacro = (d) => {
@@ -178,8 +178,6 @@ export default function App(){
 
     let cached=null;
     try{
-      // 구 캐시 키 삭제 (마이그레이션)
-      localStorage.removeItem("sq_macro_v1");
       const raw=localStorage.getItem(CACHE_KEY);
       if(raw){
         const{data,ts}=JSON.parse(raw);
@@ -3384,53 +3382,125 @@ else {
   </div>
   );
 })()}
-{/* ══ 통합 인지 체계 패널 ══ */}
-{coreIntel && macroData && (()=>{
+{/* ══ 코어 인텔리전스 패널 ══ */}
+{coreIntel && macroData && dc && (()=>{
   const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
-  const riskColor =
-    state.totalRisk > 0.75 ? "#991B1B" :
-    state.totalRisk > 0.55 ? "#EF4444" :
-    state.totalRisk > 0.35 ? "#F59E0B" : "#10B981";
-  const barVal = (v01) => `${Math.round(v01 * 100)}%`;
-  const dirColor = (v) => v > 0.15 ? "#EF4444" : v < -0.15 ? "#10B981" : C.muted;
+
+  // 색상은 SEFCON 공식 점수 기준 (dc.totalScore)
+  const sefScore = dc.totalScore ?? 50;
+  const accentColor =
+    sefScore >= 70 ? C.green :
+    sefScore >= 50 ? C.gold :
+    sefScore >= 35 ? C.orange : C.red;
+
+  const dirColor = (v) => v > 0.15 ? C.red : v < -0.15 ? C.green : C.muted;
+  const dirArrow = (v) => v > 0.15 ? "▲" : v < -0.15 ? "▼" : "—";
+
   return(
-  <div style={{background:C.card,border:`1.5px solid ${riskColor}33`,borderRadius:16,
+  <div style={{background:C.card,border:`1.5px solid ${accentColor}33`,borderRadius:16,
     padding:"14px 14px",marginBottom:10}}>
+
+    {/* 헤더 */}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
       <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",opacity:0.7}}>
-        ⚡ 통합 인지 체계
+        🧭 코어 인텔리전스
       </div>
-      <div style={{display:"flex",alignItems:"center",gap:6}}>
-        <span style={{color:riskColor,fontSize:9,fontWeight:800}}>{regime.statePhrase}</span>
-        <span style={{color:C.muted,fontSize:8}}>위험도 {interpretation.riskScore}점</span>
-        <span style={{
-          color:interpretation.direction==="악화"?C.red:interpretation.direction==="개선"?C.green:C.muted,
-          fontSize:8,fontWeight:700
-        }}>{interpretation.direction==="악화"?"▲":interpretation.direction==="개선"?"▼":"—"} {interpretation.direction}</span>
+      <div style={{color:C.muted,fontSize:7}}>
+        해석 · 방향 · 전략 보정
       </div>
     </div>
-    <div style={{background:`${riskColor}0a`,border:`1px solid ${riskColor}22`,borderRadius:10,
-      padding:"9px 11px",marginBottom:10}}>
-      <div style={{color:C.text,fontSize:9,lineHeight:1.75}}>
-        {interpretation.lines.map((line,i)=>(
-          <div key={i} style={{marginBottom:i<interpretation.lines.length-1?5:0}}>{line}</div>
+
+    {/* SEFCON 공식 점수 + 해석 요약 */}
+    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+
+      {/* SEFCON 공식 점수 */}
+      <div style={{
+        flexShrink:0,
+        background:C.card2,border:`1px solid ${accentColor}44`,
+        borderRadius:10,padding:"8px 12px",minWidth:100,
+      }}>
+        <div style={{color:C.muted,fontSize:7,marginBottom:3}}>SEFCON 공식 점수</div>
+        <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+          <span style={{color:accentColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{sefScore}</span>
+          <span style={{color:C.muted,fontSize:8}}>/ 100</span>
+        </div>
+        <div style={{color:C.muted,fontSize:7,marginTop:1}}>
+          {sefScore>=70?"안정":sefScore>=50?"중립":sefScore>=35?"경계":"위험"} 구간
+        </div>
+      </div>
+
+      {/* 해석 4개 항목 */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",gap:5}}>
+        {[
+          {
+            label:"방향성",
+            value:interpretation.direction,
+            color: interpretation.direction==="악화"?C.red:
+                   interpretation.direction==="개선"?C.green:C.muted,
+            arrow: interpretation.direction==="악화"?"▲":
+                   interpretation.direction==="개선"?"▼":"—",
+          },
+          {
+            label:"지배적 힘",
+            value:physics.dominantForce,
+            color:accentColor,
+            arrow:null,
+          },
+          {
+            label:"위험 가속도",
+            value:temporal.labels.riskAcceleration,
+            color:dirColor(temporal.riskAcceleration),
+            arrow:dirArrow(temporal.riskAcceleration),
+          },
+          {
+            label:"전략 보정",
+            value:strategy.actions[0] ?? "보정 없음",
+            color:C.text,
+            arrow:null,
+          },
+        ].map(({label,value,color,arrow})=>(
+          <div key={label} style={{
+            display:"flex",justifyContent:"space-between",alignItems:"center",
+            background:C.card2,borderRadius:7,padding:"4px 9px",
+            border:`1px solid ${C.border}`
+          }}>
+            <span style={{color:C.muted,fontSize:8}}>{label}</span>
+            <span style={{color,fontSize:9,fontWeight:800}}>
+              {arrow&&<span style={{marginRight:3}}>{arrow}</span>}
+              {value}
+            </span>
+          </div>
         ))}
       </div>
     </div>
+
+    {/* 해석 문장 */}
+    <div style={{background:`${accentColor}08`,border:`1px solid ${accentColor}22`,
+      borderRadius:10,padding:"8px 11px",marginBottom:10}}>
+      <div style={{color:C.text,fontSize:9,lineHeight:1.75}}>
+        {interpretation.lines.map((line,i)=>(
+          <div key={i} style={{marginBottom:i<interpretation.lines.length-1?4:0}}>{line}</div>
+        ))}
+      </div>
+    </div>
+
+    {/* 레짐 태그 */}
     {regime.tags.length>0&&(
     <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>
       {regime.tags.map((tag,i)=>(
         <span key={i} style={{
           fontSize:8,fontWeight:700,
-          color:i===0?riskColor:C.muted,
-          background:i===0?`${riskColor}14`:C.card2,
-          border:`1px solid ${i===0?riskColor+"33":C.border}`,
+          color:i===0?accentColor:C.muted,
+          background:i===0?`${accentColor}14`:C.card2,
+          border:`1px solid ${i===0?accentColor+"33":C.border}`,
           borderRadius:6,padding:"2px 7px"
         }}>{tag}</span>
       ))}
     </div>
     )}
-    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+
+    {/* Physics 게이지 3개 */}
+    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
       {[
         {label:"유동성 압력",val:physics.liquidityPressure,trend:temporal.labels.liquidityTrend},
         {label:"밸류 중력",  val:physics.valuationGravity, trend:null},
@@ -3455,33 +3525,9 @@ else {
         );
       })}
     </div>
-    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
-      {[
-        {label:"유동성", v:temporal.liquidityTrend,        lbl:temporal.labels.liquidityTrend},
-        {label:"신용속도",v:temporal.creditAcceleration,   lbl:temporal.labels.creditAcceleration},
-        {label:"변동성", v:-temporal.volatilityCompression,lbl:temporal.labels.volatilityCompression},
-      ].map(({label,v,lbl})=>(
-        <div key={label} style={{flex:1,minWidth:80,background:C.card2,borderRadius:8,
-          padding:"6px 8px",border:`1px solid ${C.border}`}}>
-          <div style={{color:C.muted,fontSize:7,marginBottom:3}}>{label}</div>
-          <div style={{color:dirColor(v),fontSize:9,fontWeight:800}}>{lbl}</div>
-        </div>
-      ))}
-    </div>
-    {strategy.actions.length>0&&(
-    <div style={{background:`${riskColor}0e`,border:`1px solid ${riskColor}22`,borderRadius:8,padding:"8px 10px"}}>
-      <div style={{color:riskColor,fontSize:9,fontWeight:800,marginBottom:5}}>
-        Core 전략 신호 ({physics.dominantForce})
-      </div>
-      {strategy.actions.map((a,i)=>(
-        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:5,fontSize:9,color:C.text,lineHeight:1.5,marginBottom:2}}>
-          <span style={{color:riskColor,fontWeight:900}}>▸</span><span>{a}</span>
-        </div>
-      ))}
-    </div>
-    )}
-    <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
-      State · Temporal · Physics · Regime 통합 분석 — 참고용
+
+    <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right"}}>
+      State · Temporal · Physics · Regime 통합 해석 — 참고용
     </div>
   </div>
   );
