@@ -1177,45 +1177,65 @@ export default function App(){
                       <Bar dataKey="net" name="순이익"   fill={C.purple} opacity={0.7} maxBarSize={24}/>
                     </ComposedChart>
                   </CW></>);})()}
-                  {/* 영업이익률·순이익률(막대·좌축) + 성장률 YoY(꺾은선·우축) */}
-                  <ST accent={C.gold}>이익률 & 성장률</ST>
+                  {/* ── 이익률 차트 (OPM / NPM 전용) */}
+                  <ST accent={C.gold}>이익률</ST>
                   <div style={{background:`${C.gold}0d`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                     <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
-                      <span style={{color:C.gold,fontWeight:700}}>OPM(영업이익률)</span>은 본업 수익성, <span style={{color:C.purple,fontWeight:700}}>NPM(순이익률)</span>은 최종 수익성입니다.
-                      우축 꺾은선은 전년 대비 성장률(YoY)로, 막대가 낮아도 꺾은선이 상승하면 개선 추세를 의미합니다.
-                      OPM 10% 이상이면 양호, 15% 이상이면 경쟁 우위 신호로 봅니다.
+                      <span style={{color:C.gold,fontWeight:700}}>OPM(영업이익률)</span>은 본업 수익성, <span style={{color:C.purple,fontWeight:700}}>NPM(순이익률)</span>은 최종 수익성입니다. 장기적으로 우상향 여부를 확인하세요.
                     </div>
                   </div>
-                  <CW h={220}>
+                  <CW h={200}>
                     {(()=>{
-                      const merged=growthData.map(r=>{
-                        const base=finView==="연간"?annTimeline:qtrTimeline;
-                        const match=base.find(b=>b.period===r.period);
-                        return{...r,opm:match?.opm??null,npm:match?.npm??null};
-                      });
+                      const base=finView==="연간"?annTimeline:qtrTimeline;
+                      const marged=base.map(r=>({...r,opm:r.opm??null,npm:r.npm??null}));
                       return(
-                        <ComposedChart data={merged} margin={{top:4,right:4,left:0,bottom:8}}>
+                        <ComposedChart data={marged} margin={{top:4,right:8,left:0,bottom:8}}>
                           <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                           <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="left"  {...yp("%",44)} domain={["auto","auto"]}/>
-                          <YAxis yAxisId="right" orientation="right" {...yp("%",44)} domain={["auto","auto"]}/>
+                          <YAxis {...yp("%",44)} domain={["auto","auto"]}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
                           <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
-                          <ReferenceLine yAxisId="right" y={0} stroke={C.muted} strokeDasharray="4 3"/>
-                          <Bar yAxisId="left" dataKey="opm" name="OPM%" fill={C.gold}   opacity={0.75} maxBarSize={22} radius={[3,3,0,0]}/>
-                          <Bar yAxisId="left" dataKey="npm" name="NPM%" fill={C.purple} opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
-                          <Line yAxisId="right" dataKey="revGrowth" name="매출YoY%" stroke={C.blue}  strokeWidth={2} dot={{r:3}} connectNulls/>
-                          <Line yAxisId="right" dataKey="opGrowth"  name="영업YoY%" stroke={C.green} strokeWidth={2} dot={{r:3}} connectNulls/>
+                          <Bar dataKey="opm" name="OPM%" fill={C.gold}   opacity={0.75} maxBarSize={22} radius={[3,3,0,0]}/>
+                          <Bar dataKey="npm" name="NPM%" fill={C.purple} opacity={0.65} maxBarSize={22} radius={[3,3,0,0]}/>
                         </ComposedChart>
                       );
                     })()}
                   </CW>
-                  <ST accent={C.gold} right="%">OPM · ROE · ROA</ST>
+                  {/* ── 성장률 차트 (매출YoY / 영업YoY 전용, 극단값 cap) */}
+                  <ST accent={C.blue}>성장률</ST>
+                  <div style={{background:`${C.blue}0d`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
+                    <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
+                      매출/영업 성장률 추이를 통해 기업의 성장 지속성을 확인합니다. 극단값은 차트 해석성을 위해 표시 범위를 제한합니다.
+                    </div>
+                  </div>
+                  <CW h={200}>
+                    {(()=>{
+                      const CAP=200;
+                      const cappedGrowth=growthData.map(r=>({
+                        ...r,
+                        revGrowthCap:r.revGrowth!=null?Math.max(-CAP,Math.min(CAP,r.revGrowth)):null,
+                        opGrowthCap:r.opGrowth!=null?Math.max(-CAP,Math.min(CAP,r.opGrowth)):null,
+                        revExtreme:r.revGrowth!=null&&Math.abs(r.revGrowth)>CAP,
+                        opExtreme:r.opGrowth!=null&&Math.abs(r.opGrowth)>CAP,
+                      }));
+                      return(
+                        <ComposedChart data={cappedGrowth} margin={{top:4,right:8,left:0,bottom:8}}>
+                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                          <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
+                          <YAxis {...yp("%",44)} domain={[-CAP,CAP]}/>
+                          <Tooltip content={<MTip/>} cursor={false}/>
+                          <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
+                          <ReferenceLine y={0} stroke={C.muted} strokeDasharray="4 3"/>
+                          <Line dataKey="revGrowthCap" name="매출YoY%" stroke={C.blue}  strokeWidth={2} dot={{r:3}} connectNulls/>
+                          <Line dataKey="opGrowthCap"  name="영업YoY%" stroke={C.green} strokeWidth={2} dot={{r:3}} connectNulls/>
+                        </ComposedChart>
+                      );
+                    })()}
+                  </CW>
+                  <ST accent={C.gold} right="%">ROE · ROA</ST>
                   <div style={{background:`${C.gold}0d`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
                     <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
-                      <span style={{color:C.purple,fontWeight:700}}>ROE(자기자본이익률)</span>: 주주 자본 대비 순이익. 버핏 기준 <span style={{color:C.purple,fontWeight:700}}>15% 이상</span>이 우량 기업.
-                      <span style={{color:C.blueL,fontWeight:700}}> ROA(총자산이익률)</span>: 자산 전체 대비 효율성. ROE는 높은데 ROA가 낮으면 레버리지(부채) 의존도가 높다는 신호입니다.
-                      보조선(15%)과 비교해 추세가 우상향 중인지 확인하세요.
+                      <span style={{color:C.purple,fontWeight:700}}>ROE(자기자본이익률)</span>는 자본 효율, <span style={{color:C.blueL,fontWeight:700}}>ROA(총자산이익률)</span>는 자산 효율을 의미합니다. 15% 이상이면 우량 신호로 볼 수 있습니다.
                     </div>
                   </div>
                   <CW h={230}>
@@ -1223,7 +1243,7 @@ export default function App(){
                       const merged=growthData.map(r=>{
                         const base=finView==="연간"?annTimeline:qtrTimeline;
                         const match=base.find(b=>b.period===r.period);
-                        return{...r,opm:match?.opm??null,roe:match?.roe??null,roa:match?.roa??null};
+                        return{...r,roe:match?.roe??null,roa:match?.roa??null};
                       });
                       return(
                       <ComposedChart data={merged} margin={{top:8,right:4,left:0,bottom:8}}>
@@ -1239,7 +1259,6 @@ export default function App(){
                         <Tooltip content={<MTip/>} cursor={false}/><Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
                         <ReferenceLine y={15} stroke={C.purple} strokeDasharray="4 3"
                           label={{value:"ROE 15%",fill:C.purple,fontSize:9,position:"insideTopRight"}}/>
-                        <Bar  dataKey="opm" name="OPM%" fill={C.gold} opacity={0.55} maxBarSize={22} radius={[3,3,0,0]}/>
                         <Area dataKey="roe" name="ROE%" stroke={C.purple} strokeWidth={2.5} fill="url(#roeGrad)" dot={{r:3,fill:C.purple,strokeWidth:0}} connectNulls/>
                         <Line dataKey="roa" name="ROA%" stroke={C.blueL} strokeWidth={2} dot={{r:2.5,fill:C.blueL,strokeWidth:0}} strokeDasharray="5 2" connectNulls/>
                       </ComposedChart>
@@ -3348,7 +3367,7 @@ else {
     </div>
   );
 })()}
-{/* ══ v3 타이밍 카드: 버블 말기 / 침체 바닥 전용 최종본 ══ */}
+{/* ══ v3 타이밍 카드: 위험 전환점 레짐 전용 ══ */}
 {macroData?.regimeInsight && dc && (() => {
   const regimeLabel = macroData?.regimeInsight?.regime?.primaryLabel || "";
 
@@ -3358,7 +3377,25 @@ else {
   const isBottom =
     regimeLabel.includes("침체") || regimeLabel.includes("바닥");
 
-  if (!isBubbleLate && !isBottom) return null;
+  const isTightening =
+    !isBubbleLate && !isBottom &&
+    (regimeLabel.includes("긴축") || regimeLabel.includes("금리"));
+
+  const isLiquidity =
+    !isBubbleLate && !isBottom && !isTightening &&
+    regimeLabel.includes("유동성");
+
+  const isCredit =
+    !isBubbleLate && !isBottom && !isTightening && !isLiquidity &&
+    regimeLabel.includes("신용");
+
+  const isComplex =
+    !isBubbleLate && !isBottom && !isTightening && !isLiquidity && !isCredit &&
+    regimeLabel.includes("복합");
+
+  const showCard = isBubbleLate || isBottom || isTightening || isLiquidity || isCredit || isComplex;
+
+  if (!showCard) return null;
 
   const rsiData = calcRSI(kospiMonthly || []);
   const macdData = calcMACD(kospiMonthly || []);
@@ -3418,7 +3455,8 @@ else {
           score:2
         },
       ]
-    : [
+    : isBottom
+    ? [
         {
           name:`RSI 과매도 (${lastRsi.toFixed(1)})`,
           simple:"가격이 과하게 눌린 상태",
@@ -3438,6 +3476,29 @@ else {
           simple:"거래량 힘이 다시 들어오는 상태",
           desc:"켜지면 수급 회복 신호입니다.",
           active:obvUp,
+          score:2
+        },
+      ]
+    : /* 긴축/유동성/신용/복합 공통 — 하락 압력 신호 */ [
+        {
+          name:`RSI 하락 (${lastRsi.toFixed(1)})`,
+          simple:"매도 압력이 커지는 상태",
+          desc:"켜지면 하락 추세가 강해졌다는 뜻입니다.",
+          active:lastRsi < 45,
+          score:2
+        },
+        {
+          name:"MACD 하향",
+          simple:"하락 흐름 지속 또는 심화",
+          desc:"켜지면 추세 악화 신호입니다.",
+          active:macdCrossDown || ((lastMacd.macd ?? 0) < (lastMacd.signal ?? 0)),
+          score:2
+        },
+        {
+          name:"OBV 이탈",
+          simple:"수급 약화 지속",
+          desc:"켜지면 자금 이탈이 확인된다는 뜻입니다.",
+          active:obvDown,
           score:2
         },
       ];
@@ -3473,9 +3534,17 @@ else {
     ? timingScore >= 5 ? "붕괴 임박"
       : timingScore >= 3 ? "고위험"
       : "초기 경계"
-    : timingScore >= 5 ? "반등 임박"
+    : isBottom
+    ? timingScore >= 5 ? "반등 임박"
       : timingScore >= 3 ? "초기 반등"
-      : "바닥 관찰";
+      : "바닥 관찰"
+    : isCredit || isComplex
+    ? timingScore >= 5 ? "위기 심화"
+      : timingScore >= 3 ? "위험 확대"
+      : "위험 경계"
+    : timingScore >= 5 ? "압박 심화"
+      : timingScore >= 3 ? "압박 확대"
+      : "초기 압박";
 
   const activeBeltIndex =
     timingScore <= 2 ? 0 :
@@ -3486,124 +3555,199 @@ else {
     ? {
         title:"버블 말기 타이밍 경고",
         badge:"위험 감시",
+        badgeExtra:null,
         summary:"버블 말기 국면입니다. 실제 붕괴 여부는 아래 월봉 신호가 몇 개 켜졌는지로 판단합니다.",
+        keyPoints:["RSI 과열·MACD 하향 동시 출현","고평가 종목 선행 하락","거래량 흐름 약화"],
         action:
           timingScore >= 5 ? "붕괴 신호가 강합니다. 비중 축소 속도를 높이는 구간입니다."
           : timingScore >= 3 ? "위험 신호가 늘고 있습니다. 신규 매수는 피하고 단계적 축소가 유리합니다."
           : "현재는 초기 경계입니다. 버블 말기이지만 아직 붕괴 확정 신호는 부족합니다."
       }
-    : {
+    : isBottom
+    ? {
         title:"침체 바닥 타이밍 관찰",
         badge:"기회 감시",
+        badgeExtra:null,
         summary:"침체 바닥 국면입니다. 실제 반등 여부는 아래 월봉 회복 신호가 몇 개 켜졌는지로 판단합니다.",
+        keyPoints:["RSI 과매도 진입","MACD 골든크로스 대기","OBV 수급 재유입 확인"],
         action:
           timingScore >= 5 ? "반등 신호가 강합니다. 분할매수 속도를 높일 수 있는 구간입니다."
           : timingScore >= 3 ? "초기 회복 신호입니다. 우량주 중심 소액 분할 접근이 적합합니다."
           : "아직은 관찰 단계입니다. 바닥 가능성은 있지만 확인 신호는 부족합니다."
+      }
+    : isTightening
+    ? {
+        title:"긴축·금리충격 압박 단계",
+        badge:"밸류 압축",
+        badgeExtra:null,
+        summary:"금리 상승 → 유동성 축소 → 밸류 압축이 진행되는 국면입니다. 성장주와 고PER 종목에 집중적인 조정 압력이 가해집니다.",
+        keyPoints:["성장주·고PER 종목 밸류 압축","달러강세 및 환율 불안","레버리지 축소 필요","현금흐름·저부채 기업 선호"],
+        action:
+          timingScore >= 5 ? "압박이 심화되고 있습니다. 방어 자산 비중을 높이고 성장주 노출을 줄이는 구간입니다."
+          : timingScore >= 3 ? "압박 신호가 누적되고 있습니다. 현금흐름 우량주 중심으로 선별적 접근이 필요합니다."
+          : "초기 압박 단계입니다. 고평가 종목 비중 점검을 시작하는 구간입니다."
+      }
+    : isLiquidity
+    ? {
+        title:"유동성 위기 압박 단계",
+        badge:"유동성 주의",
+        badgeExtra:null,
+        summary:"시장 내부 균열이 확대되는 국면입니다. 환율 급등과 외국인 이탈로 자산시장 전반에 압력이 가해집니다.",
+        keyPoints:["환율 급등 및 외국인 이탈","변동성 확대","자산시장 동반 약세","급락 자산 반등 매수 신중"],
+        action:
+          timingScore >= 5 ? "유동성 압박이 심각합니다. 현금 비중을 높이고 리스크 자산 노출을 줄이는 구간입니다."
+          : timingScore >= 3 ? "압박 신호가 확인되고 있습니다. 방어적 포지션을 강화하고 분할매도를 검토하세요."
+          : "초기 압박 단계입니다. 환율과 외국인 수급 흐름을 주시하는 구간입니다."
+      }
+    : isCredit
+    ? {
+        title:"신용경색 위험 단계",
+        badge:"최중요",
+        badgeExtra:"시스템 리스크",
+        summary:"신용 시스템 경색 위험이 높아지는 국면입니다. HY 스프레드 확대와 단기자금 경색이 금융기관 전반으로 전이될 수 있습니다.",
+        keyPoints:["HY 스프레드 급격한 확대","단기자금·회사채 시장 위축","금융기관 유동성 압박","신용 이벤트 전염 가능성","현금흐름 최우선 대응"],
+        action:
+          timingScore >= 5 ? "신용경색 신호가 강합니다. 현금흐름 최우선, 레버리지·저유동성 자산 즉각 회피가 필요합니다."
+          : timingScore >= 3 ? "위험 신호가 확인됩니다. 레버리지 축소와 유동성 높은 자산 중심 재편을 검토하세요."
+          : "경계 단계입니다. 신용 지표 모니터링을 강화하고 방어 체계를 준비하세요."
+      }
+    : {
+        title:"복합 위기 확산 단계",
+        badge:"최종위기",
+        badgeExtra:"공격 매수 금지",
+        summary:"실물·신용·환율 악화가 동시에 진행되는 위기 전이 확산 국면입니다. 정책 대응 실패 가능성과 금융시장 패닉이 극단적으로 확대될 수 있습니다.",
+        keyPoints:["실물+신용+환율 동시 악화","정책 대응 실패 가능성","금융시장 패닉 확대","변동성 극단 구간 진입"],
+        action:
+          timingScore >= 5 ? "최고 위험 단계입니다. 생존 우선 — 현금/국채 중심으로 전환하고 공격적 매수를 즉각 중단하세요."
+          : timingScore >= 3 ? "위기 신호가 복합적으로 확인됩니다. 현금 비중 극대화와 리스크 자산 청산을 검토하세요."
+          : "복합 위기 경계 단계입니다. 추가 신호를 예의 주시하며 방어 준비를 완료하세요."
       };
 
   const phaseList = isBubbleLate
     ? [
         {
-          title:"초기 경고 단계",
-          subtitle:"버블 내부 균열 시작",
-          duration:"평균 진행 속도 1~3M",
-          color:uiColor,
-          icon:"⚠️",
+          title:"초기 경고 단계",subtitle:"버블 내부 균열 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"⚠️",
           meaning:"버블은 아직 살아 있지만 내부 체력이 약해지기 시작하는 단계입니다.",
-          symptoms:[
-            "지수는 고점권을 유지하지만 상승 탄력은 둔화",
-            "RSI 과열·과매수 신호 증가",
-            "주도주는 버티지만 종목 간 차별화 확대",
-            "일부 민감 섹터와 고평가 종목부터 선행 하락",
-            "거래량 증가세 둔화 또는 매수세 약화"
-          ],
+          symptoms:["지수는 고점권을 유지하지만 상승 탄력은 둔화","RSI 과열·과매수 신호 증가","주도주는 버티지만 종목 간 차별화 확대","일부 민감 섹터와 고평가 종목부터 선행 하락","거래량 증가세 둔화 또는 매수세 약화"],
           interpretation:"아직 붕괴 확정은 아닙니다. 신규 공격 매수는 줄이고, 현금 비중과 과열 자산 비중을 점검하는 구간입니다."
         },
         {
-          title:"위험 확대 단계",
-          subtitle:"균열이 가격에 반영",
-          duration:"평균 진행 속도 3~6M",
-          color:uiColor,
-          icon:"🔥",
+          title:"위험 확대 단계",subtitle:"균열이 가격에 반영",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🔥",
           meaning:"시장 내부 균열이 실제 가격 변동성과 급락으로 드러나기 시작하는 단계입니다.",
-          symptoms:[
-            "급등 후 급락 반복",
-            "반등해도 이전 고점 돌파 실패",
-            "월봉 MACD 하락 전환 또는 데드크로스",
-            "OBV 이탈, 거래량 흐름 약화",
-            "악재에 대한 시장 반응이 커짐"
-          ],
+          symptoms:["급등 후 급락 반복","반등해도 이전 고점 돌파 실패","월봉 MACD 하락 전환 또는 데드크로스","OBV 이탈, 거래량 흐름 약화","악재에 대한 시장 반응이 커짐"],
           interpretation:"방어 전환이 필요한 구간입니다. 레버리지 축소, 추격 매수 금지, 현금·단기채·방어주 비중 확대가 유리합니다."
         },
         {
-          title:"장기 연장 가능 단계",
-          subtitle:"위험하지만 유동성으로 지속",
-          duration:"평균 진행 속도 6M+",
-          color:uiColor,
-          icon:"🧨",
+          title:"장기 연장 가능 단계",subtitle:"위험하지만 유동성으로 지속",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🧨",
           meaning:"위험 신호는 많지만 유동성과 기대감 때문에 버블이 예상보다 오래 지속될 수 있는 단계입니다.",
-          symptoms:[
-            "밸류에이션 부담에도 상승 지속",
-            "악재는 무시하고 호재만 크게 반영",
-            "AI·성장주·테마주 중심 과열 지속",
-            "단기 조정 후 빠른 회복 반복",
-            "‘이번엔 다르다’ 논리 강화"
-          ],
+          symptoms:["밸류에이션 부담에도 상승 지속","악재는 무시하고 호재만 크게 반영","AI·성장주·테마주 중심 과열 지속","단기 조정 후 빠른 회복 반복","'이번엔 다르다' 논리 강화"],
           interpretation:"성급한 전면 숏은 위험합니다. 보유 자산은 단계적 이익 실현으로 관리하고, 변동성 확대에 대비하는 구간입니다."
+        }
+      ]
+    : isBottom
+    ? [
+        {
+          title:"관찰 단계",subtitle:"하락 둔화 관찰",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"🔍",
+          meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
+          symptoms:["급락 빈도 감소","RSI 과매도 구간 진입","거래량 바닥 형성","공포 심리 극대화","우량주 저평가 확대"],
+          interpretation:"아직 반등 확정은 아닙니다. 현금 방어와 관찰 중심 접근이 적합합니다."
+        },
+        {
+          title:"초기 반등 단계",subtitle:"회복 신호 출현",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🌊",
+          meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
+          symptoms:["월봉 MACD 골든크로스","OBV 수급 재유입","저점이 조금씩 높아짐","낙폭과대 반등 증가","우량주 중심 수급 회복"],
+          interpretation:"분할매수를 시작할 수 있는 초기 구간입니다. 단, 급격한 몰빵보다 우량주 중심의 단계적 접근이 적합합니다."
+        },
+        {
+          title:"반등 강화 단계",subtitle:"상승 전환 가능성 확대",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🚀",
+          meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
+          symptoms:["거래량 회복","지수 저점 상승","주도주 복귀","위험자산 선호 회복","반등 폭 확대"],
+          interpretation:"장기 우량주 중심으로 비중 확대를 고려할 수 있는 단계입니다. 다만 과열 추격보다는 분할 접근이 좋습니다."
+        }
+      ]
+    : isTightening
+    ? [
+        {
+          title:"초기 압박 단계",subtitle:"밸류 부담 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"📉",
+          meaning:"금리 상승으로 성장주와 고PER 종목에 밸류 압축 압력이 시작되는 구간입니다.",
+          symptoms:["성장주·고PER 종목 선행 하락","시장 금리 상승 지속","달러강세 경향","레버리지 높은 기업 타격 시작"],
+          interpretation:"고평가 종목 비중을 줄이고 현금흐름·저부채 기업 중심으로 재편하는 구간입니다."
+        },
+        {
+          title:"압박 확대 단계",subtitle:"전반적 조정 확산",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"⚙️",
+          meaning:"금리 부담이 시장 전반으로 확산되며 조정 폭이 넓어지는 단계입니다.",
+          symptoms:["시장 전반적 멀티플 축소","배당·가치주 상대적 방어","신용스프레드 확대 시작","소비심리 둔화 반영"],
+          interpretation:"방어적 포지션 강화 구간입니다. 현금흐름 우량주와 단기채 비중을 높이는 시점입니다."
+        },
+        {
+          title:"압박 심화 단계",subtitle:"긴축 정점 또는 피벗 대기",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🔄",
+          meaning:"금리 긴축이 정점에 가까워지거나 피벗(전환) 기대가 형성되는 구간입니다.",
+          symptoms:["경기침체 우려 증폭","장단기 금리차 역전 심화","정책 전환 시그널 탐색","리스크온/오프 급격한 전환 반복"],
+          interpretation:"피벗 신호 확인 시 점진적 리스크온 전환을 검토할 수 있습니다. 서두르지 않는 것이 중요합니다."
+        }
+      ]
+    : isLiquidity
+    ? [
+        {
+          title:"균열 확대 단계",subtitle:"유동성 이탈 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"💧",
+          meaning:"시장 내부 균열이 외환·자금시장에 나타나기 시작하는 구간입니다.",
+          symptoms:["환율 급등 시작","외국인 순매도 증가","변동성 확대","신흥국 자산 동반 약세"],
+          interpretation:"현금 비중을 높이고 달러 자산 비중을 점검하는 구간입니다."
+        },
+        {
+          title:"압박 심화 단계",subtitle:"자산 동반 약세",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🌊",
+          meaning:"유동성 이탈이 심화되며 주식·채권·환율이 동시에 압박을 받는 구간입니다.",
+          symptoms:["자산시장 동반 약세 확대","신용스프레드 동반 확대","변동성 극대화","안전자산 선호 급증"],
+          interpretation:"안전자산(현금·국채·달러) 중심 포지션이 필요한 구간입니다. 반등 매수는 신중히 접근하세요."
+        },
+        {
+          title:"안정화 또는 위기 전이",subtitle:"정책 대응 또는 확산",duration:"평균 진행 속도 6M+",color:uiColor,icon:"⚖️",
+          meaning:"정책 대응 여부에 따라 안정화되거나 더 큰 위기로 전이되는 분기점입니다.",
+          symptoms:["정책 개입 여부가 핵심 변수","변동성 지속 또는 급격한 회복","신용위기 전이 여부 확인 필요","외국인 수급 회복 확인"],
+          interpretation:"정책 대응을 확인 후 조심스러운 리스크 재진입을 검토하는 구간입니다."
+        }
+      ]
+    : isCredit
+    ? [
+        {
+          title:"신용 경계 단계",subtitle:"스프레드 확대 시작",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"⚠️",
+          meaning:"하이일드 스프레드가 확대되며 신용시장 경색의 전조가 나타나는 구간입니다.",
+          symptoms:["HY 스프레드 확대 시작","회사채 발행 축소","단기자금 시장 경직","레버리지 기업 주가 선행 하락"],
+          interpretation:"레버리지·저유동성 자산 비중을 줄이고 현금흐름 우량 기업 중심으로 재편하는 구간입니다."
+        },
+        {
+          title:"신용 경색 단계",subtitle:"시스템 리스크 확산",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"🔥",
+          meaning:"신용 시스템이 경색되며 금융기관 전반에 유동성 압박이 확산되는 단계입니다.",
+          symptoms:["금융기관 자금 조달 비용 급등","중소기업·고위험 기업 도산 증가","HY 스프레드 급격한 확대","자산 강제 청산 우려","신용 이벤트 전염 가능성"],
+          interpretation:"현금흐름 최우선 단계입니다. 레버리지·저유동성 자산은 즉각 회피하고 시스템 리스크에 대응해야 합니다."
+        },
+        {
+          title:"정책 대응 또는 위기 심화",subtitle:"중앙은행 개입 여부가 핵심",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🏛️",
+          meaning:"정책 당국의 대응 강도에 따라 안정화 또는 복합위기 전이가 결정되는 분기점입니다.",
+          symptoms:["중앙은행 유동성 공급 여부","금융 규제 완화 가능성","신용경색 해소 또는 심화","경기침체 연동 여부"],
+          interpretation:"정책 개입 신호 확인 후 조심스럽게 대응하는 구간입니다. 서두른 매수는 위험합니다."
         }
       ]
     : [
         {
-          title:"관찰 단계",
-          subtitle:"하락 둔화 관찰",
-          duration:"평균 진행 속도 1~3M",
-          color:uiColor,
-          icon:"🔍",
-          meaning:"침체가 지속되고 있지만 하락 속도가 둔화되는 초기 구간입니다.",
-          symptoms:[
-            "급락 빈도 감소",
-            "RSI 과매도 구간 진입",
-            "거래량 바닥 형성",
-            "공포 심리 극대화",
-            "우량주 저평가 확대"
-          ],
-          interpretation:"아직 반등 확정은 아닙니다. 현금 방어와 관찰 중심 접근이 적합합니다."
+          title:"위기 전이 초기",subtitle:"복합 악재 동시 진행",duration:"평균 진행 속도 1~3M",color:uiColor,icon:"🔴",
+          meaning:"실물·신용·환율 악화가 동시에 진행되며 위기가 빠르게 전이되는 구간입니다.",
+          symptoms:["실물경기 급격한 악화","신용스프레드 동반 급등","환율 불안 심화","정책 대응 여력 축소"],
+          interpretation:"공격적 매수 금지 구간입니다. 현금과 국채 중심으로 생존 포지션을 구축해야 합니다."
         },
         {
-          title:"초기 반등 단계",
-          subtitle:"회복 신호 출현",
-          duration:"평균 진행 속도 3~6M",
-          color:uiColor,
-          icon:"🌊",
-          meaning:"하락 추세가 둔화되며 초기 회복 신호가 나타나는 단계입니다.",
-          symptoms:[
-            "월봉 MACD 골든크로스",
-            "OBV 수급 재유입",
-            "저점이 조금씩 높아짐",
-            "낙폭과대 반등 증가",
-            "우량주 중심 수급 회복"
-          ],
-          interpretation:"분할매수를 시작할 수 있는 초기 구간입니다. 단, 급격한 몰빵보다 우량주 중심의 단계적 접근이 적합합니다."
+          title:"위기 확산 단계",subtitle:"금융시장 패닉 확대",duration:"평균 진행 속도 3~6M",color:uiColor,icon:"💥",
+          meaning:"패닉이 금융시장 전반으로 확산되며 변동성이 극단적으로 높아지는 단계입니다.",
+          symptoms:["금융시장 패닉 매도","모든 자산 동반 급락","변동성 극단 구간","정책 대응 실패 가능성","강제 청산·마진콜 연쇄"],
+          interpretation:"생존 최우선 단계입니다. 현금/국채/달러 중심이며 반등 매수 시도는 절대 금지합니다."
         },
         {
-          title:"반등 강화 단계",
-          subtitle:"상승 전환 가능성 확대",
-          duration:"평균 진행 속도 6M+",
-          color:uiColor,
-          icon:"🚀",
-          meaning:"시장 심리가 회복되며 상승 추세 전환 가능성이 커지는 단계입니다.",
-          symptoms:[
-            "거래량 회복",
-            "지수 저점 상승",
-            "주도주 복귀",
-            "위험자산 선호 회복",
-            "반등 폭 확대"
-          ],
-          interpretation:"장기 우량주 중심으로 비중 확대를 고려할 수 있는 단계입니다. 다만 과열 추격보다는 분할 접근이 좋습니다."
+          title:"정점 또는 정책 전환",subtitle:"위기 정점 또는 대규모 개입",duration:"평균 진행 속도 6M+",color:uiColor,icon:"🏛️",
+          meaning:"대규모 정책 개입 또는 위기 정점을 통과하며 방향이 결정되는 분기점입니다.",
+          symptoms:["대규모 유동성 공급","금리 인하 또는 긴급 조치","변동성 서서히 감소","패닉 저점 형성 가능성"],
+          interpretation:"정책 전환이 확인된 후 매우 조심스럽게 분할매수를 검토하는 구간입니다."
         }
       ];
-
   return (
     <div style={{
       background:C.card,
@@ -3614,31 +3758,61 @@ else {
       boxShadow:`0 0 32px ${levelColor}18`
     }}>
       <div style={{color:C.muted,fontSize:8,marginBottom:6}}>
-        ⏳ v3 Timing Signal
+        ⏳ 시장 진행 단계 신호
       </div>
 
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
         <div style={{color:levelColor,fontSize:16,fontWeight:900}}>
           {timing.title}
         </div>
-        <div style={{
-          color:levelColor,
-          fontSize:9,
-          fontWeight:800,
-          background:C.card2,
-          border:`1px solid ${levelColor}66`,
-          borderRadius:999,
-          padding:"2px 8px",
-          whiteSpace:"nowrap",
-          boxShadow:`0 0 12px ${levelColor}33`
-        }}>
-          {timing.badge}
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+          <div style={{
+            color:levelColor,
+            fontSize:9,
+            fontWeight:800,
+            background:C.card2,
+            border:`1px solid ${levelColor}66`,
+            borderRadius:999,
+            padding:"2px 8px",
+            whiteSpace:"nowrap",
+            boxShadow:`0 0 12px ${levelColor}33`
+          }}>
+            {timing.badge}
+          </div>
+          {timing.badgeExtra&&(
+            <div style={{
+              color:"#fff",
+              fontSize:8,
+              fontWeight:900,
+              background:levelColor,
+              borderRadius:999,
+              padding:"2px 8px",
+              whiteSpace:"nowrap",
+            }}>
+              {timing.badgeExtra}
+            </div>
+          )}
         </div>
       </div>
 
       <div style={{marginTop:8,fontSize:10,color:C.muted,lineHeight:1.6}}>
         {timing.summary}
       </div>
+
+      {timing.keyPoints&&timing.keyPoints.length>0&&(
+        <div style={{marginTop:8,display:"flex",flexWrap:"wrap",gap:4}}>
+          {timing.keyPoints.map((pt,i)=>(
+            <span key={i} style={{
+              fontSize:8,fontWeight:700,
+              color:levelColor,
+              background:`${levelColor}14`,
+              border:`1px solid ${levelColor}33`,
+              borderRadius:6,
+              padding:"2px 7px",
+            }}>{pt}</span>
+          ))}
+        </div>
+      )}
 
       <div style={{
         marginTop:10,
@@ -3674,13 +3848,29 @@ else {
                 : activeCount === 2
                   ? "2개 신호가 켜졌습니다. 하락 전환 위험이 꽤 커졌습니다."
                   : "3개 신호가 모두 켜졌습니다. 붕괴 위험이 매우 높습니다."
-            : activeCount === 0
+            : isBottom
+            ? activeCount === 0
               ? "켜진 신호가 없습니다. 바닥 가능성은 있지만 아직 확인은 부족합니다."
               : activeCount === 1
                 ? "1개 회복 신호만 켜졌습니다. 아직은 관찰 단계입니다."
                 : activeCount === 2
                   ? "2개 회복 신호가 켜졌습니다. 반등 가능성이 커졌습니다."
                   : "3개 회복 신호가 모두 켜졌습니다. 반등 가능성이 매우 높습니다."
+            : isCredit || isComplex
+            ? activeCount === 0
+              ? "켜진 위험 신호가 없습니다. 경계 단계이나 트리거는 아직 미약합니다."
+              : activeCount === 1
+                ? "1개 위험 신호가 켜졌습니다. 리스크 관리를 강화하세요."
+                : activeCount === 2
+                  ? "2개 위험 신호가 켜졌습니다. 방어 포지션 전환을 검토하세요."
+                  : "3개 위험 신호가 모두 켜졌습니다. 즉각적인 대응이 필요합니다."
+            : activeCount === 0
+              ? "켜진 압박 신호가 없습니다. 경계는 필요하지만 즉각 대응은 불필요합니다."
+              : activeCount === 1
+                ? "1개 압박 신호가 확인됩니다. 고평가 자산 비중을 점검하세요."
+                : activeCount === 2
+                  ? "2개 압박 신호가 확인됩니다. 방어적 재편을 검토하세요."
+                  : "3개 압박 신호가 모두 켜졌습니다. 적극적인 방어 전환이 필요합니다."
           }
         </div>
       </div>
@@ -3710,7 +3900,7 @@ else {
             padding:"3px 9px",
             whiteSpace:"nowrap"
           }}>
-            {isBubbleLate ? "버블 진행 단계" : "침체 회복 단계"}
+            {isBubbleLate ? "버블 진행 단계" : isBottom ? "침체 회복 단계" : isCredit ? "신용위기 단계" : isComplex ? "복합위기 단계" : isTightening ? "긴축 압박 단계" : "유동성 압박 단계"}
           </div>
         </div>
 
