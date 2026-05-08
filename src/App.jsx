@@ -3227,6 +3227,101 @@ else {
 
             {/* ══ AEGIS 탭 ══ */}
             {marketSub==="v3core"&&<>
+{/* ══ 시장 판독 브릿지 카드 ══ */}
+{macroData?.regimeInsight && dc && (()=>{
+  const rl = macroData?.regimeInsight?.regime?.primaryLabel || "혼합/불확실형";
+  const prettyRL = rl
+    .replace(/정상확장형|정상-확장형/,"정상 확장형")
+    .replace(/회복초입형|회복-초입형/,"회복 초입형")
+    .replace(/버블초입형|버블-초입형/,"버블 초입형")
+    .replace(/버블말기형|버블-말기형/,"버블 말기형")
+    .replace(/긴축금리충격형|긴축-금리충격형/,"긴축·금리충격형")
+    .replace(/유동성환율위기형|유동성-환율위기형/,"유동성 위기형")
+    .replace(/신용시스템위기형|신용-시스템위기형/,"신용경색형")
+    .replace(/복합위기형|복합-위기형/,"복합 위기형")
+    .replace(/침체바닥형|침체-바닥형/,"침체 바닥형");
+
+  const getRC = (t) => {
+    const s = String(t||"").replace(/\s/g,"");
+    if(s.includes("복합")) return "#991B1B";
+    if(s.includes("신용")) return "#DC2626";
+    if(s.includes("유동성")) return "#EF4444";
+    if(s.includes("긴축")||s.includes("금리")) return "#F59E0B";
+    if(s.includes("버블")&&s.includes("말기")) return "#F97316";
+    if(s.includes("버블")&&s.includes("초입")) return "#A78BFA";
+    if(s.includes("침체")||s.includes("바닥")) return "#06B6D4";
+    if(s.includes("정상")||s.includes("확장")) return "#10B981";
+    if(s.includes("회복")) return "#3B82F6";
+    return darkMode?"#8AA8C8":"#64748B";
+  };
+  const rColor = getRC(rl);
+  const sefLv  = dc.defcon ?? 3;
+  const sefScore = dc.totalScore ?? 50;
+  const sefLabel = sefLv<=1?"붕괴임박":sefLv===2?"위기":sefLv===3?"경계":sefLv===4?"관망":"안정";
+  const sefColor = sefLv<=1?C.red:sefLv===2?"#FF6B00":sefLv===3?C.gold:sefLv===4?"#38BDF8":C.green;
+
+  const isRisk = rl.includes("긴축")||rl.includes("유동성")||rl.includes("신용")||rl.includes("복합")||(rl.includes("버블")&&rl.includes("말기"));
+  const isOpp  = rl.includes("침체")||rl.includes("바닥")||rl.includes("회복");
+  const isNorm = rl.includes("정상")||rl.includes("확장")||(rl.includes("버블")&&rl.includes("초입"));
+
+  let conclusion, actions;
+  if(sefLv<=2 && isRisk){
+    conclusion="최고 위험 — 방어 최우선";
+    actions=["현금·국채 중심 즉각 전환","공격적 매수 금지","레버리지 전면 회피"];
+  } else if(sefLv<=2){
+    conclusion="SEFCON 위험 — 지표 집중 모니터링";
+    actions=["현금 비중 확대","신규 매수 신중","방어주 중심 유지"];
+  } else if(sefLv===3 && isRisk){
+    conclusion="경계 × 위험 레짐 — 방어적 선별 구간";
+    actions=["고PER·성장주 비중 점검","현금흐름 우량주 선호","신규 포지션 최소화"];
+  } else if(sefLv===3 && isOpp){
+    conclusion="경계 구간 + 바닥 신호 — 소액 분할 가능";
+    actions=["우량주 소액 분할매수 검토","현금 방어 유지","추세 확인 필수"];
+  } else if(sefLv>=4 && isOpp){
+    conclusion="안정 × 회복 — 리스크온 전환 가능";
+    actions=["우량주 비중 확대 검토","분할매수 속도 높이기","장기 포지션 구축"];
+  } else if(sefLv>=4 && isNorm){
+    conclusion="안정 × 정상 국면 — 적극 운용";
+    actions=["주식 비중 정상 유지","고ROE 성장주 중심","기회 포착 집중"];
+  } else {
+    conclusion="혼합 신호 — 선별적 접근";
+    actions=["현금 일부 유지","우량주 중심 보수적 운용","추가 신호 확인"];
+  }
+
+  return(
+  <div style={{background:C.card,border:`2px solid ${rColor}44`,borderRadius:16,
+    padding:"14px 16px",marginBottom:10,boxShadow:`0 0 24px ${rColor}12`}}>
+    <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",marginBottom:8,opacity:0.6}}>
+      🎯 시장 판독 — SEFCON × 레짐
+    </div>
+    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+      <div style={{flex:1,minWidth:100,background:C.card2,border:`1px solid ${sefColor}44`,borderRadius:10,padding:"8px 11px"}}>
+        <div style={{color:C.muted,fontSize:8,marginBottom:3}}>SEFCON</div>
+        <div style={{display:"flex",alignItems:"baseline",gap:5}}>
+          <span style={{color:sefColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>{sefLv}</span>
+          <span style={{color:sefColor,fontSize:10,fontWeight:700}}>{sefLabel}</span>
+        </div>
+        <div style={{color:C.muted,fontSize:8,marginTop:2,fontFamily:"monospace"}}>{sefScore}pt</div>
+      </div>
+      <div style={{flex:2,minWidth:130,background:C.card2,border:`1px solid ${rColor}44`,borderRadius:10,padding:"8px 11px"}}>
+        <div style={{color:C.muted,fontSize:8,marginBottom:3}}>현재 레짐</div>
+        <div style={{color:rColor,fontSize:13,fontWeight:900,lineHeight:1.2}}>{prettyRL}</div>
+      </div>
+    </div>
+    <div style={{background:`${rColor}0e`,border:`1.5px solid ${rColor}33`,borderRadius:10,padding:"9px 12px",marginBottom:8}}>
+      <div style={{color:rColor,fontSize:10,fontWeight:900,marginBottom:5}}>{conclusion}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:3}}>
+        {actions.map((a,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:9,color:C.text,lineHeight:1.5}}>
+            <span style={{color:rColor,fontWeight:900,marginTop:1}}>▸</span><span>{a}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <div style={{color:`${C.muted}55`,fontSize:7}}>SEFCON(위험 측정) × 레짐(시장 국면) 조합 기반 — 투자 참고용</div>
+  </div>
+  );
+})()}
 {/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
 
@@ -4298,452 +4393,311 @@ else {
   );
 
 })()}
+{/* ══ AEGIS 포트폴리오 가이드 (AEGIS 탭) ══ */}
+{dc&&(()=>{
+  const level = dc.defcon;
+  const AEGIS_GUIDE = {
+    5:{color:"#00C878",title:"SEFCON 5 — 안정  적극 성장 추구",
+      alloc:[
+        {label:"주식",pct:80,color:"#00C878",subs:[
+          {label:"한국 KOSPI 우량 성장주 (반도체/2차전지/바이오)",pct:40},
+          {label:"미국 S&P500 성장주 · QQQ 중심",pct:30},
+          {label:"글로벌 배당주 ETF (NOBL)",pct:10},
+        ]},
+        {label:"채권",pct:10,color:"#38BDF8",subs:[
+          {label:"미국 2년물 국채",pct:5},{label:"한국 3년물 국고채",pct:5},
+        ]},
+        {label:"현금",pct:10,color:"#94A3B8",subs:[{label:"원화 파킹통장/MMF",pct:10}]},
+      ],
+      guide:"전 지표 안정. 적극적 성장 추구. 우량 성장주 비중 극대화. 현금은 최소화하여 기회비용 제거.",
+    },
+    4:{color:"#38BDF8",title:"SEFCON 4 — 관망  선별적 투자",
+      alloc:[
+        {label:"주식",pct:65,color:"#38BDF8",subs:[
+          {label:"한국 방어주/배당주 (통신/유틸/금융)",pct:25},
+          {label:"미국 가치주 · XLV/XLP ETF",pct:25},
+          {label:"글로벌 배당주/리츠 (NOBL·REITs)",pct:15},
+        ]},
+        {label:"채권",pct:20,color:"#38BDF8",subs:[
+          {label:"미국 5년물 국채",pct:10},{label:"한국 5년물 국고채",pct:10},
+        ]},
+        {label:"현금",pct:15,color:"#94A3B8",subs:[{label:"원화 70% / 달러 MMF 30%",pct:15}]},
+      ],
+      guide:"일부 지표 경고. 선별적 투자. 성장주→방어주/배당주 비중 전환. 달러 현금 확보 시작.",
+    },
+    3:{color:"#F0C800",title:"SEFCON 3 — 경계  리스크 축소",
+      alloc:[
+        {label:"주식",pct:45,color:"#F0C800",subs:[
+          {label:"한국 방어 배당주 (한국전력/KT/은행주)",pct:15},
+          {label:"미국 필수소비재/헬스케어 (XLP/XLV)",pct:20},
+          {label:"금 관련주 (GLD ETF / 금광주)",pct:10},
+        ]},
+        {label:"채권",pct:25,color:"#38BDF8",subs:[
+          {label:"미국 2년물 국채",pct:15},{label:"한국 3년물 국고채",pct:10},
+        ]},
+        {label:"현금",pct:30,color:"#94A3B8",subs:[{label:"원화 50% / 달러 MMF·예금 50%",pct:30}]},
+      ],
+      guide:"복수 지표 경고. 성장주 비중 대폭 축소. 필수소비재/헬스케어/금으로 방어. 달러 현금 30% 이상 확보 권고.",
+    },
+    2:{color:"#FF6B00",title:"SEFCON 2 — 위기  자산 방어 최우선",
+      alloc:[
+        {label:"주식",pct:20,color:"#FF6B00",subs:[
+          {label:"미국 필수소비재 XLP (P&G/코카콜라/월마트)",pct:10},
+          {label:"금 ETF (GLD / IAU)",pct:10},
+        ]},
+        {label:"채권",pct:30,color:"#38BDF8",subs:[
+          {label:"미국 20년+ 장기채 TLT (침체 시 가격↑)",pct:20},
+          {label:"한국 10년물 국고채",pct:10},
+        ]},
+        {label:"현금",pct:50,color:"#94A3B8",subs:[{label:"달러 MMF·예금 80% / 원화 파킹통장 20%",pct:50}]},
+      ],
+      guide:"다수 위기 신호 동시 발생. 자산 방어 최우선. 주식 대부분 매도·현금화. 달러 현금 극대화. 미국 장기채 매수 검토.",
+    },
+    1:{color:"#FF1A1A",title:"SEFCON 1 — 붕괴임박  생존 모드",
+      alloc:[
+        {label:"주식",pct:10,color:"#FF1A1A",subs:[{label:"금 ETF (GLD / IAU) — 안전자산만",pct:10}]},
+        {label:"채권",pct:20,color:"#38BDF8",subs:[{label:"미국 3개월 T-Bill — 원금 보존 최우선",pct:20}]},
+        {label:"현금",pct:70,color:"#94A3B8",subs:[{label:"달러 MMF·미국 단기국채펀드 90% / 원화 10%",pct:70}]},
+      ],
+      guide:"역사적 위기 수준 진입. 생존 모드 전환. 모든 리스크 자산 청산. 달러 현금 극대화. 위기 저점 확인 후 역발상 매수 대기.",
+    },
+  };
+  const g = AEGIS_GUIDE[level];
+  if(!g) return null;
+  return(
+  <div style={{background:C.card,border:`2px solid ${g.color}44`,borderRadius:16,
+    padding:"14px 14px",marginBottom:10,boxShadow:`0 0 24px ${g.color}14`}}>
+    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
+      <span style={{fontSize:16}}>🛡</span>
+      <div>
+        <div style={{color:g.color,fontSize:12,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.06em"}}>{g.title}</div>
+        <div style={{color:`${C.muted}88`,fontSize:7,marginTop:1}}>AEGIS 포트폴리오 가이드 — 레벨별 자산배분 추천</div>
+      </div>
+    </div>
+    {g.alloc.map(a=>(
+    <div key={a.label} style={{marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+        <span style={{color:a.color,fontSize:9,fontWeight:700}}>{a.label}</span>
+        <span style={{color:a.color,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{a.pct}%</span>
+      </div>
+      <div style={{background:C.dim,borderRadius:4,height:8,overflow:"hidden",marginBottom:4}}>
+        <div style={{width:`${a.pct}%`,height:"100%",borderRadius:4,
+          background:`linear-gradient(90deg,${a.color}66,${a.color})`,transition:"width 0.6s ease"}}/>
+      </div>
+      {a.subs.map(s=>(
+      <div key={s.label} style={{display:"flex",justifyContent:"space-between",padding:"1px 4px",marginBottom:1}}>
+        <span style={{color:`${C.muted}cc`,fontSize:7}}>└ {s.label}</span>
+        <span style={{color:`${C.muted}cc`,fontSize:7,fontFamily:"monospace"}}>{s.pct}%</span>
+      </div>
+      ))}
+    </div>
+    ))}
+    <div style={{background:`${g.color}10`,border:`1px solid ${g.color}33`,borderRadius:8,padding:"8px 10px",marginTop:4}}>
+      <div style={{color:g.color,fontSize:8,fontWeight:700,lineHeight:1.6}}>{g.guide}</div>
+    </div>
+    <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
+      본 가이드는 투자 참고용이며 실제 투자 결정은 본인 책임. SEQUOIA QUANTUM AEGIS system
+    </div>
+  </div>
+  );
+})()}
+
             </> /* AEGIS 탭 끝 */}
 
             {marketSub==="defcon"&&<>
-              {/* ══ AEGIS 포트폴리오 가이드 ══ */}
-            {dc&&(()=>{
-              const level = dc.defcon;
-              const ca = macroData?.crisisAnalysis;
+{/* ══ 위기 패턴 분석 — Crisis Navigation + 역사적 유사도 통합 ══ */}
+{macroData?.crisisAnalysis && dc && (()=>{
+  const ca  = macroData.crisisAnalysis;
+  const nav = ca.navigation;
+  const simColor = s => s>=70?C.red:s>=50?C.orange:s>=30?C.gold:C.green;
+  const simLabel = s => s>=70?"⚠️ 매우 유사":s>=50?"주의":s>=30?"참고":"낮음";
 
-              const AEGIS_GUIDE = {
-                5: {
-                  color: "#00C878",
-                  title: "SEFCON 5 — 안정  적극 성장 추구",
-                  alloc: [
-                    { label:"주식", pct:80, color:"#00C878", subs:[
-                      { label:"한국 KOSPI 우량 성장주 (반도체/2차전지/바이오)", pct:40 },
-                      { label:"미국 S&P500 성장주 · QQQ 중심", pct:30 },
-                      { label:"글로벌 배당주 ETF (NOBL)", pct:10 },
-                    ]},
-                    { label:"채권", pct:10, color:"#38BDF8", subs:[
-                      { label:"미국 2년물 국채", pct:5 },
-                      { label:"한국 3년물 국고채", pct:5 },
-                    ]},
-                    { label:"현금", pct:10, color:"#94A3B8", subs:[
-                      { label:"원화 파킹통장/MMF", pct:10 },
-                    ]},
-                  ],
-                  guide: "전 지표 안정. 적극적 성장 추구. 우량 성장주 비중 극대화. 현금은 최소화하여 기회비용 제거.",
-                },
-                4: {
-                  color: "#38BDF8",
-                  title: "SEFCON 4 — 관망  선별적 투자",
-                  alloc: [
-                    { label:"주식", pct:65, color:"#38BDF8", subs:[
-                      { label:"한국 방어주/배당주 (통신/유틸/금융)", pct:25 },
-                      { label:"미국 가치주 · XLV/XLP ETF", pct:25 },
-                      { label:"글로벌 배당주/리츠 (NOBL·REITs)", pct:15 },
-                    ]},
-                    { label:"채권", pct:20, color:"#38BDF8", subs:[
-                      { label:"미국 5년물 국채", pct:10 },
-                      { label:"한국 5년물 국고채", pct:10 },
-                    ]},
-                    { label:"현금", pct:15, color:"#94A3B8", subs:[
-                      { label:"원화 70% / 달러 MMF 30%", pct:15 },
-                    ]},
-                  ],
-                  guide: "일부 지표 경고. 선별적 투자. 성장주→방어주/배당주 비중 전환. 달러 현금 확보 시작.",
-                },
-                3: {
-                  color: "#F0C800",
-                  title: "SEFCON 3 — 경계  리스크 축소",
-                  alloc: [
-                    { label:"주식", pct:45, color:"#F0C800", subs:[
-                      { label:"한국 방어 배당주 (한국전력/KT/은행주)", pct:15 },
-                      { label:"미국 필수소비재/헬스케어 (XLP/XLV)", pct:20 },
-                      { label:"금 관련주 (GLD ETF / 금광주)", pct:10 },
-                    ]},
-                    { label:"채권", pct:25, color:"#38BDF8", subs:[
-                      { label:"미국 2년물 국채", pct:15 },
-                      { label:"한국 3년물 국고채", pct:10 },
-                    ]},
-                    { label:"현금", pct:30, color:"#94A3B8", subs:[
-                      { label:"원화 50% / 달러 MMF·예금 50%", pct:30 },
-                    ]},
-                  ],
-                  guide: "복수 지표 경고. 성장주 비중 대폭 축소. 필수소비재/헬스케어/금으로 방어. 달러 현금 30% 이상 확보 권고.",
-                },
-                2: {
-                  color: "#FF6B00",
-                  title: "SEFCON 2 — 위기  자산 방어 최우선",
-                  alloc: [
-                    { label:"주식", pct:20, color:"#FF6B00", subs:[
-                      { label:"미국 필수소비재 XLP (P&G/코카콜라/월마트)", pct:10 },
-                      { label:"금 ETF (GLD / IAU)", pct:10 },
-                    ]},
-                    { label:"채권", pct:30, color:"#38BDF8", subs:[
-                      { label:"미국 20년+ 장기채 TLT (침체 시 가격↑)", pct:20 },
-                      { label:"한국 10년물 국고채", pct:10 },
-                    ]},
-                    { label:"현금", pct:50, color:"#94A3B8", subs:[
-                      { label:"달러 MMF·예금 80% / 원화 파킹통장 20%", pct:50 },
-                    ]},
-                  ],
-                  guide: "다수 위기 신호 동시 발생. 자산 방어 최우선. 주식 대부분 매도·현금화. 달러 현금 극대화. 미국 장기채 매수 검토.",
-                },
-                1: {
-                  color: "#FF1A1A",
-                  title: "SEFCON 1 — 붕괴임박  생존 모드",
-                  alloc: [
-                    { label:"주식", pct:10, color:"#FF1A1A", subs:[
-                      { label:"금 ETF (GLD / IAU) — 안전자산만", pct:10 },
-                    ]},
-                    { label:"채권", pct:20, color:"#38BDF8", subs:[
-                      { label:"미국 3개월 T-Bill — 원금 보존 최우선", pct:20 },
-                    ]},
-                    { label:"현금", pct:70, color:"#94A3B8", subs:[
-                      { label:"달러 MMF·미국 단기국채펀드 90% / 원화 10%", pct:70 },
-                    ]},
-                  ],
-                  guide: "역사적 위기 수준 진입. 생존 모드 전환. 모든 리스크 자산 청산. 달러 현금 극대화. 위기 저점 확인 후 역발상 매수 대기. (역사적으로 SEFCON 1은 최고의 매수 기회 직전)",
-                },
-              };
+  // Crisis Nav 수치
+  const pct      = nav?.proximityScore ?? 0;
+  const tc       = nav?.topCrisis;
+  const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
+  const distPct  = nav ? Math.round((nav.distToTop/250)*100) : 0;
 
-              const g = AEGIS_GUIDE[level];
-              if (!g) return null;
+  return(
+  <Box>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",opacity:0.7}}>
+        🏛 위기 패턴 분석
+      </div>
+      <div style={{color:C.muted,fontSize:7}}>과거 위기 패턴 × 현재 시장 비교</div>
+    </div>
 
+    {/* ── 근접도 + 핵심 수치 ── */}
+    {nav&&(
+    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+      <div style={{flex:1,minWidth:110,background:C.surface,borderRadius:8,padding:"8px 11px",border:`1px solid ${barColor}33`}}>
+        <div style={{color:C.muted,fontSize:8,marginBottom:3}}>현재 위기 근접도</div>
+        <div style={{display:"flex",alignItems:"baseline",gap:4}}>
+          <span style={{color:barColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>{pct}</span>
+          <span style={{color:barColor,fontSize:10,fontWeight:700}}>%</span>
+        </div>
+        <div style={{background:`${C.muted}22`,borderRadius:4,height:6,overflow:"hidden",marginTop:4}}>
+          <div style={{width:`${Math.min(100,pct)}%`,height:"100%",borderRadius:4,
+            background:barColor,transition:"width 0.6s ease"}}/>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:2}}>
+          <span style={{color:C.muted,fontSize:7}}>안전</span>
+          <span style={{color:C.muted,fontSize:7}}>위기</span>
+        </div>
+      </div>
+      <div style={{flex:1,minWidth:110,background:C.surface,borderRadius:8,padding:"8px 11px",border:`1px solid ${C.muted}22`}}>
+        <div style={{color:C.muted,fontSize:8,marginBottom:3}}>가장 유사한 위기</div>
+        <div style={{color:barColor,fontWeight:900,fontSize:12,lineHeight:1.3}}>{tc?.label||"—"}</div>
+        <div style={{color:C.muted,fontSize:7,marginTop:2}}>{tc?.date} · SEFCON {tc?.defcon}</div>
+      </div>
+      <div style={{flex:1,minWidth:110,background:C.surface,borderRadius:8,padding:"8px 11px",border:`1px solid ${C.muted}22`}}>
+        <div style={{color:C.muted,fontSize:8,marginBottom:3}}>위험 지표 밀도</div>
+        <div style={{color:nav.dangerDensity>=50?C.red:nav.dangerDensity>=30?C.orange:C.green,
+          fontWeight:900,fontSize:14,fontFamily:"monospace"}}>
+          {nav.dangerDensity}<span style={{fontSize:10}}>%</span>
+        </div>
+        <div style={{color:C.muted,fontSize:7,marginTop:2}}>{nav.dangerCount}/{nav.totalIndicators}개 경고</div>
+      </div>
+    </div>
+    )}
 
+    {/* ── 최고 유사 위기 경보 ── */}
+    {ca.top&&ca.top.similarity>=40&&(
+    <div style={{background:`${ca.top.color}14`,border:`1.5px solid ${ca.top.color}55`,
+      borderRadius:10,padding:"9px 12px",marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+        <span style={{color:ca.top.color,fontSize:10,fontWeight:800}}>
+          ⚠️ {ca.top.label} ({ca.top.date}) 와 가장 유사
+        </span>
+        <span style={{color:ca.top.color,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>
+          {ca.top.similarity}%
+        </span>
+      </div>
+      <div style={{color:`${C.muted}cc`,fontSize:8,lineHeight:1.6,marginBottom:6}}>{ca.top.desc}</div>
+      {ca.warnings?.length>0&&(
+      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+        {ca.warnings.map(w=>(
+          <span key={w} style={{background:`${C.red}22`,border:`1px solid ${C.red}44`,
+            borderRadius:4,padding:"2px 6px",color:C.red,fontSize:7,fontWeight:700}}>{w}</span>
+        ))}
+      </div>
+      )}
+    </div>
+    )}
+
+    {/* ── 예상 파급력 (topCrisis impact) ── */}
+    {tc?.impact&&(
+    <div style={{background:`${C.red}0e`,borderRadius:8,padding:"8px 12px",
+      border:`1px solid ${C.red}22`,marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:5}}>
+        <div style={{color:C.muted,fontSize:9}}>과거 유사 위기 당시 한국 실제 영향</div>
+        <div style={{color:`${C.muted}55`,fontSize:7}}>참고용</div>
+      </div>
+      <div style={{display:"flex",gap:16,marginBottom:4}}>
+        <div>
+          <div style={{color:C.muted,fontSize:8}}>코스피</div>
+          <div style={{color:C.red,fontWeight:900,fontSize:13}}>{tc.impact.kospi>0?"+":""}{tc.impact.kospi}%</div>
+        </div>
+        <div>
+          <div style={{color:C.muted,fontSize:8}}>원/달러</div>
+          <div style={{color:C.orange,fontWeight:900,fontSize:13}}>{tc.impact.krw>0?"+":""}{tc.impact.krw}%</div>
+        </div>
+      </div>
+      <div style={{color:`${C.muted}AA`,fontSize:7.5,fontStyle:"italic"}}>"{tc.impact.desc}"</div>
+      <div style={{color:`${C.muted}55`,fontSize:7,marginTop:4,lineHeight:1.5}}>
+        ⚠️ 현재 상황이 해당 위기 패턴과 유사할 뿐, 동일한 충격을 의미하지 않습니다.
+      </div>
+    </div>
+    )}
+
+    {/* ── 역사적 유사도 전체 목록 ── */}
+    {ca.results&&(
+    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:8}}>
+      {ca.results.map((cr,idx)=>{
+        const sc=simColor(cr.similarity);
+        const isTop=idx===0;
+        const crDesc={
+          imf1997:"한국 외환위기(IMF) — 외환보유고 소진, 원화 폭락. 코스피 -70%, 실업률 폭등.",
+          dotcom2000:"IT 버블 붕괴 — 인터넷 주식 과열 후 붕괴. 나스닥 -78%.",
+          gfc2008:"글로벌 금융위기(리먼 쇼크) — 서브프라임 부실이 금융 시스템 전반 붕괴. 코스피 -54%.",
+          europe2011:"유럽 재정위기 — 그리스·스페인 등 남유럽 국채 부실. ECB 개입 전까지 유로존 해체 우려.",
+          covid2020:"코로나19 팬데믹 — 전 세계 봉쇄령. 코스피 -36% 급락 후 유동성 공급으로 빠른 반등.",
+          tightening2022:"미국 긴축 위기 — 기준금리 0→5.5%. 채권·성장주·코스닥 동반 급락.",
+          volcker1979:"볼커 긴축 쇼크 — 인플레 잡기 위해 금리 20%까지 인상. 달러 초강세.",
+          japan1990:"일본 버블 붕괴 — 부동산·주식 동반 붕괴. 닛케이 -80%, 잃어버린 30년.",
+          bond1994:"채권 대학살 — 연준 금리 인상에 채권 시장 급락. 이머징 연쇄 타격.",
+          ltcm1998:"러시아 디폴트·LTCM 붕괴 — 헤지펀드 LTCM 붕괴 위기. 연준 긴급 구제.",
+          china2015:"중국 충격 — 위안화 절하·중국 증시 폭락. 신흥국 동반 약세.",
+          fed2018:"연준 긴축 2018 — 보유자산 축소+금리인상. 12월 나스닥 -20%.",
+        }[cr.id]||"이 위기 구간의 거시경제 패턴과 현재의 유사도를 분석합니다.";
+        return(
+        <div key={cr.id} style={{background:isTop?`${cr.color}10`:C.card2,
+          border:`1px solid ${isTop?cr.color+"44":C.border}`,borderRadius:8,padding:"7px 10px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+            <div style={{display:"flex",alignItems:"center",gap:5,flex:1,minWidth:0}}>
+              <div style={{width:7,height:7,borderRadius:"50%",background:cr.color,flexShrink:0}}/>
+              <span style={{color:isTop?cr.color:C.text,fontSize:9,fontWeight:isTop?800:600,
+                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cr.label}</span>
+              <span style={{color:`${C.muted}88`,fontSize:7,whiteSpace:"nowrap"}}>{cr.date}</span>
+              {isTop&&<span style={{color:cr.color,fontSize:7,fontWeight:700,whiteSpace:"nowrap"}}>▶ 최근접</span>}
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,marginLeft:6}}>
+              <span style={{color:sc,fontSize:7}}>{simLabel(cr.similarity)}</span>
+              <span style={{color:sc,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:30,textAlign:"right"}}>
+                {cr.similarity}%
+              </span>
+            </div>
+          </div>
+          <div style={{color:`${C.muted}bb`,fontSize:7.5,lineHeight:1.5,marginBottom:4}}>{crDesc}</div>
+          <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
+            <div style={{width:`${cr.similarity}%`,height:"100%",borderRadius:4,
+              background:`linear-gradient(90deg,${cr.color}66,${cr.color})`,transition:"width 0.6s ease"}}/>
+          </div>
+          {/* 카테고리별 비교 미니바 */}
+          <div style={{display:"flex",gap:3,marginTop:5}}>
+            {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
+              const curScore=(macroData.defconData?.catScores||[]).find(c=>c.cat===cat)?.score??50;
+              const criScore=cr.cat[cat]??50;
+              const diff=curScore-criScore;
+              const dc2=diff>15?C.green:diff<-15?C.red:C.gold;
               return(
-              <div style={{background:C.card,border:`2px solid ${g.color}44`,borderRadius:16,padding:"14px 14px",marginBottom:10,
-                boxShadow:`0 0 24px ${g.color}14`}}>
-                {/* 헤더 */}
-                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-                  <span style={{fontSize:16}}>🛡</span>
-                  <div>
-                    <div style={{color:g.color,fontSize:12,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.06em"}}>{g.title}</div>
-                    <div style={{color:`${C.muted}88`,fontSize:7,marginTop:1}}>AEGIS 포트폴리오 가이드 — 레벨별 자산배분 추천</div>
-                  </div>
+              <div key={cat} style={{flex:1,textAlign:"center"}}>
+                <div style={{color:`${C.muted}88`,fontSize:6,marginBottom:1}}>
+                  {cat==="신용위험"?"신용":cat==="시장공포"?"공포":cat==="실물경기"?"실물":cat}
                 </div>
-
-                {/* 자산배분 바 */}
-                {g.alloc.map(a=>(
-                <div key={a.label} style={{marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-                    <span style={{color:a.color,fontSize:9,fontWeight:700}}>{a.label}</span>
-                    <span style={{color:a.color,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{a.pct}%</span>
-                  </div>
-                  <div style={{background:C.dim,borderRadius:4,height:8,overflow:"hidden",marginBottom:4}}>
-                    <div style={{width:`${a.pct}%`,height:"100%",borderRadius:4,
-                      background:`linear-gradient(90deg,${a.color}66,${a.color})`,transition:"width 0.6s ease"}}/>
-                  </div>
-                  {a.subs.map(s=>(
-                  <div key={s.label} style={{display:"flex",justifyContent:"space-between",padding:"1px 4px",marginBottom:1}}>
-                    <span style={{color:`${C.muted}cc`,fontSize:7}}>└ {s.label}</span>
-                    <span style={{color:`${C.muted}cc`,fontSize:7,fontFamily:"monospace"}}>{s.pct}%</span>
-                  </div>
-                  ))}
-                </div>
-                ))}
-
-                {/* 행동 가이드 */}
-                <div style={{background:`${g.color}10`,border:`1px solid ${g.color}33`,borderRadius:8,
-                  padding:"8px 10px",marginTop:4,marginBottom:0}}>
-                  <div style={{color:g.color,fontSize:8,fontWeight:700,lineHeight:1.6}}>{g.guide}</div>
-                </div>
-
-
-                <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
-                  본 가이드는 투자 참고용이며 실제 투자 결정은 본인 책임. SEQUOIA QUANTUM AEGIS system
+                <div style={{color:dc2,fontSize:7,fontWeight:700,fontFamily:"monospace"}}>
+                  {diff>0?"+":""}{diff}
                 </div>
               </div>
               );
-            })()}
+            })}
+          </div>
+          {cr.impact&&(
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+            marginTop:5,paddingTop:4,borderTop:`1px solid ${C.border}`}}>
+            <div style={{color:`${C.muted}77`,fontSize:7}}>당시 한국 실제 영향</div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{color:C.red,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
+                코스피 {cr.impact.kospi>0?"+":""}{cr.impact.kospi}%
+              </span>
+              <span style={{color:C.orange,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
+                원달러 {cr.impact.krw>0?"+":""}{cr.impact.krw}%
+              </span>
+            </div>
+          </div>
+          )}
+        </div>
+        );
+      })}
+    </div>
+    )}
 
-            {/* ══ Crisis Navigation ══ */}
-            {macroData?.crisisAnalysis?.navigation&&(()=>{
-              const nav = macroData.crisisAnalysis.navigation;
-              const tc  = nav.topCrisis;
-              const pct = nav.proximityScore;
-              const barColor = pct>=80?C.red:pct>=60?C.orange:pct>=40?C.gold:C.green;
-              // distToTop을 퍼센트로 변환 (최대거리 250 기준)
-              const distPct = Math.round((nav.distToTop / 250) * 100);
-
-              return(
-              <Box>
-                <ST accent={C.cyan}>🧭 Crisis Navigation</ST>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                    <div style={{flex:1,minWidth:120,background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${barColor}44`}}>
-                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>가장 유사한 위기</div>
-                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{tc?.label||"—"}</div>
-                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>{tc?.date} · SEFCON {tc?.defcon}</div>
-                    </div>
-                    <div style={{flex:1,minWidth:120,background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                      <div style={{color:C.muted,fontSize:9,marginBottom:3}}>위기 패턴 진입 경보</div>
-                      <div style={{color:barColor,fontWeight:900,fontSize:13}}>{nav.estimatedMonths}<span style={{color:C.muted,fontWeight:400,fontSize:9}}> (참고)</span></div>
-                      <div style={{color:C.muted,fontSize:8,marginTop:1}}>
-                        정점까지 <span style={{color:barColor,fontWeight:700}}>{distPct}%</span> ({nav.distToTop}pt) 남음
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                      <span style={{color:C.muted,fontSize:9}}>현재 위기 근접도</span>
-                      <span style={{color:barColor,fontWeight:900,fontSize:11}}>{pct}%</span>
-                    </div>
-                    <div style={{background:`${C.muted}22`,borderRadius:4,height:8,overflow:"hidden"}}>
-                      <div style={{width:`${Math.min(100,pct)}%`,height:"100%",borderRadius:4,background:barColor,transition:"width 0.5s"}}/>
-                    </div>
-                    <div style={{display:"flex",justifyContent:"space-between",marginTop:4}}>
-                      <span style={{color:C.muted,fontSize:8}}>안전</span>
-                      <span style={{color:C.muted,fontSize:8}}>위기</span>
-                    </div>
-                  </div>
-                  <div style={{background:C.surface,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.muted}22`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <span style={{color:C.muted,fontSize:9}}>위험 지표 밀도</span>
-                      <span style={{color:nav.dangerDensity>=50?C.red:nav.dangerDensity>=30?C.orange:C.green,fontWeight:900,fontSize:11}}>
-                        {nav.dangerCount}/{nav.totalIndicators} ({nav.dangerDensity}%)
-                      </span>
-                    </div>
-                  </div>
-                  {tc?.impact&&(
-                  <div style={{background:`${C.red}11`,borderRadius:8,padding:"8px 12px",border:`1px solid ${C.red}33`}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:6}}>
-                      <div style={{color:C.muted,fontSize:9}}>위기 발생시 예상 파급력</div>
-                      <div style={{color:`${C.muted}66`,fontSize:7}}>※ 해당 위기 당시 한국 실제 영향 기준</div>
-                    </div>
-                    <div style={{display:"flex",gap:16,marginBottom:5}}>
-                      <div>
-                        <div style={{color:C.muted,fontSize:8}}>코스피</div>
-                        <div style={{color:C.red,fontWeight:900,fontSize:14}}>{tc.impact.kospi>0?"+":""}{tc.impact.kospi}%</div>
-                      </div>
-                      <div>
-                        <div style={{color:C.muted,fontSize:8}}>원/달러</div>
-                        <div style={{color:C.orange,fontWeight:900,fontSize:14}}>{tc.impact.krw>0?"+":""}{tc.impact.krw}%</div>
-                      </div>
-                    </div>
-                    <div style={{color:`${C.muted}CC`,fontSize:8,fontStyle:"italic"}}>"{tc.impact.desc}"</div>
-                    <div style={{color:`${C.muted}55`,fontSize:7,marginTop:5,lineHeight:1.6}}>
-                      ⚠️ 현재 상황이 해당 위기 패턴과 유사할 뿐, 동일한 충격을 의미하지 않습니다. 진원지·전파경로에 따라 실제 충격은 더 크거나 작을 수 있습니다.
-                    </div>
-                  </div>
-                  )}
-                  {/* ── SEFCON × Crisis Navigation 해석 매트릭스 */}
-                  {(()=>{
-                    const sefScore = dc?.totalScore??50;
-                    const navScore = pct; // proximityScore 0~100
-                    // SEFCON: 70↑ 양호 / 50~70 중립 / 35~50 경계 / 35↓ 위험
-                    const sefLevel = sefScore>=70?"양호":sefScore>=50?"중립":sefScore>=35?"경계":"위험";
-                    const sefColor = sefScore>=70?C.green:sefScore>=50?C.teal:sefScore>=35?C.orange:C.red;
-                    // Crisis Nav: 75↑ 고위험 / 55~75 경보 / 35~55 주의 / 35↓ 안전
-                    const navLevel = navScore>=75?"고위험":navScore>=55?"경보":navScore>=35?"주의":"안전";
-                    const navColor = navScore>=75?C.red:navScore>=55?C.orange:navScore>=35?C.gold:C.green;
-                    // 시나리오 조합
-                    const isSefGood = sefScore>=50;
-                    const isNavHigh = navScore>=55;
-                    let scenario,scenDesc,scenColor,scenAction;
-                    if(isSefGood && !isNavHigh){
-                      scenario="✅ 실질 안전";scenColor=C.green;
-                      scenDesc="지표 건강도 양호 + 위기 패턴 유사도 낮음. 가장 안전한 구간입니다.";
-                      scenAction="정상 포지션 유지. 기회 포착 집중.";
-                    } else if(isSefGood && isNavHigh){
-                      scenario="⚠️ 패턴 선행 경고";scenColor=C.gold;
-                      scenDesc="현재 지표는 나쁘지 않으나, 과거 위기 직전 패턴과 유사해지는 중. 표면은 괜찮아 보이지만 구조가 위험해지고 있는 상태입니다.";
-                      scenAction="포지션 점검 시작. 방어 자산 비중 소폭 확대 검토.";
-                    } else if(!isSefGood && !isNavHigh){
-                      scenario="🔶 고유 리스크";scenColor=C.orange;
-                      scenDesc="지표는 부진하나 과거 위기 패턴과 다른 양상. 전례 없는 충격이거나 위기 초기 단계일 수 있습니다.";
-                      scenAction="원인 파악 우선. 과거 사례 적용 주의.";
-                    } else {
-                      scenario="🔴 복합 위험";scenColor=C.red;
-                      scenDesc="지표 악화 + 역사적 위기 패턴 동시 진입. 가장 높은 경계 구간입니다.";
-                      scenAction="리스크 관리 최우선. 포지션 방어적 재편 검토.";
-                    }
-                    return(
-                    <div style={{background:`${scenColor}0d`,border:`1.5px solid ${scenColor}44`,borderRadius:12,padding:"12px 14px",marginTop:8}}>
-                      <div style={{color:scenColor,fontSize:10,fontWeight:800,marginBottom:8}}>🗺 SEFCON × Crisis Navigation 교차 해석</div>
-                      {/* 현재 좌표 */}
-                      <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-                        <div style={{flex:1,background:C.card2,borderRadius:8,padding:"7px 10px",minWidth:100}}>
-                          <div style={{color:C.muted,fontSize:7,marginBottom:2}}>SEFCON 점수</div>
-                          <div style={{color:sefColor,fontSize:15,fontWeight:900,fontFamily:"monospace"}}>{sefScore}<span style={{fontSize:9}}>pt</span></div>
-                          <div style={{color:sefColor,fontSize:8,fontWeight:700}}>{sefLevel}</div>
-                        </div>
-                        <div style={{flex:1,background:C.card2,borderRadius:8,padding:"7px 10px",minWidth:100}}>
-                          <div style={{color:C.muted,fontSize:7,marginBottom:2}}>Crisis Nav 근접도</div>
-                          <div style={{color:navColor,fontSize:15,fontWeight:900,fontFamily:"monospace"}}>{navScore}<span style={{fontSize:9}}>%</span></div>
-                          <div style={{color:navColor,fontSize:8,fontWeight:700}}>{navLevel}</div>
-                        </div>
-                        <div style={{flex:2,background:`${scenColor}18`,border:`1px solid ${scenColor}44`,borderRadius:8,padding:"7px 10px",minWidth:140}}>
-                          <div style={{color:scenColor,fontSize:11,fontWeight:900,marginBottom:3}}>{scenario}</div>
-                          <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.7}}>{scenDesc}</div>
-                        </div>
-                      </div>
-                      {/* 2×2 매트릭스 시각화 */}
-                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:8}}>
-                        {[
-                          {sef:"양호",nav:"낮음",label:"✅ 실질 안전",c:C.green,  desc:"지표 OK·패턴 무관"},
-                          {sef:"양호",nav:"높음",label:"⚠️ 패턴 경고",c:C.gold,   desc:"표면 OK·구조 주의"},
-                          {sef:"위험",nav:"낮음",label:"🔶 고유 리스크",c:C.orange,desc:"지표 부진·전례 없음"},
-                          {sef:"위험",nav:"높음",label:"🔴 복합 위험",c:C.red,    desc:"최고 경계 구간"},
-                        ].map(cell=>{
-                          const isActive=(cell.sef==="양호"?isSefGood:!isSefGood)&&(cell.nav==="낮음"?!isNavHigh:isNavHigh);
-                          return(
-                          <div key={cell.label} style={{
-                            background:isActive?`${cell.c}22`:C.card2,
-                            border:`${isActive?"2px":"1px"} solid ${isActive?cell.c:C.border}`,
-                            borderRadius:8,padding:"7px 9px",
-                            boxShadow:isActive?`0 0 10px ${cell.c}44`:"none",
-                          }}>
-                            <div style={{fontSize:7,color:C.muted,marginBottom:2}}>
-                              SEFCON <span style={{color:cell.sef==="양호"?C.green:C.red,fontWeight:700}}>{cell.sef}</span>
-                              {" · "}Crisis Nav <span style={{color:cell.nav==="낮음"?C.green:C.red,fontWeight:700}}>{cell.nav}</span>
-                            </div>
-                            <div style={{color:isActive?cell.c:C.muted,fontSize:9,fontWeight:isActive?800:500}}>{cell.label}</div>
-                            <div style={{color:`${C.muted}88`,fontSize:7,marginTop:1}}>{cell.desc}</div>
-                            {isActive&&<div style={{color:cell.c,fontSize:7,fontWeight:700,marginTop:3}}>◀ 현재</div>}
-                          </div>
-                          );
-                        })}
-                      </div>
-                      {/* 권고 행동 */}
-                      <div style={{background:C.card2,borderRadius:8,padding:"7px 10px",borderLeft:`3px solid ${scenColor}`}}>
-                        <div style={{color:C.muted,fontSize:7,marginBottom:2}}>💡 포지션 가이드 (참고용)</div>
-                        <div style={{color:scenColor,fontSize:8,fontWeight:700}}>{scenAction}</div>
-                      </div>
-                      <div style={{color:`${C.muted}44`,fontSize:7,marginTop:5}}>
-                        ※ SEFCON 50pt 이상/이하, Crisis Nav 55% 이상/이하 기준으로 구분. 투자 판단의 보조 참고용.
-                      </div>
-                    </div>
-                    );
-                  })()}
-                </div>
-              </Box>
-              );
-            })()}
-
-            {/* ══ 역사적 위기 유사도 분석 ══ */}
-            {macroData?.crisisAnalysis&&(()=>{
-              const ca=macroData.crisisAnalysis;
-              const simColor=s=>s>=70?C.red:s>=50?C.orange:s>=30?C.gold:C.green;
-              const simLabel=s=>s>=70?"⚠️ 매우 유사":s>=50?"주의":s>=30?"참고":"낮음";
-              return(
-              <Box>
-                <ST accent={C.red}>🏛 역사적 금융위기 유사도 분석</ST>
-
-                {/* ── 최고 유사 위기 경보 */}
-                {ca.top&&ca.top.similarity>=40&&(
-                <div style={{background:`${ca.top.color}15`,border:`1.5px solid ${ca.top.color}66`,
-                  borderRadius:10,padding:"10px 12px",marginBottom:10}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                    <span style={{color:ca.top.color,fontSize:10,fontWeight:800}}>
-                      ⚠️ {ca.top.label} ({ca.top.date}) 와 가장 유사
-                    </span>
-                    <span style={{color:ca.top.color,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>
-                      {ca.top.similarity}%
-                    </span>
-                  </div>
-                  <div style={{color:`${C.muted}cc`,fontSize:8,lineHeight:1.6,marginBottom:6}}>
-                    {ca.top.desc}
-                  </div>
-                  {ca.warnings?.length>0&&(
-                  <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                    {ca.warnings.map(w=>(
-                      <span key={w} style={{background:`${C.red}22`,border:`1px solid ${C.red}44`,
-                        borderRadius:4,padding:"2px 6px",color:C.red,fontSize:7,fontWeight:700}}>
-                        {w}
-                      </span>
-                    ))}
-                  </div>
-                  )}
-                </div>
-                )}
-
-                {/* ── 전체 유사도 바 */}
-                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:8}}>
-                  {ca.results.map((cr,idx)=>{
-                    const sc=simColor(cr.similarity);
-                    const isTop=idx===0;
-                    return(
-                    <div key={cr.id} style={{background:isTop?`${cr.color}12`:C.card2,
-                      border:`1px solid ${isTop?cr.color+"44":C.border}`,
-                      borderRadius:8,padding:"8px 10px"}}>
-                      {/* 제목행: 이름+날짜+유사도 한 줄 */}
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-                        <div style={{display:"flex",alignItems:"center",gap:5,flexWrap:"wrap",flex:1,minWidth:0}}>
-                          <div style={{width:8,height:8,borderRadius:"50%",background:cr.color,flexShrink:0}}/>
-                          <span style={{color:isTop?cr.color:C.text,fontSize:9,fontWeight:isTop?800:600,whiteSpace:"nowrap"}}>
-                            {cr.label}
-                          </span>
-                          <span style={{color:`${C.muted}88`,fontSize:7,whiteSpace:"nowrap"}}>{cr.date}</span>
-                          {isTop&&<span style={{color:cr.color,fontSize:7,fontWeight:700,whiteSpace:"nowrap"}}>▶ 최근접</span>}
-                        </div>
-                        <div style={{display:"flex",alignItems:"center",gap:4,flexShrink:0,marginLeft:6}}>
-                          <span style={{color:sc,fontSize:7,whiteSpace:"nowrap"}}>{simLabel(cr.similarity)}</span>
-                          <span style={{color:sc,fontSize:11,fontWeight:800,fontFamily:"monospace",minWidth:30,textAlign:"right"}}>{cr.similarity}%</span>
-                        </div>
-                      </div>
-                      {/* 설명: 독립 줄 */}
-                      <div style={{color:`${C.muted}bb`,fontSize:7.5,lineHeight:1.6,marginBottom:4}}>
-                          {({
-                            imf1997:     "한국 외환위기(IMF) — 외환보유고 소진, 원화 폭락. 코스피 -70%, 실업률 폭등. IMF 구제금융 570억 달러.",
-                            dotcom2000:  "IT 버블 붕괴 — 인터넷 주식 과열 후 붕괴. 나스닥 -78%. 실물 영향은 제한적이었으나 기술주 완전 초토화.",
-                            gfc2008:     "글로벌 금융위기(리먼 쇼크) — 서브프라임 부실이 금융 시스템 전반 붕괴로 확산. 코스피 -54%, 글로벌 동반 침체.",
-                            europe2011:  "유럽 재정위기 — 그리스·스페인 등 남유럽 국채 부실. ECB 개입 전까지 유로존 해체 우려, 이머징 동반 조정.",
-                            covid2020:   "코로나19 팬데믹 — 전 세계 봉쇄령. 코스피 -36% 급락 후 유동성 공급으로 사상 최고 속도 반등.",
-                            tightening2022:"미국 긴축 위기 — 40년 만의 최고 인플레이션 대응. 기준금리 0→5.5%. 채권·성장주·코스닥 동반 급락.",
-                            volcker1979: "볼커 긴축 쇼크 — 인플레 잡기 위해 금리 20%까지 인상. 극심한 경기침체와 달러 초강세. 스태그플레이션 종식.",
-                            japan1990:   "일본 버블 붕괴 — 부동산·주식 동반 붕괴. 닛케이 -80%, 이후 '잃어버린 30년' 장기 침체의 출발점.",
-                            bond1994:    "채권 대학살 — 연준 금리 인상에 채권 시장 급락. 멕시코 페소 위기와 맞물려 이머징 시장 연쇄 타격.",
-                            ltcm1998:    "러시아 디폴트·LTCM 붕괴 — 러시아 국채 디폴트로 헤지펀드 LTCM 붕괴 위기. 연준 긴급 구제로 시스템 리스크 차단.",
-                            china2015:   "중국 충격 — 위안화 절하·중국 증시 폭락. 글로벌 원자재 수요 우려로 신흥국 동반 약세.",
-                            fed2018:     "연준 긴축 2018 — 보유자산 축소+금리인상 동시 진행. 12월 나스닥 -20%, 파월 '성장 둔화' 인정 후 피벗.",
-                          }[cr.id]||"이 위기 구간의 거시경제 패턴과 현재의 유사도를 5개 카테고리로 분석합니다.")}
-                        </div>
-                      <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
-                        <div style={{width:`${cr.similarity}%`,height:"100%",borderRadius:4,
-                          background:`linear-gradient(90deg,${cr.color}66,${cr.color})`,
-                          transition:"width 0.6s ease"}}/>
-                      </div>
-                      {/* 카테고리별 비교 미니바 */}
-                      <div style={{display:"flex",gap:3,marginTop:5}}>
-                        {["신용위험","유동성","시장공포","실물경기","물가"].map(cat=>{
-                          const curScore=(macroData.defconData?.catScores||[]).find(c=>c.cat===cat)?.score??50;
-                          const criScore=cr.cat[cat]??50;
-                          const diff=curScore-criScore;
-                          const dc=diff>15?C.green:diff<-15?C.red:C.gold;
-                          return(
-                          <div key={cat} style={{flex:1,textAlign:"center"}}>
-                            <div style={{color:`${C.muted}88`,fontSize:6,marginBottom:1}}>
-                              {cat==="신용위험"?"신용":cat==="시장공포"?"공포":cat==="실물경기"?"실물":cat}
-                            </div>
-                            <div style={{color:dc,fontSize:7,fontWeight:700,fontFamily:"monospace"}}>
-                              {diff>0?"+":""}{diff}
-                            </div>
-                          </div>
-                          );
-                        })}
-                      </div>
-                      {cr.impact&&(
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-                        marginTop:6,paddingTop:5,borderTop:`1px solid ${C.border}`}}>
-                        <div style={{color:`${C.muted}77`,fontSize:7}}>당시 한국 실제 영향</div>
-                        <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                          <span style={{color:C.red,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
-                            코스피 {cr.impact.kospi>0?"+":""}{cr.impact.kospi}%
-                          </span>
-                          <span style={{color:C.orange,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
-                            원달러 {cr.impact.krw>0?"+":""}{cr.impact.krw}%
-                          </span>
-                          <span style={{color:`${C.muted}99`,fontSize:7}}>{cr.impact.desc}</span>
-                        </div>
-                      </div>
-                      )}
-                    </div>
-                    );
-                  })}
-                </div>
-
-                <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right"}}>
-                  유사도 = 5개 카테고리 유클리드 거리 기반 / 참고용
-                </div>
-              </Box>
-              );
-            })()}
-
+    <div style={{color:`${C.muted}55`,fontSize:7,textAlign:"right"}}>
+      유사도 = 5개 카테고리 유클리드 거리 기반 / Crisis Navigation + 역사적 패턴 통합 / 참고용
+    </div>
+  </Box>
+  );
+})()}
             </> /* defcon 탭 끝 */}
 
             {/* ══ 매크로 탭 ══ */}
