@@ -68,6 +68,7 @@ async function fetchFRED(seriesId, startDate) {
     return [];
   }
   return json.observations
+    .filter(r => r.value !== "." && r.value != null)   // FRED 결측값 "." 제거
     .map(r => ({ date: normalizeDateKey(r.date, "day"), value: parseFloat(r.value) }))
     .filter(r => r.date && !Number.isNaN(r.value));
 }
@@ -921,8 +922,14 @@ export default async function handler(req, res) {
     }).filter(Boolean);
 
     // ── 미국/한국 M2 통화량 YoY 계산
-    // M2SL은 FRED 월별 데이터 (단위: 십억달러) — dailyToMonthly 불필요, 이미 월별
-    const usM2 = fredM2SLRaw.map(r => ({ date: r.date?.slice(0,7)?.replace("-","."), value: r.value })).filter(r=>r.date&&r.value!=null);
+    // M2SL은 FRED 월별 데이터 (단위: 십억달러) — fetchFRED가 "day" 모드로 파싱하므로
+    // date가 "20240101" 형태로 저장됨 → slice(0,6)으로 "YYYYMM" 추출 후 "YYYY.MM" 변환
+    const usM2 = fredM2SLRaw
+      .map(r => ({
+        date: r.date ? r.date.slice(0,6).replace(/^(\d{4})(\d{2})$/, "$1.$2") : null,
+        value: r.value
+      }))
+      .filter(r => r.date && r.value != null && !Number.isNaN(r.value));
     const usM2YoY = calcMonthlyYoY(usM2); // { date, value(절대값), yoy }
     // 한국 M2: ECOS 월별 (십억원)
     const krM2 = ecosKrM2Raw.map(r => ({ date: r.date, value: r.value })).filter(r=>r.date&&r.value!=null);
