@@ -263,12 +263,59 @@ export default function App(){
     });
   },[marketLoaded,macroData,kospiMonthly,kosdaqMonthly]);
 
-  // ── 통합 인지 체계: 중앙 분석 엔진 ──────────────────────
+  // ── Core Intelligence: 중앙 분석 엔진 ──────────────────────
   // macroData가 바뀔 때만 재계산. State→Temporal→Physics→Regime→Interpretation→Strategy
   const coreIntel = useMemo(
     () => runCoreIntelligence({ macroData }),
     [macroData]
   );
+
+  // Daily Snapshot → Supabase core_intelligence_snapshots 테이블 (하루 1회 upsert)
+  // 테이블이 없어도 앱은 절대 죽지 않음. UI에 오류 표시 없음.
+  useEffect(() => {
+    if (!coreIntel || !macroData) return;
+    const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
+    // 데이터 부족 시 저장 안 함 (기본값 상태)
+    if (state.sefconScore === 50 && state.creditRisk === 0.5) return;
+
+    const today = new Date().toISOString().slice(0, 10);
+    const localKey = `sq_ci_snap_sent_${today}`;
+    // 오늘 이미 전송했으면 재전송 안 함 (localStorage는 중복 방지용으로만 사용)
+    try { if (localStorage.getItem(localKey)) return; } catch {}
+
+    const snap = {
+      snapshot_date:    today,
+      market:           "GLOBAL",
+      sefcon_score:     state.sefconScore,
+      sefcon_level:     state.sefconLevel,
+      state_json:       JSON.stringify(state),
+      temporal_json:    JSON.stringify(temporal),
+      physics_json:     JSON.stringify(physics),
+      regime_json:      JSON.stringify(regime),
+      interpretation:   interpretation.summary,
+      strategy_json:    JSON.stringify(strategy),
+    };
+
+    // Supabase upsert — core_intelligence_snapshots 테이블
+    // unique key: snapshot_date + market
+    (async () => {
+      try {
+        const { supabase } = await import("./services/supabaseService");
+        if (!supabase) return;
+        const { error } = await supabase
+          .from("core_intelligence_snapshots")
+          .upsert(snap, { onConflict: "snapshot_date,market" });
+        if (!error) {
+          try { localStorage.setItem(localKey, new Date().toISOString()); } catch {}
+          console.info("[CI snapshot saved]", today);
+        } else {
+          console.warn("[CI snapshot upsert failed]", error?.message);
+        }
+      } catch (e) {
+        console.warn("[CI snapshot error]", e?.message || e);
+      }
+    })();
+  }, [coreIntel]);
 
   // Supabase 로드 + localStorage 이중 보장
   // PC 마우스 환경에서만 스크롤바 표시
@@ -3382,17 +3429,14 @@ else {
   </div>
   );
 })()}
-{/* ══ 코어 인텔리전스 패널 ══ */}
+{/* ══ 코어 인텔리전스 패널 v2 ══ */}
 {coreIntel && macroData && dc && (()=>{
   const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
-
-  // 색상은 SEFCON 공식 점수 기준 (dc.totalScore)
   const sefScore = dc.totalScore ?? 50;
   const accentColor =
     sefScore >= 70 ? C.green :
     sefScore >= 50 ? C.gold :
     sefScore >= 35 ? C.orange : C.red;
-
   const dirColor = (v) => v > 0.15 ? C.red : v < -0.15 ? C.green : C.muted;
   const dirArrow = (v) => v > 0.15 ? "▲" : v < -0.15 ? "▼" : "—";
 
@@ -3400,139 +3444,117 @@ else {
   <div style={{background:C.card,border:`1.5px solid ${accentColor}33`,borderRadius:16,
     padding:"14px 14px",marginBottom:10}}>
 
-    {/* 헤더 */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+    {/* ── 헤더 */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",opacity:0.7}}>
         🧭 코어 인텔리전스
       </div>
-      <div style={{color:C.muted,fontSize:7}}>
-        해석 · 방향 · 전략 보정
-      </div>
+      <div style={{color:C.muted,fontSize:7}}>시장 전략 브리핑</div>
     </div>
 
-    {/* SEFCON 공식 점수 + 해석 요약 */}
-    <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
-
-      {/* SEFCON 공식 점수 */}
-      <div style={{
-        flexShrink:0,
-        background:C.card2,border:`1px solid ${accentColor}44`,
-        borderRadius:10,padding:"8px 12px",minWidth:100,
-      }}>
-        <div style={{color:C.muted,fontSize:7,marginBottom:3}}>SEFCON 공식 점수</div>
-        <div style={{display:"flex",alignItems:"baseline",gap:4}}>
-          <span style={{color:accentColor,fontSize:20,fontWeight:900,fontFamily:"monospace"}}>{sefScore}</span>
-          <span style={{color:C.muted,fontSize:8}}>/ 100</span>
-        </div>
-        <div style={{color:C.muted,fontSize:7,marginTop:1}}>
-          {sefScore>=70?"안정":sefScore>=50?"중립":sefScore>=35?"경계":"위험"} 구간
-        </div>
-      </div>
-
-      {/* 해석 4개 항목 */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",gap:5}}>
-        {[
-          {
-            label:"방향성",
-            value:interpretation.direction,
-            color: interpretation.direction==="악화"?C.red:
-                   interpretation.direction==="개선"?C.green:C.muted,
-            arrow: interpretation.direction==="악화"?"▲":
-                   interpretation.direction==="개선"?"▼":"—",
-          },
-          {
-            label:"지배적 힘",
-            value:physics.dominantForce,
-            color:accentColor,
-            arrow:null,
-          },
-          {
-            label:"위험 가속도",
-            value:temporal.labels.riskAcceleration,
-            color:dirColor(temporal.riskAcceleration),
-            arrow:dirArrow(temporal.riskAcceleration),
-          },
-          {
-            label:"전략 보정",
-            value:strategy.actions[0] ?? "보정 없음",
-            color:C.text,
-            arrow:null,
-          },
-        ].map(({label,value,color,arrow})=>(
-          <div key={label} style={{
-            display:"flex",justifyContent:"space-between",alignItems:"center",
-            background:C.card2,borderRadius:7,padding:"4px 9px",
-            border:`1px solid ${C.border}`
-          }}>
-            <span style={{color:C.muted,fontSize:8}}>{label}</span>
-            <span style={{color,fontSize:9,fontWeight:800}}>
-              {arrow&&<span style={{marginRight:3}}>{arrow}</span>}
-              {value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-
-    {/* 해석 문장 */}
-    <div style={{background:`${accentColor}08`,border:`1px solid ${accentColor}22`,
-      borderRadius:10,padding:"8px 11px",marginBottom:10}}>
-      <div style={{color:C.text,fontSize:9,lineHeight:1.75}}>
+    {/* ── 핵심 브리핑 텍스트 */}
+    <div style={{background:`${accentColor}0a`,border:`1px solid ${accentColor}22`,
+      borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+      <div style={{color:C.text,fontSize:10,lineHeight:1.8,fontWeight:500}}>
         {interpretation.lines.map((line,i)=>(
-          <div key={i} style={{marginBottom:i<interpretation.lines.length-1?4:0}}>{line}</div>
+          <div key={i} style={{marginBottom:i<interpretation.lines.length-1?5:0}}>{line}</div>
         ))}
       </div>
     </div>
 
-    {/* 레짐 태그 */}
+    {/* ── 핵심 판단 표 */}
+    <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:10}}>
+      {[
+        {
+          label:"시장 방향",
+          value:regime.direction,
+          color:regime.direction==="악화"?C.red:regime.direction==="개선"?C.green:regime.direction==="경계"?C.orange:C.muted,
+          arrow:regime.direction==="악화"?"▲":regime.direction==="개선"?"▼":null,
+        },
+        {label:"지배적 힘",value:physics.dominantForce,color:accentColor,arrow:null},
+        {
+          label:"위험 변화",
+          value:temporal.labels.riskAcceleration,
+          color:dirColor(temporal.riskAcceleration),
+          arrow:dirArrow(temporal.riskAcceleration),
+        },
+        {
+          label:"국면 전이",
+          value:regime.transitionPath ?? "현 국면 유지",
+          color:C.text,arrow:null,small:true,
+        },
+        {
+          label:"전략 보정",
+          value:strategy.actions[0] ?? "보정 없음",
+          color:accentColor,arrow:null,
+        },
+      ].map(({label,value,color,arrow,small})=>(
+        <div key={label} style={{
+          display:"flex",justifyContent:"space-between",alignItems:"center",
+          background:C.card2,borderRadius:7,padding:"5px 10px",
+          border:`1px solid ${C.border}`
+        }}>
+          <span style={{color:C.muted,fontSize:8,flexShrink:0,marginRight:8}}>{label}</span>
+          <span style={{color,fontSize:small?8:9,fontWeight:small?600:800,textAlign:"right",lineHeight:1.4}}>
+            {arrow&&<span style={{marginRight:3}}>{arrow}</span>}
+            {value}
+          </span>
+        </div>
+      ))}
+    </div>
+
+    {/* ── 핵심 압력 구조 */}
+    <div style={{marginBottom:10}}>
+      <div style={{color:C.muted,fontSize:8,fontWeight:700,marginBottom:6}}>핵심 압력 구조</div>
+      <div style={{display:"flex",flexDirection:"column",gap:5}}>
+        {[
+          {label:"유동성 압력",  val:physics.liquidityPressure, trend:temporal.labels.liquidityTrend1m},
+          {label:"밸류 중력",    val:physics.valuationGravity,  trend:null},
+          {label:"신용 응력",    val:physics.creditStress,      trend:temporal.labels.creditAcceleration},
+          {label:"변동성 에너지",val:physics.volatilityEnergy ?? 0.3, trend:temporal.labels.volatilityCompression},
+        ].map(({label,val,trend})=>{
+          const pct=Math.round((val??0)*100);
+          const c=pct>=70?"#EF4444":pct>=50?"#F59E0B":"#10B981";
+          return(
+          <div key={label}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+              <span style={{color:C.muted,fontSize:8}}>{label}</span>
+              <span style={{display:"flex",alignItems:"center",gap:5}}>
+                <span style={{color:c,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>{pct}%</span>
+                {trend&&<span style={{color:C.muted,fontSize:7}}>{trend}</span>}
+              </span>
+            </div>
+            <div style={{background:C.dim,borderRadius:4,height:6,overflow:"hidden"}}>
+              <div style={{width:`${pct}%`,height:"100%",borderRadius:4,
+                background:`linear-gradient(90deg,${c}66,${c})`,transition:"width 0.6s ease"}}/>
+            </div>
+          </div>
+          );
+        })}
+      </div>
+    </div>
+
+    {/* ── 레짐 태그 */}
     {regime.tags.length>0&&(
-    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>
+    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:8}}>
       {regime.tags.map((tag,i)=>(
         <span key={i} style={{
-          fontSize:8,fontWeight:700,
+          fontSize:7,fontWeight:700,
           color:i===0?accentColor:C.muted,
           background:i===0?`${accentColor}14`:C.card2,
           border:`1px solid ${i===0?accentColor+"33":C.border}`,
-          borderRadius:6,padding:"2px 7px"
+          borderRadius:6,padding:"2px 6px"
         }}>{tag}</span>
       ))}
     </div>
     )}
 
-    {/* Physics 게이지 3개 */}
-    <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:10}}>
-      {[
-        {label:"유동성 압력",val:physics.liquidityPressure,trend:temporal.labels.liquidityTrend},
-        {label:"밸류 중력",  val:physics.valuationGravity, trend:null},
-        {label:"신용 응력",  val:physics.creditStress,     trend:temporal.labels.creditAcceleration},
-      ].map(({label,val,trend})=>{
-        const pct=Math.round(val*100);
-        const c=pct>=70?"#EF4444":pct>=50?"#F59E0B":"#10B981";
-        return(
-        <div key={label}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
-            <span style={{color:C.muted,fontSize:8}}>{label}</span>
-            <span style={{display:"flex",alignItems:"center",gap:4}}>
-              <span style={{color:c,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>{pct}%</span>
-              {trend&&<span style={{color:C.muted,fontSize:7}}>{trend}</span>}
-            </span>
-          </div>
-          <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
-            <div style={{width:`${pct}%`,height:"100%",borderRadius:4,
-              background:`linear-gradient(90deg,${c}88,${c})`,transition:"width 0.6s ease"}}/>
-          </div>
-        </div>
-        );
-      })}
-    </div>
-
     <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right"}}>
-      State · Temporal · Physics · Regime 통합 해석 — 참고용
+      Temporal · Physics · Regime 통합 브리핑 — 참고용
     </div>
   </div>
   );
 })()}
-
 
 {/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
