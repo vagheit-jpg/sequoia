@@ -34,6 +34,7 @@ import {
 import { fetchPrice } from "./services/priceService";
 import { buildBubbleEnergyModel } from "./engines/bubbleEngine";
 import { buildAegisMarketSnapshot } from "./engines/aegisEngine";
+import { runCoreIntelligence } from "./engines/intelligence/coreIntelligence";
 import { parseExcel } from "./services/excelParser";
 import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
@@ -155,13 +156,53 @@ export default function App(){
     if(tab!=="market"||marketLoaded)return;
     setMarketLoading(true);
     // localStorage 캐시 우선 (6시간 TTL)
+    // v2_usfix: 빈 캐시 생존 문제 방지 + 핵심 US 배열 검증 강화
     const MACRO_CACHE_TTL=6*60*60*1000;
+    const CACHE_KEY="sq_macro_v2_usfix";
+
+    // 핵심 US 배열 유효성 검사 — 비어 있으면 캐시 무효
+    const isValidMacro = (d) => {
+      if(!d) return false;
+      const checks = [
+        d.fredVIX?.length > 0,
+        d.fredHY?.length > 0,
+        d.fredBAML?.length > 0,
+        d.fredT10Y2Y?.length > 0,
+        d.fredSLOOS?.length > 0,
+        d.yahooDXY?.length > 0,
+        d.usM2YoY?.length > 0,
+      ];
+      const passCount = checks.filter(Boolean).length;
+      return passCount >= 5; // 7개 중 5개 이상 있어야 유효
+    };
+
     let cached=null;
     try{
-      const raw=localStorage.getItem("sq_macro_v1");
-      if(raw){const{data,ts}=JSON.parse(raw);if(Date.now()-ts<MACRO_CACHE_TTL&&data)cached=data;}
-    }catch{}
+      // 구 캐시 키 삭제 (마이그레이션)
+      localStorage.removeItem("sq_macro_v1");
+      const raw=localStorage.getItem(CACHE_KEY);
+      if(raw){
+        const{data,ts}=JSON.parse(raw);
+        if(Date.now()-ts<MACRO_CACHE_TTL && isValidMacro(data)){
+          cached=data;
+        } else {
+          // 만료됐거나 핵심 배열 없으면 캐시 삭제
+          localStorage.removeItem(CACHE_KEY);
+        }
+      }
+    }catch{ localStorage.removeItem(CACHE_KEY); }
+
     if(cached){
+      // 디버그 로그
+      console.log("[macroData US keys] from cache", {
+        fredVIX:   cached.fredVIX?.length,
+        fredHY:    cached.fredHY?.length,
+        fredBAML:  cached.fredBAML?.length,
+        fredT10Y2Y:cached.fredT10Y2Y?.length,
+        fredSLOOS: cached.fredSLOOS?.length,
+        yahooDXY:  cached.yahooDXY?.length,
+        usM2YoY:   cached.usM2YoY?.length,
+      });
       setMacroData(cached);
       if(cached.kospiMonthly?.length)  setKospiMonthly(cached.kospiMonthly);
       if(cached.kosdaqMonthly?.length) setKosdaqMonthly(cached.kosdaqMonthly);
@@ -171,11 +212,26 @@ export default function App(){
     const loadMacro = () =>
       fetch("/api/macro").then(r=>r.ok?r.json():null).catch(()=>null);
     loadMacro().then(macro=>{
+      // 디버그 로그
+      console.log("[macroData US keys] from API", {
+        fredVIX:   macro?.fredVIX?.length,
+        fredHY:    macro?.fredHY?.length,
+        fredBAML:  macro?.fredBAML?.length,
+        fredT10Y2Y:macro?.fredT10Y2Y?.length,
+        fredSLOOS: macro?.fredSLOOS?.length,
+        yahooDXY:  macro?.yahooDXY?.length,
+        usM2YoY:   macro?.usM2YoY?.length,
+      });
       if(macro){
         setMacroData(macro);
         if(macro.kospiMonthly?.length)  setKospiMonthly(macro.kospiMonthly);
         if(macro.kosdaqMonthly?.length) setKosdaqMonthly(macro.kosdaqMonthly);
-        try{localStorage.setItem("sq_macro_v1",JSON.stringify({data:macro,ts:Date.now()}));}catch{}
+        // 유효한 응답만 캐시 저장
+        if(isValidMacro(macro)){
+          try{localStorage.setItem(CACHE_KEY,JSON.stringify({data:macro,ts:Date.now()}));}catch{}
+        } else {
+          console.warn("[macro] 핵심 US 배열 부족 — 캐시 저장 건너뜀", macro);
+        }
       }
       setMarketLoaded(true);
       setMarketLoading(false);
@@ -208,6 +264,13 @@ export default function App(){
       }
     });
   },[marketLoaded,macroData,kospiMonthly,kosdaqMonthly]);
+
+  // ── Core Intelligence: 중앙 인지 신경망 ──────────────────
+  // macroData가 바뀔 때만 재계산. State→Temporal→Physics→Regime→Interpretation→Strategy
+  const coreIntel = useMemo(
+    () => runCoreIntelligence({ macroData }),
+    [macroData]
+  );
 
   // Supabase 로드 + localStorage 이중 보장
   // PC 마우스 환경에서만 스크롤바 표시
@@ -3224,7 +3287,6 @@ else {
               );
             })()}
             </> /* defcon 핵심 SEFCON 카드 끝 */}
-
             {/* ══ AEGIS 탭 ══ */}
             {marketSub==="v3core"&&<>
 {/* ══ 시장 판독 브릿지 카드 ══ */}
@@ -3322,6 +3384,110 @@ else {
   </div>
   );
 })()}
+{/* ══ Core Intelligence 패널 ══ */}
+{coreIntel && macroData && (()=>{
+  const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
+  const riskColor =
+    state.totalRisk > 0.75 ? "#991B1B" :
+    state.totalRisk > 0.55 ? "#EF4444" :
+    state.totalRisk > 0.35 ? "#F59E0B" : "#10B981";
+  const barVal = (v01) => `${Math.round(v01 * 100)}%`;
+  const dirColor = (v) => v > 0.15 ? "#EF4444" : v < -0.15 ? "#10B981" : C.muted;
+  return(
+  <div style={{background:C.card,border:`1.5px solid ${riskColor}33`,borderRadius:16,
+    padding:"14px 14px",marginBottom:10}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",opacity:0.7}}>
+        🧠 Core Intelligence
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:6}}>
+        <span style={{color:riskColor,fontSize:9,fontWeight:800}}>{regime.statePhrase}</span>
+        <span style={{color:C.muted,fontSize:8}}>위험도 {interpretation.riskScore}점</span>
+        <span style={{
+          color:interpretation.direction==="악화"?C.red:interpretation.direction==="개선"?C.green:C.muted,
+          fontSize:8,fontWeight:700
+        }}>{interpretation.direction==="악화"?"▲":interpretation.direction==="개선"?"▼":"—"} {interpretation.direction}</span>
+      </div>
+    </div>
+    <div style={{background:`${riskColor}0a`,border:`1px solid ${riskColor}22`,borderRadius:10,
+      padding:"9px 11px",marginBottom:10}}>
+      <div style={{color:C.text,fontSize:9,lineHeight:1.75}}>
+        {interpretation.lines.map((line,i)=>(
+          <div key={i} style={{marginBottom:i<interpretation.lines.length-1?5:0}}>{line}</div>
+        ))}
+      </div>
+    </div>
+    {regime.tags.length>0&&(
+    <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:10}}>
+      {regime.tags.map((tag,i)=>(
+        <span key={i} style={{
+          fontSize:8,fontWeight:700,
+          color:i===0?riskColor:C.muted,
+          background:i===0?`${riskColor}14`:C.card2,
+          border:`1px solid ${i===0?riskColor+"33":C.border}`,
+          borderRadius:6,padding:"2px 7px"
+        }}>{tag}</span>
+      ))}
+    </div>
+    )}
+    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+      {[
+        {label:"유동성 압력",val:physics.liquidityPressure,trend:temporal.labels.liquidityTrend},
+        {label:"밸류 중력",  val:physics.valuationGravity, trend:null},
+        {label:"신용 응력",  val:physics.creditStress,     trend:temporal.labels.creditAcceleration},
+      ].map(({label,val,trend})=>{
+        const pct=Math.round(val*100);
+        const c=pct>=70?"#EF4444":pct>=50?"#F59E0B":"#10B981";
+        return(
+        <div key={label}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+            <span style={{color:C.muted,fontSize:8}}>{label}</span>
+            <span style={{display:"flex",alignItems:"center",gap:4}}>
+              <span style={{color:c,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>{pct}%</span>
+              {trend&&<span style={{color:C.muted,fontSize:7}}>{trend}</span>}
+            </span>
+          </div>
+          <div style={{background:C.dim,borderRadius:4,height:5,overflow:"hidden"}}>
+            <div style={{width:`${pct}%`,height:"100%",borderRadius:4,
+              background:`linear-gradient(90deg,${c}88,${c})`,transition:"width 0.6s ease"}}/>
+          </div>
+        </div>
+        );
+      })}
+    </div>
+    <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+      {[
+        {label:"유동성", v:temporal.liquidityTrend,        lbl:temporal.labels.liquidityTrend},
+        {label:"신용속도",v:temporal.creditAcceleration,   lbl:temporal.labels.creditAcceleration},
+        {label:"변동성", v:-temporal.volatilityCompression,lbl:temporal.labels.volatilityCompression},
+      ].map(({label,v,lbl})=>(
+        <div key={label} style={{flex:1,minWidth:80,background:C.card2,borderRadius:8,
+          padding:"6px 8px",border:`1px solid ${C.border}`}}>
+          <div style={{color:C.muted,fontSize:7,marginBottom:3}}>{label}</div>
+          <div style={{color:dirColor(v),fontSize:9,fontWeight:800}}>{lbl}</div>
+        </div>
+      ))}
+    </div>
+    {strategy.actions.length>0&&(
+    <div style={{background:`${riskColor}0e`,border:`1px solid ${riskColor}22`,borderRadius:8,padding:"8px 10px"}}>
+      <div style={{color:riskColor,fontSize:9,fontWeight:800,marginBottom:5}}>
+        Core 전략 신호 ({physics.dominantForce})
+      </div>
+      {strategy.actions.map((a,i)=>(
+        <div key={i} style={{display:"flex",alignItems:"flex-start",gap:5,fontSize:9,color:C.text,lineHeight:1.5,marginBottom:2}}>
+          <span style={{color:riskColor,fontWeight:900}}>▸</span><span>{a}</span>
+        </div>
+      ))}
+    </div>
+    )}
+    <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
+      State · Temporal · Physics · Regime 통합 분석 — 참고용
+    </div>
+  </div>
+  );
+})()}
+
+
 {/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
 
