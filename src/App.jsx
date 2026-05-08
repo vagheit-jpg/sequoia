@@ -265,7 +265,7 @@ export default function App(){
     });
   },[marketLoaded,macroData,kospiMonthly,kosdaqMonthly]);
 
-  // ── Core Intelligence: 중앙 인지 신경망 ──────────────────
+  // ── 통합 인지 체계: 중앙 분석 엔진 ──────────────────────
   // macroData가 바뀔 때만 재계산. State→Temporal→Physics→Regime→Interpretation→Strategy
   const coreIntel = useMemo(
     () => runCoreIntelligence({ macroData }),
@@ -3384,7 +3384,7 @@ else {
   </div>
   );
 })()}
-{/* ══ Core Intelligence 패널 ══ */}
+{/* ══ 통합 인지 체계 패널 ══ */}
 {coreIntel && macroData && (()=>{
   const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
   const riskColor =
@@ -3398,7 +3398,7 @@ else {
     padding:"14px 14px",marginBottom:10}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
       <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",opacity:0.7}}>
-        🧠 Core Intelligence
+        ⚡ 통합 인지 체계
       </div>
       <div style={{display:"flex",alignItems:"center",gap:6}}>
         <span style={{color:riskColor,fontSize:9,fontWeight:800}}>{regime.statePhrase}</span>
