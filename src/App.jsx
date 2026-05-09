@@ -288,12 +288,12 @@ export default function App(){
       market:         "GLOBAL",
       sefcon_score:   state.sefconScore,
       sefcon_level:   state.sefconLevel,
-      state_json:     JSON.stringify(state),
-      temporal_json:  JSON.stringify(temporal),
-      physics_json:   JSON.stringify(physics),
-      regime_json:    JSON.stringify(regime),
+      state_json:     state,
+      temporal_json:  temporal,
+      physics_json:   physics,
+      regime_json:    regime,
       interpretation: interpretation.summary,
-      strategy_json:  JSON.stringify(strategy),
+      strategy_json:  strategy,
     };
 
     sbUpsertCoreIntelSnapshot(snap)
