@@ -1419,7 +1419,7 @@ export default function App(){
                             domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||100;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
                           <YAxis yAxisId="price" orientation="right"
                             tick={{fill:"#38BDF8",fontSize:10}} width={48}
-                            tickFormatter={v=>v.toLocaleString()}
+                            tickFormatter={v=>v<0?"":v.toLocaleString()}
                             stroke="#38BDF8" tickCount={5}
                             domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
                           <Tooltip content={<MTip/>} cursor={false}/>
@@ -3410,7 +3410,7 @@ else {
     padding:"14px 14px",marginBottom:10,boxShadow:`0 0 24px ${g.color}14`}}>
     <div style={{marginBottom:12}}>
       <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",marginBottom:6,opacity:0.6}}>
-        🛡️ AEGIS 포트폴리오 가이드
+        🛡 AEGIS 포트폴리오 가이드
       </div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
         <div style={{color:g.color,fontSize:15,fontWeight:900,lineHeight:1.3}}>{g.title}</div>
@@ -4141,7 +4141,7 @@ else {
     <div style={{background:`${levelColor}10`,border:`1.5px solid ${levelColor}44`,
       borderRadius:10,padding:"10px 12px",marginBottom:10}}>
       <div style={{color:levelColor,fontSize:9,fontWeight:800,marginBottom:5}}>
-        🛡️ AEGIS 전략 — {strategy.stance}
+        🛡 AEGIS 전략 — {strategy.stance}
       </div>
       <div style={{color:C.muted,fontSize:9,lineHeight:1.5,marginBottom:8}}>{strategy.summary}</div>
       <div style={{display:"flex",flexDirection:"column",gap:4}}>
