@@ -28,6 +28,7 @@ import {
   sbGetStocks,
   sbUpsertStock,
   sbUpsertPredictionSnapshot,
+  sbUpsertCoreIntelSnapshot,
   sbDeleteStock,
   rowToStock,
 } from "./services/supabaseService";
@@ -270,51 +271,37 @@ export default function App(){
     [macroData]
   );
 
-  // Daily Snapshot → Supabase core_intelligence_snapshots 테이블 (하루 1회 upsert)
-  // 테이블이 없어도 앱은 절대 죽지 않음. UI에 오류 표시 없음.
+  // Daily Snapshot → Supabase core_intelligence_snapshots (하루 1회 upsert)
+  // 실패해도 앱 안 죽음. UI에 오류 표시 없음.
   useEffect(() => {
     if (!coreIntel || !macroData) return;
     const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
-    // 데이터 부족 시 저장 안 함 (기본값 상태)
+    // 데이터 부족 시 저장 안 함
     if (state.sefconScore === 50 && state.creditRisk === 0.5) return;
 
     const today = new Date().toISOString().slice(0, 10);
     const localKey = `sq_ci_snap_sent_${today}`;
-    // 오늘 이미 전송했으면 재전송 안 함 (localStorage는 중복 방지용으로만 사용)
     try { if (localStorage.getItem(localKey)) return; } catch {}
 
     const snap = {
-      snapshot_date:    today,
-      market:           "GLOBAL",
-      sefcon_score:     state.sefconScore,
-      sefcon_level:     state.sefconLevel,
-      state_json:       JSON.stringify(state),
-      temporal_json:    JSON.stringify(temporal),
-      physics_json:     JSON.stringify(physics),
-      regime_json:      JSON.stringify(regime),
-      interpretation:   interpretation.summary,
-      strategy_json:    JSON.stringify(strategy),
+      snapshot_date:  today,
+      market:         "GLOBAL",
+      sefcon_score:   state.sefconScore,
+      sefcon_level:   state.sefconLevel,
+      state_json:     JSON.stringify(state),
+      temporal_json:  JSON.stringify(temporal),
+      physics_json:   JSON.stringify(physics),
+      regime_json:    JSON.stringify(regime),
+      interpretation: interpretation.summary,
+      strategy_json:  JSON.stringify(strategy),
     };
 
-    // Supabase upsert — core_intelligence_snapshots 테이블
-    // unique key: snapshot_date + market
-    (async () => {
-      try {
-        const { supabase } = await import("./services/supabaseService");
-        if (!supabase) return;
-        const { error } = await supabase
-          .from("core_intelligence_snapshots")
-          .upsert(snap, { onConflict: "snapshot_date,market" });
-        if (!error) {
-          try { localStorage.setItem(localKey, new Date().toISOString()); } catch {}
-          console.info("[CI snapshot saved]", today);
-        } else {
-          console.warn("[CI snapshot upsert failed]", error?.message);
-        }
-      } catch (e) {
-        console.warn("[CI snapshot error]", e?.message || e);
-      }
-    })();
+    sbUpsertCoreIntelSnapshot(snap)
+      .then(() => {
+        try { localStorage.setItem(localKey, new Date().toISOString()); } catch {}
+        console.info("[CI snapshot saved]", today);
+      })
+      .catch(e => console.warn("[CI snapshot failed]", e?.message || e));
   }, [coreIntel]);
 
   // Supabase 로드 + localStorage 이중 보장
