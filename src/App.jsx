@@ -3334,6 +3334,121 @@ else {
             </> /* defcon 핵심 SEFCON 카드 끝 */}
             {/* ══ AEGIS 탭 ══ */}
             {marketSub==="v3core"&&<>
+{/* ══ AEGIS 포트폴리오 가이드 (AEGIS 탭) ══ */}
+{dc&&(()=>{
+  const level = dc.defcon;
+  const AEGIS_GUIDE = {
+    5:{color:"#00C878",title:"SEFCON 5 — 안정  적극 성장 추구",
+      alloc:[
+        {label:"주식",pct:80,color:"#00C878",subs:[
+          {label:"한국 KOSPI 우량 성장주 (반도체/2차전지/바이오)",pct:40},
+          {label:"미국 S&P500 성장주 · QQQ 중심",pct:30},
+          {label:"글로벌 배당주 ETF (NOBL)",pct:10},
+        ]},
+        {label:"채권",pct:10,color:"#38BDF8",subs:[
+          {label:"미국 2년물 국채",pct:5},{label:"한국 3년물 국고채",pct:5},
+        ]},
+        {label:"현금",pct:10,color:"#94A3B8",subs:[{label:"원화 파킹통장/MMF",pct:10}]},
+      ],
+      guide:"전 지표 안정. 적극적 성장 추구. 우량 성장주 비중 극대화. 현금은 최소화하여 기회비용 제거.",
+    },
+    4:{color:"#38BDF8",title:"SEFCON 4 — 관망  선별적 투자",
+      alloc:[
+        {label:"주식",pct:65,color:"#38BDF8",subs:[
+          {label:"한국 방어주/배당주 (통신/유틸/금융)",pct:25},
+          {label:"미국 가치주 · XLV/XLP ETF",pct:25},
+          {label:"글로벌 배당주/리츠 (NOBL·REITs)",pct:15},
+        ]},
+        {label:"채권",pct:20,color:"#38BDF8",subs:[
+          {label:"미국 5년물 국채",pct:10},{label:"한국 5년물 국고채",pct:10},
+        ]},
+        {label:"현금",pct:15,color:"#94A3B8",subs:[{label:"원화 70% / 달러 MMF 30%",pct:15}]},
+      ],
+      guide:"일부 지표 경고. 선별적 투자. 성장주→방어주/배당주 비중 전환. 달러 현금 확보 시작.",
+    },
+    3:{color:"#F0C800",title:"SEFCON 3 — 경계  리스크 축소",
+      alloc:[
+        {label:"주식",pct:45,color:"#F0C800",subs:[
+          {label:"한국 방어 배당주 (한국전력/KT/은행주)",pct:15},
+          {label:"미국 필수소비재/헬스케어 (XLP/XLV)",pct:20},
+          {label:"금 관련주 (GLD ETF / 금광주)",pct:10},
+        ]},
+        {label:"채권",pct:25,color:"#38BDF8",subs:[
+          {label:"미국 2년물 국채",pct:15},{label:"한국 3년물 국고채",pct:10},
+        ]},
+        {label:"현금",pct:30,color:"#94A3B8",subs:[{label:"원화 50% / 달러 MMF·예금 50%",pct:30}]},
+      ],
+      guide:"복수 지표 경고. 성장주 비중 대폭 축소. 필수소비재/헬스케어/금으로 방어. 달러 현금 30% 이상 확보 권고.",
+    },
+    2:{color:"#FF6B00",title:"SEFCON 2 — 위기  자산 방어 최우선",
+      alloc:[
+        {label:"주식",pct:20,color:"#FF6B00",subs:[
+          {label:"미국 필수소비재 XLP (P&G/코카콜라/월마트)",pct:10},
+          {label:"금 ETF (GLD / IAU)",pct:10},
+        ]},
+        {label:"채권",pct:30,color:"#38BDF8",subs:[
+          {label:"미국 20년+ 장기채 TLT (침체 시 가격↑)",pct:20},
+          {label:"한국 10년물 국고채",pct:10},
+        ]},
+        {label:"현금",pct:50,color:"#94A3B8",subs:[{label:"달러 MMF·예금 80% / 원화 파킹통장 20%",pct:50}]},
+      ],
+      guide:"다수 위기 신호 동시 발생. 자산 방어 최우선. 주식 대부분 매도·현금화. 달러 현금 극대화. 미국 장기채 매수 검토.",
+    },
+    1:{color:"#FF1A1A",title:"SEFCON 1 — 붕괴임박  생존 모드",
+      alloc:[
+        {label:"주식",pct:10,color:"#FF1A1A",subs:[{label:"금 ETF (GLD / IAU) — 안전자산만",pct:10}]},
+        {label:"채권",pct:20,color:"#38BDF8",subs:[{label:"미국 3개월 T-Bill — 원금 보존 최우선",pct:20}]},
+        {label:"현금",pct:70,color:"#94A3B8",subs:[{label:"달러 MMF·미국 단기국채펀드 90% / 원화 10%",pct:70}]},
+      ],
+      guide:"역사적 위기 수준 진입. 생존 모드 전환. 모든 리스크 자산 청산. 달러 현금 극대화. 위기 저점 확인 후 역발상 매수 대기.",
+    },
+  };
+  const g = AEGIS_GUIDE[level];
+  if(!g) return null;
+  return(
+  <div style={{background:C.card,border:`2px solid ${g.color}44`,borderRadius:16,
+    padding:"14px 14px",marginBottom:10,boxShadow:`0 0 24px ${g.color}14`}}>
+    <div style={{marginBottom:12}}>
+      <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",marginBottom:6,opacity:0.6}}>
+        🛡 AEGIS 포트폴리오 가이드
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
+        <div style={{color:g.color,fontSize:15,fontWeight:900,lineHeight:1.3}}>{g.title}</div>
+        <div style={{color:g.color,fontSize:9,fontWeight:700,
+          background:`${g.color}18`,border:`1px solid ${g.color}44`,
+          borderRadius:999,padding:"2px 9px",whiteSpace:"nowrap",flexShrink:0}}>
+          레벨별 자산배분
+        </div>
+      </div>
+    </div>
+    {g.alloc.map(a=>(
+    <div key={a.label} style={{marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+        <span style={{color:a.color,fontSize:9,fontWeight:700}}>{a.label}</span>
+        <span style={{color:a.color,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{a.pct}%</span>
+      </div>
+      <div style={{background:C.dim,borderRadius:4,height:8,overflow:"hidden",marginBottom:4}}>
+        <div style={{width:`${a.pct}%`,height:"100%",borderRadius:4,
+          background:`linear-gradient(90deg,${a.color}66,${a.color})`,transition:"width 0.6s ease"}}/>
+      </div>
+      {a.subs.map(s=>(
+      <div key={s.label} style={{display:"flex",justifyContent:"space-between",padding:"1px 4px",marginBottom:1}}>
+        <span style={{color:`${C.muted}cc`,fontSize:7}}>└ {s.label}</span>
+        <span style={{color:`${C.muted}cc`,fontSize:7,fontFamily:"monospace"}}>{s.pct}%</span>
+      </div>
+      ))}
+    </div>
+    ))}
+    <div style={{background:`${g.color}10`,border:`1px solid ${g.color}33`,borderRadius:8,padding:"8px 10px",marginTop:4}}>
+      <div style={{color:g.color,fontSize:8,fontWeight:700,lineHeight:1.6}}>{g.guide}</div>
+    </div>
+    <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
+      본 가이드는 투자 참고용이며 실제 투자 결정은 본인 책임. SEQUOIA QUANTUM AEGIS system
+    </div>
+  </div>
+  );
+})()}
+
 {/* ══ v3 시장 국면 지도 카드 ══ */}
 {macroData?.regimeInsight && (() => {
 
@@ -3937,7 +4052,7 @@ else {
     {/* ── 확인 트리거 */}
     <div style={{marginBottom:10}}>
       <div style={{color:C.text,fontSize:10,fontWeight:800,marginBottom:6}}>
-        확인 트리거 — {activeCount}개 켜짐
+        주요 확인 트리거 — {activeCount}개 켜짐
         <span style={{color:C.muted,fontSize:8,fontWeight:400,marginLeft:5}}>
           ({isBubbleLate||isBottom?"기술적 신호 (주가 차트 기반)":"거시 경제 신호 (경제지표 기반)"})
         </span>
@@ -3977,6 +4092,51 @@ else {
       </div>
     </div>
 
+    {/* ── 보조 기술적 신호 (거시 레짐 전용) */}
+    {!isBubbleLate && !isBottom && lastRsi != null && (
+    <div style={{marginBottom:10}}>
+      <div style={{color:C.muted,fontSize:8,fontWeight:700,marginBottom:5,
+        display:"flex",alignItems:"center",gap:5}}>
+        <span>보조 기술 신호</span>
+        <span style={{color:C.muted,fontSize:7,fontWeight:400}}>— 주가 차트 기반 보조 지표</span>
+      </div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+        {[
+          {
+            name:`RSI ${lastRsi?.toFixed(1)??"—"}`,
+            desc:lastRsi>=70?"과열 경계":lastRsi<=30?"과매도 구간":lastRsi>=60?"과열 주의":"중립",
+            state:lastRsi>=70?"위험":lastRsi<=30?"기회":lastRsi>=60?"주의":"중립",
+            color:lastRsi>=70?C.red:lastRsi<=30?C.green:lastRsi>=60?C.orange:C.muted,
+            hint:"70↑ 과열·30↓ 과매도",
+          },
+          {
+            name:"MACD",
+            desc:macdCrossDown?"하향 전환":macdCrossUp?"상향 전환":(lastMacd.macd??0)>(lastMacd.signal??0)?"상승 중":"하락 중",
+            state:macdCrossDown?"하향":macdCrossUp?"반등":"유지",
+            color:macdCrossDown?C.red:macdCrossUp?C.green:C.muted,
+            hint:"추세 방향 보조 신호",
+          },
+          {
+            name:"OBV 수급",
+            desc:obvDown?"매도 우세":obvUp?"매수 우세":"중립",
+            state:obvDown?"이탈":obvUp?"유입":"중립",
+            color:obvDown?C.orange:obvUp?C.green:C.muted,
+            hint:"거래량 기반 수급 방향",
+          },
+        ].map((sig)=>(
+          <div key={sig.name} style={{flex:1,minWidth:85,background:C.card2,borderRadius:8,
+            padding:"6px 9px",border:`1px solid ${sig.color}33`}}>
+            <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{sig.name}</div>
+            <div style={{color:sig.color,fontSize:9,fontWeight:800}}>{sig.desc}</div>
+            <div style={{color:`${C.muted}77`,fontSize:7,marginTop:1,fontStyle:"italic"}}>
+              💡 {sig.hint}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+    )}
+
     {/* ── AEGIS 전략 */}
     <div style={{background:`${levelColor}10`,border:`1.5px solid ${levelColor}44`,
       borderRadius:10,padding:"10px 12px",marginBottom:10}}>
@@ -4009,114 +4169,6 @@ else {
   );
 })()}
 
-{/* ══ AEGIS 포트폴리오 가이드 (AEGIS 탭) ══ */}
-{dc&&(()=>{
-  const level = dc.defcon;
-  const AEGIS_GUIDE = {
-    5:{color:"#00C878",title:"SEFCON 5 — 안정  적극 성장 추구",
-      alloc:[
-        {label:"주식",pct:80,color:"#00C878",subs:[
-          {label:"한국 KOSPI 우량 성장주 (반도체/2차전지/바이오)",pct:40},
-          {label:"미국 S&P500 성장주 · QQQ 중심",pct:30},
-          {label:"글로벌 배당주 ETF (NOBL)",pct:10},
-        ]},
-        {label:"채권",pct:10,color:"#38BDF8",subs:[
-          {label:"미국 2년물 국채",pct:5},{label:"한국 3년물 국고채",pct:5},
-        ]},
-        {label:"현금",pct:10,color:"#94A3B8",subs:[{label:"원화 파킹통장/MMF",pct:10}]},
-      ],
-      guide:"전 지표 안정. 적극적 성장 추구. 우량 성장주 비중 극대화. 현금은 최소화하여 기회비용 제거.",
-    },
-    4:{color:"#38BDF8",title:"SEFCON 4 — 관망  선별적 투자",
-      alloc:[
-        {label:"주식",pct:65,color:"#38BDF8",subs:[
-          {label:"한국 방어주/배당주 (통신/유틸/금융)",pct:25},
-          {label:"미국 가치주 · XLV/XLP ETF",pct:25},
-          {label:"글로벌 배당주/리츠 (NOBL·REITs)",pct:15},
-        ]},
-        {label:"채권",pct:20,color:"#38BDF8",subs:[
-          {label:"미국 5년물 국채",pct:10},{label:"한국 5년물 국고채",pct:10},
-        ]},
-        {label:"현금",pct:15,color:"#94A3B8",subs:[{label:"원화 70% / 달러 MMF 30%",pct:15}]},
-      ],
-      guide:"일부 지표 경고. 선별적 투자. 성장주→방어주/배당주 비중 전환. 달러 현금 확보 시작.",
-    },
-    3:{color:"#F0C800",title:"SEFCON 3 — 경계  리스크 축소",
-      alloc:[
-        {label:"주식",pct:45,color:"#F0C800",subs:[
-          {label:"한국 방어 배당주 (한국전력/KT/은행주)",pct:15},
-          {label:"미국 필수소비재/헬스케어 (XLP/XLV)",pct:20},
-          {label:"금 관련주 (GLD ETF / 금광주)",pct:10},
-        ]},
-        {label:"채권",pct:25,color:"#38BDF8",subs:[
-          {label:"미국 2년물 국채",pct:15},{label:"한국 3년물 국고채",pct:10},
-        ]},
-        {label:"현금",pct:30,color:"#94A3B8",subs:[{label:"원화 50% / 달러 MMF·예금 50%",pct:30}]},
-      ],
-      guide:"복수 지표 경고. 성장주 비중 대폭 축소. 필수소비재/헬스케어/금으로 방어. 달러 현금 30% 이상 확보 권고.",
-    },
-    2:{color:"#FF6B00",title:"SEFCON 2 — 위기  자산 방어 최우선",
-      alloc:[
-        {label:"주식",pct:20,color:"#FF6B00",subs:[
-          {label:"미국 필수소비재 XLP (P&G/코카콜라/월마트)",pct:10},
-          {label:"금 ETF (GLD / IAU)",pct:10},
-        ]},
-        {label:"채권",pct:30,color:"#38BDF8",subs:[
-          {label:"미국 20년+ 장기채 TLT (침체 시 가격↑)",pct:20},
-          {label:"한국 10년물 국고채",pct:10},
-        ]},
-        {label:"현금",pct:50,color:"#94A3B8",subs:[{label:"달러 MMF·예금 80% / 원화 파킹통장 20%",pct:50}]},
-      ],
-      guide:"다수 위기 신호 동시 발생. 자산 방어 최우선. 주식 대부분 매도·현금화. 달러 현금 극대화. 미국 장기채 매수 검토.",
-    },
-    1:{color:"#FF1A1A",title:"SEFCON 1 — 붕괴임박  생존 모드",
-      alloc:[
-        {label:"주식",pct:10,color:"#FF1A1A",subs:[{label:"금 ETF (GLD / IAU) — 안전자산만",pct:10}]},
-        {label:"채권",pct:20,color:"#38BDF8",subs:[{label:"미국 3개월 T-Bill — 원금 보존 최우선",pct:20}]},
-        {label:"현금",pct:70,color:"#94A3B8",subs:[{label:"달러 MMF·미국 단기국채펀드 90% / 원화 10%",pct:70}]},
-      ],
-      guide:"역사적 위기 수준 진입. 생존 모드 전환. 모든 리스크 자산 청산. 달러 현금 극대화. 위기 저점 확인 후 역발상 매수 대기.",
-    },
-  };
-  const g = AEGIS_GUIDE[level];
-  if(!g) return null;
-  return(
-  <div style={{background:C.card,border:`2px solid ${g.color}44`,borderRadius:16,
-    padding:"14px 14px",marginBottom:10,boxShadow:`0 0 24px ${g.color}14`}}>
-    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12}}>
-      <span style={{fontSize:16}}>🛡</span>
-      <div>
-        <div style={{color:g.color,fontSize:12,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.06em"}}>{g.title}</div>
-        <div style={{color:`${C.muted}88`,fontSize:7,marginTop:1}}>AEGIS 포트폴리오 가이드 — 레벨별 자산배분 추천</div>
-      </div>
-    </div>
-    {g.alloc.map(a=>(
-    <div key={a.label} style={{marginBottom:10}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-        <span style={{color:a.color,fontSize:9,fontWeight:700}}>{a.label}</span>
-        <span style={{color:a.color,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{a.pct}%</span>
-      </div>
-      <div style={{background:C.dim,borderRadius:4,height:8,overflow:"hidden",marginBottom:4}}>
-        <div style={{width:`${a.pct}%`,height:"100%",borderRadius:4,
-          background:`linear-gradient(90deg,${a.color}66,${a.color})`,transition:"width 0.6s ease"}}/>
-      </div>
-      {a.subs.map(s=>(
-      <div key={s.label} style={{display:"flex",justifyContent:"space-between",padding:"1px 4px",marginBottom:1}}>
-        <span style={{color:`${C.muted}cc`,fontSize:7}}>└ {s.label}</span>
-        <span style={{color:`${C.muted}cc`,fontSize:7,fontFamily:"monospace"}}>{s.pct}%</span>
-      </div>
-      ))}
-    </div>
-    ))}
-    <div style={{background:`${g.color}10`,border:`1px solid ${g.color}33`,borderRadius:8,padding:"8px 10px",marginTop:4}}>
-      <div style={{color:g.color,fontSize:8,fontWeight:700,lineHeight:1.6}}>{g.guide}</div>
-    </div>
-    <div style={{color:`${C.muted}44`,fontSize:7,textAlign:"right",marginTop:6}}>
-      본 가이드는 투자 참고용이며 실제 투자 결정은 본인 책임. SEQUOIA QUANTUM AEGIS system
-    </div>
-  </div>
-  );
-})()}
 
             </> /* AEGIS 탭 끝 */}
 
