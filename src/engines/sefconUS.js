@@ -176,10 +176,10 @@ function buildPhysicsUS(usData, catScores) {
     clamp01(1 - catScore("시장공포") / 100) * 0.20
   );
 
-  // 경기 모멘텀: LEI + ISM
+  // 경기 모멘텀: LEI + INDPRO
   const economicMomentum = clamp01(
-    clamp01((lastLEI - 97) / 5)  * 0.50 +
-    clamp01((lastISM - 44) / 16) * 0.50
+    clamp01((lastLEI - 97) / 5)   * 0.50 +
+    clamp01((lastISM - 97) / 6)   * 0.50   // INDPRO 기준: 100 전후
   );
 
   const forces = [
@@ -315,9 +315,9 @@ export function calcSefconUS(usData) {
     { cat:"시장공포", key:"VIX",    label:"VIX 공포지수",
       val: last(usData.vix), unit:"",
       score: scoreV(last(usData.vix), [35, 25, 18, 13], 1) },
-    { cat:"시장공포", key:"ISM",    label:"ISM 제조업 PMI",
+    { cat:"시장공포", key:"ISM",    label:"미국 산업생산지수(INDPRO) YoY",
       val: last(usData.ism), unit:"",
-      score: scoreV(last(usData.ism), [44, 47, 52, 55], -1) },
+      score: scoreV(last(usData.ism), [98, 99, 101, 102], -1) },
     { cat:"시장공포", key:"UMCS",   label:"소비자신뢰지수",
       val: last(usData.umcs), unit:"",
       score: scoreV(last(usData.umcs), [55, 65, 80, 90], -1) },
