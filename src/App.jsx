@@ -3088,7 +3088,7 @@ else {
 
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
-              {[["defcon","SEFCON"],["v3core","AEGIS"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>{
+              {[["defcon","SEFCON"],["v3core","AEGIS"],["macro","거시경제"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>{
                 const tabColor = k==="defcon" ? C.red : k==="v3core" ? "#2F6F5E" : C.blue;
                 return (
                 <button key={k} onClick={()=>setMarketSub(k)}
