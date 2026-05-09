@@ -251,7 +251,9 @@ export default function App(){
       .then(r=>r.ok?r.json():null)
       .then(d=>{ if(d){ setUsData(d); } setUsLoading(false); })
       .catch(()=>setUsLoading(false));
-  },[activeMarket,usData,usLoading]);: KOSPI/KOSDAQ 월 1회 자동 Supabase upsert
+  },[activeMarket,usData,usLoading]);
+
+  // AEGIS 시장 스냅샷: KOSPI/KOSDAQ 월 1회 자동 Supabase upsert
   // snapshot_key = AEGIS_MARKET_V3_YYYY-MM_KOSPI / KOSDAQ
   // 주의: 로컬 전송 캐시는 앱 저장 스키마 버전까지 포함한다.
   //      그래서 Bubble Energy 같은 신규 필드가 추가되면 같은 달이라도 1회 재전송되어 DB가 보강된다.
