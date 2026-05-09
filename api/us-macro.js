@@ -141,7 +141,7 @@ export default async function handler(req, res) {
       // FRED — 신규 추가
       fetchFRED("M2SL",             startFRED8Y),    // 미국 M2
       fetchFRED("WALCL",            startFRED8Y),    // 연준 대차대조표
-      fetchFRED("ISM001",           startFRED8Y),    // ISM 제조업 PMI
+      fetchFRED("NAPM",             startFRED8Y),    // ISM 제조업 PMI (구 NAPM, ISM001 대체)
       fetchFRED("UMCSENT",          startFRED8Y),    // 소비자신뢰지수
     ]);
 
