@@ -3163,23 +3163,49 @@ else {
                   )}
                 </Box>
 
-                {/* SEFCON_US 카드 */}
+                {/* SEFCON_US 카드 — 단계 카드 방식 */}
                 {dc&&(
                 <Box>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-                    <div style={{color:C.text,fontSize:11,fontWeight:700}}>🇺🇸 SEFCON US</div>
-                    <span style={{fontSize:9,padding:"2px 10px",borderRadius:999,fontWeight:700,
-                      background:`${dc.defconColor}22`,color:dc.defconColor,border:`1px solid ${dc.defconColor}55`}}>
-                      {dc.defconLabel}
-                    </span>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:10}}>🇺🇸 미국 시장 위험 단계 (SEFCON)</div>
+                  {/* 5단계 카드 */}
+                  {(()=>{
+                    const steps=[
+                      {lv:5,label:"안정",desc:"전 지표 정상
+적극 투자 가능",color:"#00C878"},
+                      {lv:4,label:"관망",desc:"대체로 양호
+일부 신호 주시",color:"#38BDF8"},
+                      {lv:3,label:"경계",desc:"일부 지표 악화
+방어 준비 필요",color:"#F0C800"},
+                      {lv:2,label:"위기",desc:"다수 경고 신호
+리스크 자산 축소",color:"#FF6B00"},
+                      {lv:1,label:"붕괴임박",desc:"복합 위기 신호
+현금 최우선",color:"#FF1A1A"},
+                    ];
+                    return(
+                    <div style={{display:"flex",gap:5,marginBottom:12}}>
+                      {steps.map(s=>{
+                        const active=dc.defcon===s.lv;
+                        return(
+                        <div key={s.lv} style={{flex:1,borderRadius:8,padding:"7px 4px",textAlign:"center",
+                          border:`1.5px solid ${active?s.color:C.border}`,
+                          background:active?`${s.color}22`:C.card2,
+                          boxShadow:active?`0 0 10px ${s.color}44`:"none",
+                          transition:"all 0.3s"}}>
+                          <div style={{fontSize:14,fontWeight:900,color:active?s.color:C.muted,fontFamily:"monospace",marginBottom:2}}>{s.lv}</div>
+                          <div style={{fontSize:9,fontWeight:700,color:active?s.color:C.muted,marginBottom:3}}>{s.label}</div>
+                          {active&&<div style={{fontSize:7,color:s.color,lineHeight:1.4,whiteSpace:"pre-line"}}>{s.desc}</div>}
+                        </div>
+                        );
+                      })}
+                    </div>
+                    );
+                  })()}
+                  <div style={{color:C.muted,fontSize:9,lineHeight:1.6,marginBottom:10,
+                    padding:"6px 10px",background:C.card2,borderRadius:7}}>
+                    💬 {dc.defconDesc}
                   </div>
-                  {/* 점수 바 */}
-                  <div style={{background:C.card2,borderRadius:6,height:8,marginBottom:8,overflow:"hidden"}}>
-                    <div style={{width:`${dc.totalScore}%`,height:"100%",borderRadius:6,
-                      background:dc.defconColor,transition:"width 0.8s ease"}}/>
-                  </div>
-                  <div style={{color:C.muted,fontSize:9,marginBottom:10}}>{dc.defconDesc}</div>
                   {/* 카테고리 점수 */}
+                  <div style={{color:C.muted,fontSize:8,marginBottom:6,fontWeight:700}}>항목별 점수 (100점 = 완전 안전)</div>
                   <div style={{display:"flex",flexDirection:"column",gap:5}}>
                     {(dc.catScores||[]).map(c=>(
                       <div key={c.cat} style={{display:"flex",alignItems:"center",gap:8}}>
@@ -3195,62 +3221,100 @@ else {
                 </Box>
                 )}
 
-                {/* Physics_US 카드 */}
+                {/* 시장을 움직이는 힘 카드 */}
                 {physics&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>⚡ Physics — 미국 시장의 힘</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 지금 시장을 움직이는 힘</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:10}}>
+                    숫자가 높을수록 해당 힘이 강하게 작용 중입니다. 막대가 빨간색에 가까울수록 위험 신호입니다.
+                  </div>
                   {[
-                    ["유동성 압력",  physics.liquidityPressure,  C.blue],
-                    ["밸류 중력",    physics.valuationGravity,   C.orange],
-                    ["신용 응력",    physics.creditStress,       C.red],
-                    ["변동성 에너지",physics.volatilityEnergy,   C.purple],
-                    ["경기 모멘텀",  physics.economicMomentum,   C.green],
-                  ].map(([label,val,col])=>(
-                    <div key={label} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
-                      <div style={{width:64,fontSize:9,color:C.muted,flexShrink:0}}>{label}</div>
-                      <div style={{flex:1,background:C.card2,borderRadius:4,height:6,overflow:"hidden"}}>
-                        <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,background:col}}/>
+                    {label:"돈이 빠져나가는 힘",sublabel:"유동성 압력",val:physics.liquidityPressure,col:C.blue,
+                      comp:"달러인덱스(UUP) · 10년물 국채금리 · 연준 대차대조표",
+                      desc:"달러가 강해지거나 금리가 오르면 전 세계 돈이 미국으로 빨려들어갑니다. 한국을 포함한 신흥국에서 자금이 빠져나가며 주가가 하락하는 경향이 있습니다."},
+                    {label:"주가를 끌어내리는 힘",sublabel:"밸류에이션 중력",val:physics.valuationGravity,col:C.orange,
+                      comp:"10년물 국채금리 · Baa 신용스프레드",
+                      desc:"금리가 높으면 '안전한 채권'의 매력이 높아져 주식에서 자금이 이탈합니다. 특히 고평가된 성장주(나스닥 등)에 강한 하방 압력이 됩니다."},
+                    {label:"돈 빌리기 어려워지는 정도",sublabel:"신용 응력",val:physics.creditStress,col:C.red,
+                      comp:"ICE BofA HY 스프레드 · SLOOS 대출기준강화",
+                      desc:"기업들이 돈을 빌리기 어려워지는 정도입니다. 하이일드 스프레드가 벌어질수록, 은행이 대출 기준을 높일수록 기업 실적과 투자가 줄어들며 경기가 위축됩니다."},
+                    {label:"급변 가능성 축적",sublabel:"변동성 에너지",val:physics.volatilityEnergy,col:C.purple,
+                      comp:"VIX 공포지수 · 6개월 평균 변동성 압축도",
+                      desc:"VIX가 오랫동안 낮게 유지되면 시장이 방심한 상태입니다. 이 기간이 길수록 작은 충격에도 급격한 하락이 올 수 있는 잠재 에너지가 쌓입니다."},
+                    {label:"실물경기 흐름 강도",sublabel:"경기 모멘텀",val:physics.economicMomentum,col:C.green,
+                      comp:"LEI 경기선행지수 · 산업생산지수(INDPRO)",
+                      desc:"실제 경제가 얼마나 활발한지 나타냅니다. 높을수록 기업 실적 개선 기대가 높아집니다. 낮으면 경기 침체 위험 신호입니다."},
+                  ].map(({label,sublabel,val,col,comp,desc})=>(
+                    <div key={label} style={{marginBottom:12,padding:"8px 10px",background:C.card2,borderRadius:8,
+                      border:`1px solid ${(val??0)>0.6?col+"44":C.border}`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                        <div style={{flex:1}}>
+                          <div style={{fontSize:10,color:C.text,fontWeight:700}}>{label}</div>
+                          <div style={{fontSize:8,color:C.muted}}>{sublabel}</div>
+                        </div>
+                        <div style={{fontSize:13,color:col,fontFamily:"monospace",fontWeight:900,flexShrink:0}}>
+                          {((val??0)*100).toFixed(0)}
+                        </div>
                       </div>
-                      <div style={{width:32,fontSize:9,color:col,fontFamily:"monospace",fontWeight:700}}>
-                        {((val??0)*100).toFixed(0)}
+                      <div style={{background:C.card,borderRadius:4,height:6,overflow:"hidden",marginBottom:6}}>
+                        <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,
+                          background:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:col,transition:"width 0.6s"}}/>
                       </div>
+                      <div style={{fontSize:8,color:`${C.muted}99`,marginBottom:3}}>
+                        📊 <span style={{color:C.muted}}>{comp}</span>
+                      </div>
+                      <div style={{fontSize:8,color:`${C.muted}cc`,lineHeight:1.6}}>{desc}</div>
                     </div>
                   ))}
-                  <div style={{marginTop:8,padding:"6px 10px",background:`${C.gold}12`,borderRadius:7,
+                  <div style={{padding:"7px 10px",background:`${C.gold}12`,borderRadius:7,
                     border:`1px solid ${C.gold}28`,fontSize:9,color:C.gold}}>
-                    지배적 힘: <strong>{physics.dominantForce}</strong>
+                    🏆 현재 가장 강한 힘: <strong>{physics.dominantForce}</strong>
                   </div>
                 </Box>
                 )}
 
-                {/* Regime_US 카드 */}
+                {/* 시장 국면 카드 */}
                 {regime&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:6}}>🔄 Regime — 미국 시장 국면</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔄 지금 미국 시장은 어느 단계인가?</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>
+                    시장은 항상 특정 국면(사이클)을 지나며 움직입니다. 지금 어느 단계인지 알면 앞으로의 방향을 가늠할 수 있습니다.
+                  </div>
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                    <span style={{color:C.blue,fontSize:13,fontWeight:900}}>{regime.current}</span>
+                    <span style={{color:C.blue,fontSize:14,fontWeight:900}}>{regime.current}</span>
                     <span style={{fontSize:9,padding:"2px 8px",borderRadius:999,
                       background:`${C.blue}18`,color:C.blue,border:`1px solid ${C.blue}33`}}>
-                      신뢰도 {Math.round((regime.confidence??0)*100)}%
+                      판단 신뢰도 {Math.round((regime.confidence??0)*100)}%
                     </span>
                   </div>
-                  {regime.transitionPath&&(
-                    <div style={{color:C.muted,fontSize:9,lineHeight:1.6,marginBottom:6,
-                      padding:"6px 10px",background:C.card2,borderRadius:7}}>
-                      📍 {regime.transitionPath}
+                  {regime.reason&&(
+                    <div style={{fontSize:8,color:C.muted,lineHeight:1.6,marginBottom:8,
+                      padding:"5px 8px",background:`${C.blue}0e`,borderRadius:6,border:`1px solid ${C.blue}18`}}>
+                      📋 판단 근거: {regime.reason}
                     </div>
                   )}
-                  {regime.reason&&(
-                    <div style={{color:`${C.muted}99`,fontSize:8,lineHeight:1.5}}>근거: {regime.reason}</div>
+                  {regime.transitionPath&&(
+                    <div style={{color:C.muted,fontSize:9,lineHeight:1.8,marginBottom:4,
+                      padding:"7px 10px",background:C.card2,borderRadius:7}}>
+                      <div style={{color:C.text,fontWeight:700,fontSize:9,marginBottom:3}}>📍 다음 국면 방향</div>
+                      {regime.transitionPath}
+                    </div>
                   )}
+                  <div style={{marginTop:8,fontSize:8,color:`${C.muted}88`,lineHeight:1.6,
+                    padding:"5px 8px",background:C.card2,borderRadius:6}}>
+                    💡 국면이 바뀌는 신호는 보통 금리 방향, 유동성 변화, 고용 지표에서 먼저 나타납니다.
+                  </div>
                 </Box>
                 )}
 
-                {/* Core Intelligence 브리핑 */}
+                {/* 세콰이어 종합 판단 */}
                 {intelUS?.interpretation?.summary&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>🧠 Core Intelligence — 미국</div>
-                  <div style={{color:C.text,fontSize:11,lineHeight:1.8}}>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔭 세콰이어 종합 판단 — 미국</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>
+                    위의 모든 지표와 힘을 종합해 세콰이어가 내린 현재 시장 해석입니다.
+                  </div>
+                  <div style={{color:C.text,fontSize:11,lineHeight:1.9}}>
                     {intelUS.interpretation.summary}
                   </div>
                 </Box>
@@ -3311,15 +3375,18 @@ else {
 
                 {/* 전이 요약 */}
                 <Box>
-                  <div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:8}}>🌏 Global Transition — 한·미 전이 해석</div>
-                  <div style={{color:C.text,fontSize:11,lineHeight:1.8,marginBottom:10}}>
+                  <div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:4}}>🌏 미국 위험이 한국으로 옮겨올 가능성</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>
+                    미국 시장의 충격은 달러 강세·외국인 이탈·변동성 확산 등 세 가지 경로로 한국에 전달됩니다. 아래 수치는 현재 그 전달 강도를 나타냅니다.
+                  </div>
+                  <div style={{color:C.text,fontSize:11,lineHeight:1.9,marginBottom:10}}>
                     {transition.summary}
                   </div>
                   <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
                     background:`${C.gold}12`,borderRadius:8,border:`1px solid ${C.gold}28`}}>
                     <span style={{fontSize:12}}>⚡</span>
                     <div>
-                      <div style={{color:C.gold,fontSize:10,fontWeight:700}}>전이 리스크</div>
+                      <div style={{color:C.gold,fontSize:10,fontWeight:700}}>전달 강도</div>
                       <div style={{color:C.text,fontSize:9}}>{transition.intensityLabel}</div>
                     </div>
                     <div style={{marginLeft:"auto",textAlign:"right"}}>
@@ -3355,7 +3422,8 @@ else {
 
                 {/* Physics 비교 */}
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>⚡ 지배적 힘 비교</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 지금 두 시장을 지배하는 힘</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>한국과 미국이 같은 힘에 의해 움직이고 있다면, 미국 충격이 한국에 더 빠르게 전달됩니다.</div>
                   <div style={{display:"flex",gap:10}}>
                     {[["🇰🇷 한국",koreaIntel?.physics?.dominantForce,C.teal],
                       ["🇺🇸 미국",sefUS?.physics?.dominantForce,C.blue]].map(([label,force,col])=>(
@@ -3376,7 +3444,8 @@ else {
                 {/* 전이 세부 신호 */}
                 {(transition.signals||[]).length>0&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>📡 전이 신호</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>📡 지금 감지된 경보 신호</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>미국 위험이 한국으로 전달될 가능성을 높이는 신호들입니다.</div>
                   {transition.signals.map((s,i)=>(
                     <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,
                       fontSize:10,color:C.text,lineHeight:1.6,marginBottom:4,
@@ -3389,24 +3458,34 @@ else {
 
                 {/* 전이 세부 수치 */}
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>🔬 전이 경로 분석</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔬 미국 충격이 한국에 전달되는 세 가지 경로</div>
+                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:10}}>
+                    미국 시장의 위험은 아래 세 경로를 통해 한국에 영향을 줍니다. 수치가 높을수록 해당 경로가 활성화된 상태입니다.
+                  </div>
                   {[
-                    ["달러 충격",    transition.dollarShock,           "원화 약세 → 외국인 이탈 경로"],
-                    ["유동성 전이",  transition.liquidityTransmission, "미국 M2 위축 → 글로벌 유동성 감소"],
-                    ["변동성 전이",  transition.volatilitySpillover,   "VIX → 한국 변동성 동반 상승"],
-                  ].map(([label,val,desc])=>(
-                    <div key={label} style={{marginBottom:8}}>
-                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                        <span style={{fontSize:9,color:C.muted}}>{label}</span>
-                        <span style={{fontSize:9,color:C.text,fontFamily:"monospace",fontWeight:700}}>
-                          {Math.round((val??0)*100)}
-                        </span>
+                    {label:"① 달러 강세 충격",val:transition.dollarShock,
+                      short:"달러↑ → 원화↓ → 외국인 이탈",
+                      detail:"미국 금리가 높거나 달러가 강해지면 외국인 투자자들이 원화 자산을 팔고 달러로 돌아갑니다. 코스피에서 외국인이 빠져나가면 주가가 하락합니다."},
+                    {label:"② 유동성 축소 전이",val:transition.liquidityTransmission,
+                      short:"미국 돈줄 축소 → 글로벌 자금 감소 → 한국 타격",
+                      detail:"연준이 돈을 줄이거나 달러가 부족해지면 전 세계 시장에서 동시에 자금이 빠집니다. 한국처럼 수출 의존도 높은 나라가 특히 타격받습니다."},
+                    {label:"③ 공포 전이",val:transition.volatilitySpillover,
+                      short:"미국 VIX 급등 → 한국 변동성 동반 상승",
+                      detail:"미국 시장이 불안해지면(VIX 급등) 글로벌 투자자들이 일제히 위험 자산을 줄입니다. 한국 시장도 연쇄적으로 출렁이는 경향이 있습니다."},
+                  ].map(({label,val,short,detail})=>(
+                    <div key={label} style={{marginBottom:10,padding:"8px 10px",background:C.card2,borderRadius:8,
+                      border:`1px solid ${(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green}33`}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <span style={{fontSize:10,color:C.text,fontWeight:700}}>{label}</span>
+                        <span style={{fontSize:11,color:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green,
+                          fontFamily:"monospace",fontWeight:900}}>{Math.round((val??0)*100)}</span>
                       </div>
-                      <div style={{background:C.card2,borderRadius:4,height:5,overflow:"hidden",marginBottom:2}}>
+                      <div style={{background:C.card,borderRadius:4,height:5,overflow:"hidden",marginBottom:5}}>
                         <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,
                           background:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green}}/>
                       </div>
-                      <div style={{fontSize:8,color:`${C.muted}88`}}>{desc}</div>
+                      <div style={{fontSize:9,color:C.muted,fontWeight:700,marginBottom:3}}>→ {short}</div>
+                      <div style={{fontSize:8,color:`${C.muted}cc`,lineHeight:1.6}}>{detail}</div>
                     </div>
                   ))}
                 </Box>
