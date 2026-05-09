@@ -7,11 +7,15 @@ const sbFetch = async (path, opts = {}) => {
       apikey: SB_KEY,
       Authorization: `Bearer ${SB_KEY}`,
       "Content-Type": "application/json",
-      Prefer: "return=representation",
+      "Prefer": "return=representation",  // extraHeaders로 덮어쓸 수 있음
       ...extraHeaders,
     },
     ...restOpts,
   });
+  if (!r.ok) {
+    const errTxt = await r.text().catch(() => "");
+    throw new Error(`Supabase ${r.status}: ${errTxt}`);
+  }
   const txt = await r.text();
   return txt ? JSON.parse(txt) : null;
 };
