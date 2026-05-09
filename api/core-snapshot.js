@@ -10,9 +10,9 @@
  * 저장: SUPABASE_SERVICE_KEY (서버 전용, 프론트 노출 금지)
  */
 
-import { runCoreIntelligence }   from "../engines/intelligence/coreIntelligence";
-import { calcSefconUS }          from "../engines/sefconUS";
-import { runCoreIntelligenceUS } from "../engines/intelligence/coreIntelligenceUS";
+import { runCoreIntelligence }   from "../src/engines/intelligence/coreIntelligence";
+import { calcSefconUS }          from "../src/engines/sefconUS";
+import { runCoreIntelligenceUS } from "../src/engines/intelligence/coreIntelligenceUS";
 
 const SB_URL = process.env.SUPABASE_URL || "";
 const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY || "";
