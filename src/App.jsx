@@ -3170,16 +3170,11 @@ else {
                   {/* 5단계 카드 */}
                   {(()=>{
                     const steps=[
-                      {lv:5,label:"안정",desc:"전 지표 정상
-적극 투자 가능",color:"#00C878"},
-                      {lv:4,label:"관망",desc:"대체로 양호
-일부 신호 주시",color:"#38BDF8"},
-                      {lv:3,label:"경계",desc:"일부 지표 악화
-방어 준비 필요",color:"#F0C800"},
-                      {lv:2,label:"위기",desc:"다수 경고 신호
-리스크 자산 축소",color:"#FF6B00"},
-                      {lv:1,label:"붕괴임박",desc:"복합 위기 신호
-현금 최우선",color:"#FF1A1A"},
+                      {lv:5,label:"안정",desc:"전 지표 정상 · 적극 투자 가능",color:"#00C878"},
+                      {lv:4,label:"관망",desc:"대체로 양호 · 일부 신호 주시",color:"#38BDF8"},
+                      {lv:3,label:"경계",desc:"일부 지표 악화 · 방어 준비",color:"#F0C800"},
+                      {lv:2,label:"위기",desc:"다수 경고 신호 · 리스크 축소",color:"#FF6B00"},
+                      {lv:1,label:"붕괴임박",desc:"복합 위기 · 현금 최우선",color:"#FF1A1A"},
                     ];
                     return(
                     <div style={{display:"flex",gap:5,marginBottom:12}}>
@@ -3193,7 +3188,7 @@ else {
                           transition:"all 0.3s"}}>
                           <div style={{fontSize:14,fontWeight:900,color:active?s.color:C.muted,fontFamily:"monospace",marginBottom:2}}>{s.lv}</div>
                           <div style={{fontSize:9,fontWeight:700,color:active?s.color:C.muted,marginBottom:3}}>{s.label}</div>
-                          {active&&<div style={{fontSize:7,color:s.color,lineHeight:1.4,whiteSpace:"pre-line"}}>{s.desc}</div>}
+                          {active&&<div style={{fontSize:7,color:s.color,lineHeight:1.4}}>{s.desc}</div>}
                         </div>
                         );
                       })}
