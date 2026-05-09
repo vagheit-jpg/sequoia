@@ -3397,7 +3397,7 @@ else {
     padding:"14px 14px",marginBottom:10,boxShadow:`0 0 24px ${g.color}14`}}>
     <div style={{marginBottom:12}}>
       <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",marginBottom:6,opacity:0.6}}>
-        🛡 AEGIS 포트폴리오 가이드
+        🛡️ AEGIS 포트폴리오 가이드
       </div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
         <div style={{color:g.color,fontSize:15,fontWeight:900,lineHeight:1.3}}>{g.title}</div>
@@ -4128,7 +4128,7 @@ else {
     <div style={{background:`${levelColor}10`,border:`1.5px solid ${levelColor}44`,
       borderRadius:10,padding:"10px 12px",marginBottom:10}}>
       <div style={{color:levelColor,fontSize:9,fontWeight:800,marginBottom:5}}>
-        🛡 AEGIS 전략 — {strategy.stance}
+        🛡️ AEGIS 전략 — {strategy.stance}
       </div>
       <div style={{color:C.muted,fontSize:9,lineHeight:1.5,marginBottom:8}}>{strategy.summary}</div>
       <div style={{display:"flex",flexDirection:"column",gap:4}}>
@@ -5188,6 +5188,29 @@ else {
                       <Line dataKey="코스피Z" name="코스피(Z)" stroke="#38BDF8" strokeWidth={2.5} dot={false}/>
                     </ComposedChart>
                   </CW>
+                  {/* ── 수출 데이터 시차 안내 */}
+                  {(()=>{
+                    const lag = macroData?.exportKospiAlignment?.dataLag;
+                    if (!lag || lag.lagMonths <= 0) return null;
+                    return (
+                      <div style={{
+                        display:"flex", alignItems:"flex-start", gap:6,
+                        background:`${C.gold}0e`, border:`1px solid ${C.gold}28`,
+                        borderRadius:7, padding:"5px 10px", marginTop:6
+                      }}>
+                        <span style={{fontSize:9,marginTop:1}}>⚠️</span>
+                        <div style={{fontSize:8, color:`${C.muted}cc`, lineHeight:1.7}}>
+                          <span style={{color:C.gold, fontWeight:700}}>수출 데이터는 코스피보다 약 {lag.lagMonths}개월 늦게 발표됩니다.</span>
+                          {" "}통계청·ECOS 공식 발표 주기에 따른 구조적 시차입니다.<br/>
+                          <span style={{fontFamily:"monospace"}}>
+                            수출 최신: {lag.exportLatestMonth?.slice(0,4)}년 {lag.exportLatestMonth?.slice(4,6)}월
+                            {"  |  "}
+                            코스피 최신: {lag.kospiLatestMonth?.slice(0,4)}년 {lag.kospiLatestMonth?.slice(4,6)}월
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
                   </>);
                 })()}
 
