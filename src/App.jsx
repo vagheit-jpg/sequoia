@@ -36,6 +36,9 @@ import { fetchPrice } from "./services/priceService";
 import { buildBubbleEnergyModel } from "./engines/bubbleEngine";
 import { buildAegisMarketSnapshot } from "./engines/aegisEngine";
 import { runCoreIntelligence } from "./engines/intelligence/coreIntelligence";
+import { calcSefconUS } from "./engines/sefconUS";
+import { runCoreIntelligenceUS } from "./engines/intelligence/coreIntelligenceUS";
+import { buildGlobalTransition } from "./engines/globalTransition";
 import { parseExcel } from "./services/excelParser";
 import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
@@ -152,6 +155,9 @@ export default function App(){
   const [marketLoading,setMarketLoading]=useState(false);
   const [marketLoaded,setMarketLoaded]=useState(false);
   const [marketSub,setMarketSub]=useState("defcon"); // defcon | macro | kospi | kosdaq
+  const [activeMarket,setActiveMarket]=useState("KOREA"); // KOREA | US | GLOBAL
+  const [usData,setUsData]=useState(null);
+  const [usLoading,setUsLoading]=useState(false);
 
   useEffect(()=>{
     if(tab!=="market"||marketLoaded)return;
@@ -237,7 +243,15 @@ export default function App(){
     });
   },[tab,marketLoaded]);
 
-  // AEGIS 시장 스냅샷: KOSPI/KOSDAQ 월 1회 자동 Supabase upsert
+  // ── US 데이터 fetch (activeMarket이 US 또는 GLOBAL로 바뀔 때)
+  useEffect(()=>{
+    if(activeMarket==="KOREA"||usData||usLoading)return;
+    setUsLoading(true);
+    fetch("/api/us-macro")
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(d){ setUsData(d); } setUsLoading(false); })
+      .catch(()=>setUsLoading(false));
+  },[activeMarket,usData,usLoading]);: KOSPI/KOSDAQ 월 1회 자동 Supabase upsert
   // snapshot_key = AEGIS_MARKET_V3_YYYY-MM_KOSPI / KOSDAQ
   // 주의: 로컬 전송 캐시는 앱 저장 스키마 버전까지 포함한다.
   //      그래서 Bubble Energy 같은 신규 필드가 추가되면 같은 달이라도 1회 재전송되어 DB가 보강된다.
@@ -3086,6 +3100,322 @@ else {
               </div></Box>
             )}
 
+            {/* ══ 시장 토글: KOREA / US / GLOBAL ══ */}
+            <div style={{display:"flex",gap:6,marginBottom:10,background:C.card2,borderRadius:10,padding:"5px 6px",border:`1px solid ${C.border}`}}>
+              {[["KOREA","🇰🇷 KOREA",C.teal],["US","🇺🇸 US",C.blue],["GLOBAL","🌏 GLOBAL",C.gold]].map(([mk,label,col])=>(
+                <button key={mk} onClick={()=>setActiveMarket(mk)}
+                  style={{flex:1,padding:"7px 0",borderRadius:7,border:`1.5px solid ${activeMarket===mk?col:C.border}`,
+                    background:activeMarket===mk?`${col}22`:C.card,
+                    color:activeMarket===mk?col:C.muted,
+                    fontSize:10,fontWeight:700,cursor:"pointer",transition:"all 0.2s"}}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* ══ US 탭 ══ */}
+            {activeMarket==="US"&&(()=>{
+              if(usLoading) return(
+                <Box><div style={{color:C.muted,textAlign:"center",padding:32,fontSize:12}}>
+                  🇺🇸 미국 데이터 로딩중...
+                </div></Box>
+              );
+              if(!usData) return(
+                <Box><div style={{color:C.muted,textAlign:"center",padding:24,fontSize:12}}>
+                  미국 데이터를 불러올 수 없습니다.
+                </div></Box>
+              );
+              const sefUS   = calcSefconUS(usData);
+              const intelUS = runCoreIntelligenceUS({ usData, sefconResult: sefUS });
+              const dc      = sefUS?.defconData;
+              const physics = sefUS?.physics;
+              const regime  = sefUS?.regime;
+              const daily   = intelUS?.dailySummary;
+              const drivers = intelUS?.changeDrivers || [];
+              const strategy= intelUS?.strategy;
+              const state   = intelUS?.state;
+              return(
+              <div style={{animation:"fadeIn 0.3s ease"}}>
+
+                {/* Daily Summary 카드 */}
+                <Box>
+                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                    <span style={{fontSize:18}}>🇺🇸</span>
+                    <div>
+                      <div style={{color:C.text,fontSize:13,fontWeight:700}}>오늘의 미국 시장</div>
+                      <div style={{color:C.muted,fontSize:9}}>{new Date().toLocaleDateString("ko-KR")}</div>
+                    </div>
+                  </div>
+                  <div style={{color:C.text,fontSize:12,lineHeight:1.7,marginBottom:10}}>
+                    {daily?.headline}
+                  </div>
+                  {drivers.length>0&&(
+                    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                      {drivers.map((d,i)=>(
+                        <span key={i} style={{fontSize:9,padding:"2px 8px",borderRadius:999,
+                          background:`${C.blue}18`,color:C.blue,border:`1px solid ${C.blue}33`}}>
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </Box>
+
+                {/* SEFCON_US 카드 */}
+                {dc&&(
+                <Box>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                    <div style={{color:C.text,fontSize:11,fontWeight:700}}>🇺🇸 SEFCON US</div>
+                    <span style={{fontSize:9,padding:"2px 10px",borderRadius:999,fontWeight:700,
+                      background:`${dc.defconColor}22`,color:dc.defconColor,border:`1px solid ${dc.defconColor}55`}}>
+                      {dc.defconLabel}
+                    </span>
+                  </div>
+                  {/* 점수 바 */}
+                  <div style={{background:C.card2,borderRadius:6,height:8,marginBottom:8,overflow:"hidden"}}>
+                    <div style={{width:`${dc.totalScore}%`,height:"100%",borderRadius:6,
+                      background:dc.defconColor,transition:"width 0.8s ease"}}/>
+                  </div>
+                  <div style={{color:C.muted,fontSize:9,marginBottom:10}}>{dc.defconDesc}</div>
+                  {/* 카테고리 점수 */}
+                  <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                    {(dc.catScores||[]).map(c=>(
+                      <div key={c.cat} style={{display:"flex",alignItems:"center",gap:8}}>
+                        <div style={{width:56,fontSize:9,color:C.muted,textAlign:"right",flexShrink:0}}>{c.cat}</div>
+                        <div style={{flex:1,background:C.card2,borderRadius:4,height:6,overflow:"hidden"}}>
+                          <div style={{width:`${c.score}%`,height:"100%",borderRadius:4,
+                            background:c.score>=60?C.green:c.score>=40?C.gold:C.red,transition:"width 0.6s"}}/>
+                        </div>
+                        <div style={{width:28,fontSize:9,color:C.muted,fontFamily:"monospace"}}>{c.score}</div>
+                      </div>
+                    ))}
+                  </div>
+                </Box>
+                )}
+
+                {/* Physics_US 카드 */}
+                {physics&&(
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>⚡ Physics — 미국 시장의 힘</div>
+                  {[
+                    ["유동성 압력",  physics.liquidityPressure,  C.blue],
+                    ["밸류 중력",    physics.valuationGravity,   C.orange],
+                    ["신용 응력",    physics.creditStress,       C.red],
+                    ["변동성 에너지",physics.volatilityEnergy,   C.purple],
+                    ["경기 모멘텀",  physics.economicMomentum,   C.green],
+                  ].map(([label,val,col])=>(
+                    <div key={label} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                      <div style={{width:64,fontSize:9,color:C.muted,flexShrink:0}}>{label}</div>
+                      <div style={{flex:1,background:C.card2,borderRadius:4,height:6,overflow:"hidden"}}>
+                        <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,background:col}}/>
+                      </div>
+                      <div style={{width:32,fontSize:9,color:col,fontFamily:"monospace",fontWeight:700}}>
+                        {((val??0)*100).toFixed(0)}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{marginTop:8,padding:"6px 10px",background:`${C.gold}12`,borderRadius:7,
+                    border:`1px solid ${C.gold}28`,fontSize:9,color:C.gold}}>
+                    지배적 힘: <strong>{physics.dominantForce}</strong>
+                  </div>
+                </Box>
+                )}
+
+                {/* Regime_US 카드 */}
+                {regime&&(
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:6}}>🔄 Regime — 미국 시장 국면</div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                    <span style={{color:C.blue,fontSize:13,fontWeight:900}}>{regime.current}</span>
+                    <span style={{fontSize:9,padding:"2px 8px",borderRadius:999,
+                      background:`${C.blue}18`,color:C.blue,border:`1px solid ${C.blue}33`}}>
+                      신뢰도 {Math.round((regime.confidence??0)*100)}%
+                    </span>
+                  </div>
+                  {regime.transitionPath&&(
+                    <div style={{color:C.muted,fontSize:9,lineHeight:1.6,marginBottom:6,
+                      padding:"6px 10px",background:C.card2,borderRadius:7}}>
+                      📍 {regime.transitionPath}
+                    </div>
+                  )}
+                  {regime.reason&&(
+                    <div style={{color:`${C.muted}99`,fontSize:8,lineHeight:1.5}}>근거: {regime.reason}</div>
+                  )}
+                </Box>
+                )}
+
+                {/* Core Intelligence 브리핑 */}
+                {intelUS?.interpretation?.summary&&(
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>🧠 Core Intelligence — 미국</div>
+                  <div style={{color:C.text,fontSize:11,lineHeight:1.8}}>
+                    {intelUS.interpretation.summary}
+                  </div>
+                </Box>
+                )}
+
+                {/* 🛡️ AEGIS_US 전략 */}
+                {strategy&&(
+                <div style={{background:`${C.blue}10`,border:`1.5px solid ${C.blue}33`,
+                  borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                  <div style={{color:C.blue,fontSize:9,fontWeight:800,marginBottom:5}}>
+                    🛡️ AEGIS 전략 (US) — {strategy.riskLevel} 위험
+                  </div>
+                  <div style={{color:C.muted,fontSize:9,lineHeight:1.5,marginBottom:8}}>{strategy.message}</div>
+                  <div style={{display:"flex",gap:8,marginBottom:8}}>
+                    {[["현금",strategy.cashBias,C.gold],["방어",strategy.defenseBias,C.red],["성장",strategy.growthExposure,C.green]].map(([l,v,col])=>(
+                      <div key={l} style={{flex:1,textAlign:"center",padding:"6px 0",background:`${col}15`,
+                        borderRadius:7,border:`1px solid ${col}33`}}>
+                        <div style={{color:col,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>{v}%</div>
+                        <div style={{color:C.muted,fontSize:8}}>{l}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {(strategy.actions||[]).map((a,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:9,color:C.text,lineHeight:1.5,marginBottom:2}}>
+                      <span style={{color:C.blue,fontWeight:900,flexShrink:0}}>▸</span><span>{a}</span>
+                    </div>
+                  ))}
+                </div>
+                )}
+
+              </div>
+              );
+            })()}
+
+            {/* ══ GLOBAL 비교/전이 탭 ══ */}
+            {activeMarket==="GLOBAL"&&(()=>{
+              if(!macroData||!usData) return(
+                <Box><div style={{color:C.muted,textAlign:"center",padding:24,fontSize:12}}>
+                  {!macroData?"🇰🇷 한국 데이터 로딩 필요":"🇺🇸 미국 데이터 로딩 중..."}
+                  {!usData&&macroData&&<div style={{marginTop:8}}>
+                    <button onClick={()=>{setUsLoading(true);fetch("/api/us-macro").then(r=>r.json()).then(d=>{setUsData(d);setUsLoading(false)}).catch(()=>setUsLoading(false));}}
+                      style={{padding:"6px 16px",borderRadius:8,border:`1px solid ${C.blue}`,
+                        background:`${C.blue}18`,color:C.blue,fontSize:10,cursor:"pointer"}}>
+                      🇺🇸 미국 데이터 불러오기
+                    </button>
+                  </div>}
+                </div></Box>
+              );
+              const sefUS     = calcSefconUS(usData);
+              const intelUS   = runCoreIntelligenceUS({ usData, sefconResult: sefUS });
+              const koreaIntel= (() => { try { return runCoreIntelligence({ macroData }); } catch { return null; } })();
+              const transition= buildGlobalTransition(koreaIntel, intelUS, sefUS, macroData);
+              const krDC      = macroData?.defconData;
+              const usDC      = sefUS?.defconData;
+
+              return(
+              <div style={{animation:"fadeIn 0.3s ease"}}>
+
+                {/* 전이 요약 */}
+                <Box>
+                  <div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:8}}>🌏 Global Transition — 한·미 전이 해석</div>
+                  <div style={{color:C.text,fontSize:11,lineHeight:1.8,marginBottom:10}}>
+                    {transition.summary}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
+                    background:`${C.gold}12`,borderRadius:8,border:`1px solid ${C.gold}28`}}>
+                    <span style={{fontSize:12}}>⚡</span>
+                    <div>
+                      <div style={{color:C.gold,fontSize:10,fontWeight:700}}>전이 리스크</div>
+                      <div style={{color:C.text,fontSize:9}}>{transition.intensityLabel}</div>
+                    </div>
+                    <div style={{marginLeft:"auto",textAlign:"right"}}>
+                      <div style={{color:C.gold,fontSize:16,fontWeight:900,fontFamily:"monospace"}}>
+                        {Math.round((transition.usToKorea??0)*100)}
+                      </div>
+                      <div style={{color:C.muted,fontSize:8}}>/ 100</div>
+                    </div>
+                  </div>
+                </Box>
+
+                {/* SEFCON 나란히 비교 */}
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:10}}>SEFCON 비교</div>
+                  <div style={{display:"flex",gap:10}}>
+                    {[["🇰🇷 한국",krDC,C.teal],["🇺🇸 미국",usDC,C.blue]].map(([label,dc,col])=>(
+                      <div key={label} style={{flex:1,padding:"10px",background:C.card2,borderRadius:10,
+                        border:`1.5px solid ${dc?.defconColor??col}44`,textAlign:"center"}}>
+                        <div style={{fontSize:9,color:C.muted,marginBottom:4}}>{label}</div>
+                        <div style={{fontSize:22,fontWeight:900,color:dc?.defconColor??col,fontFamily:"monospace",marginBottom:2}}>
+                          {dc?.defcon??"-"}단계
+                        </div>
+                        <div style={{fontSize:8,color:dc?.defconColor??col,fontWeight:700}}>
+                          {dc?.defconLabel?.split("  ").slice(-1)[0]??""}
+                        </div>
+                        <div style={{background:C.card,borderRadius:4,height:5,marginTop:6,overflow:"hidden"}}>
+                          <div style={{width:`${dc?.totalScore??50}%`,height:"100%",background:dc?.defconColor??col,borderRadius:4}}/>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </Box>
+
+                {/* Physics 비교 */}
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>⚡ 지배적 힘 비교</div>
+                  <div style={{display:"flex",gap:10}}>
+                    {[["🇰🇷 한국",koreaIntel?.physics?.dominantForce,C.teal],
+                      ["🇺🇸 미국",sefUS?.physics?.dominantForce,C.blue]].map(([label,force,col])=>(
+                      <div key={label} style={{flex:1,padding:"8px 10px",background:`${col}10`,
+                        borderRadius:8,border:`1px solid ${col}28`}}>
+                        <div style={{fontSize:8,color:C.muted,marginBottom:3}}>{label}</div>
+                        <div style={{fontSize:10,color:col,fontWeight:700}}>{force??"-"}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {koreaIntel?.physics?.dominantForce===sefUS?.physics?.dominantForce&&(
+                    <div style={{marginTop:8,fontSize:9,color:C.orange,textAlign:"center"}}>
+                      ⚠️ 한·미 동조화 — 같은 힘이 두 시장을 지배하고 있습니다
+                    </div>
+                  )}
+                </Box>
+
+                {/* 전이 세부 신호 */}
+                {(transition.signals||[]).length>0&&(
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>📡 전이 신호</div>
+                  {transition.signals.map((s,i)=>(
+                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,
+                      fontSize:10,color:C.text,lineHeight:1.6,marginBottom:4,
+                      padding:"5px 8px",background:C.card2,borderRadius:6}}>
+                      <span style={{color:C.orange,flexShrink:0}}>▸</span><span>{s}</span>
+                    </div>
+                  ))}
+                </Box>
+                )}
+
+                {/* 전이 세부 수치 */}
+                <Box>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>🔬 전이 경로 분석</div>
+                  {[
+                    ["달러 충격",    transition.dollarShock,           "원화 약세 → 외국인 이탈 경로"],
+                    ["유동성 전이",  transition.liquidityTransmission, "미국 M2 위축 → 글로벌 유동성 감소"],
+                    ["변동성 전이",  transition.volatilitySpillover,   "VIX → 한국 변동성 동반 상승"],
+                  ].map(([label,val,desc])=>(
+                    <div key={label} style={{marginBottom:8}}>
+                      <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                        <span style={{fontSize:9,color:C.muted}}>{label}</span>
+                        <span style={{fontSize:9,color:C.text,fontFamily:"monospace",fontWeight:700}}>
+                          {Math.round((val??0)*100)}
+                        </span>
+                      </div>
+                      <div style={{background:C.card2,borderRadius:4,height:5,overflow:"hidden",marginBottom:2}}>
+                        <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,
+                          background:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green}}/>
+                      </div>
+                      <div style={{fontSize:8,color:`${C.muted}88`}}>{desc}</div>
+                    </div>
+                  ))}
+                </Box>
+
+              </div>
+              );
+            })()}
+
+            {/* ══ KOREA 탭: 기존 서브탭 ══ */}
+            {activeMarket==="KOREA"&&<>
+
             {/* ── 서브탭 버튼 */}
             <div style={{display:"flex",gap:6,marginBottom:10}}>
               {[["defcon","SEFCON"],["v3core","AEGIS"],["macro","거시경제"],["kospi","코스피"],["kosdaq","코스닥"]].map(([k,label])=>{
@@ -5723,6 +6053,7 @@ else {
             )}
             </>
             )}
+            </> /* KOREA 탭 끝 */}
           </div>
           );
         })()}
