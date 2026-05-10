@@ -126,6 +126,8 @@ const TrajectoryTip=({active,payload,label})=>{
         ["50% 하단",d.lower50,C.muted],
         ["80% 하단",d.lower80,C.muted],
         ["내재가치 중력원",d.fairValue,C.gold],
+        ["군집 슈팅",d.crowdForce,C.green],
+        ["붕괴 압력",d.collapseForce,C.red],
       ].map(([name,value,color])=>(
         <div key={name} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:4,alignItems:"center"}}>
           <span style={{color:C.muted,fontWeight:name==="기대 경로"?800:600}}>{name}</span>
@@ -165,7 +167,7 @@ export default function App(){
   const DCF_DEFAULT_INIT={bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50};
   const [dcfDraft,setDcfDraft]=useState({});
   const [dcfApplied,setDcfApplied]=useState({...DCF_DEFAULT_INIT});
-  const TRAJECTORY_SCENARIO_DEFAULT={marketEfficiency:100,supplyEnergy:100,catalystStrength:100};
+  const TRAJECTORY_SCENARIO_DEFAULT={marketEfficiency:100,supplyEnergy:100,catalystStrength:100,psychologyDirection:0,shootingPressure:100,collapsePressure:100};
   const [trajectoryScenario,setTrajectoryScenario]=useState({...TRAJECTORY_SCENARIO_DEFAULT});
   const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
   const [bandDraft,setBandDraft]=useState(null); // null=자동모드
@@ -530,9 +532,18 @@ export default function App(){
   const ma60val=withMA60.slice(-1)[0]?.ma60||0;
   const per=lastAnn.per||(lastAnn.eps&&price?Math.round(price/lastAnn.eps*10)/10:0);
   const pbr=lastAnn.pbr||(lastAnn.bps&&price?Math.round(price/lastAnn.bps*100)/100:0);
-  const marketCapWon=(price>0&&lastAnn.shares)?price*lastAnn.shares:null;
+  const calcMarketCapWon=(priceValue,sharesValue)=>{
+    const p=Number(priceValue), s=Number(sharesValue);
+    if(!Number.isFinite(p)||!Number.isFinite(s)||p<=0||s<=0)return null;
+    const cap=p*s;
+    // 한국 상장사 기준 1,000조 초과는 대개 주가 단위/발행주식수 데이터 불일치입니다.
+    // 잘못된 숫자를 보여주지 않고 확인 필요로 처리합니다.
+    if(cap>1000*1e12)return null;
+    return cap;
+  };
+  const marketCapWon=calcMarketCapWon(price,lastAnn.shares);
   const formatMarketCap=(won)=>{
-    if(!won||!Number.isFinite(Number(won)))return "—";
+    if(!won||!Number.isFinite(Number(won)))return "데이터 확인 필요";
     const eok=won/1e8;
     if(eok>=10000)return `${(eok/10000).toLocaleString(undefined,{maximumFractionDigits:2})}조`;
     return `${Math.round(eok).toLocaleString()}억`;
@@ -2188,7 +2199,7 @@ else {
                             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
                               <div>
                                 <div style={{color:C.gold,fontSize:9,fontWeight:900}}>🎛 시나리오 모드</div>
-                                <div style={{color:C.muted,fontSize:7,lineHeight:1.5,marginTop:2}}>자동 k는 유지하고, 시장 효율성·수급 에너지·촉매 강도로 보정계수만 조절합니다.</div>
+                                <div style={{color:C.muted,fontSize:7,lineHeight:1.5,marginTop:2}}>자동 k는 유지하고, 시장 효율성·수급·촉매·심리·슈팅/붕괴 압력으로 인간 시장 동역학을 실험합니다.</div>
                               </div>
                               <button onClick={()=>setTrajectoryScenario({...TRAJECTORY_SCENARIO_DEFAULT})}
                                 style={{background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 8px",fontSize:8,cursor:"pointer",fontWeight:800}}>
@@ -2197,23 +2208,31 @@ else {
                             </div>
                             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
                               {[
-                                {key:"marketEfficiency",label:"시장 효율성",desc:"가치 발견 속도",color:C.blue},
-                                {key:"supplyEnergy",label:"수급 에너지",desc:"매수세/유동성",color:C.teal},
-                                {key:"catalystStrength",label:"촉매 강도",desc:"실적·수주·이벤트",color:C.purple},
-                              ].map(item=>(
+                                {key:"marketEfficiency",label:"시장 효율성",desc:"가치 발견 속도",color:C.blue,min:50,max:200,step:5,left:"저효율",right:"고효율",suffix:"%"},
+                                {key:"supplyEnergy",label:"수급 에너지",desc:"매수세/유동성",color:C.teal,min:50,max:200,step:5,left:"약함",right:"폭발",suffix:"%"},
+                                {key:"catalystStrength",label:"촉매 강도",desc:"실적·수주·이벤트",color:C.purple,min:50,max:200,step:5,left:"약함",right:"강함",suffix:"%"},
+                                {key:"psychologyDirection",label:"심리 방향",desc:"공포 ↔ 탐욕",color:C.gold,min:-100,max:100,step:5,left:"극단 매도",right:"극단 매수",suffix:""},
+                                {key:"shootingPressure",label:"슈팅 압력",desc:"내재가치 상방 이탈",color:C.green,min:50,max:200,step:5,left:"낮음",right:"광기",suffix:"%"},
+                                {key:"collapsePressure",label:"붕괴 압력",desc:"경착륙/언더슈팅",color:C.red,min:50,max:200,step:5,left:"낮음",right:"패닉",suffix:"%"},
+                              ].map(item=>{
+                                const raw=trajectoryScenario[item.key];
+                                const display=item.key==="psychologyDirection"
+                                  ? (raw>0?`매수 +${raw}`:raw<0?`매도 ${raw}`:"중립 0")
+                                  : `${raw}${item.suffix}`;
+                                return(
                                 <div key={item.key}>
                                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                                     <span style={{color:C.text,fontSize:8,fontWeight:800}}>{item.label}</span>
-                                    <span style={{color:item.color,fontSize:10,fontWeight:900,fontFamily:"monospace"}}>{trajectoryScenario[item.key]}%</span>
+                                    <span style={{color:item.color,fontSize:10,fontWeight:900,fontFamily:"monospace"}}>{display}</span>
                                   </div>
-                                  <input type="range" min="50" max="150" step="5" value={trajectoryScenario[item.key]}
+                                  <input type="range" min={item.min} max={item.max} step={item.step} value={raw}
                                     onChange={e=>setTrajectoryScenario(p=>({...p,[item.key]:+e.target.value}))}
                                     style={{width:"100%",accentColor:item.color}}/>
                                   <div style={{display:"flex",justifyContent:"space-between",color:C.muted,fontSize:7,marginTop:2}}>
-                                    <span>보수</span><span>{item.desc}</span><span>공격</span>
+                                    <span>{item.left}</span><span>{item.desc}</span><span>{item.right}</span>
                                   </div>
                                 </div>
-                              ))}
+                              )})}
                             </div>
                           </div>
 
@@ -2221,9 +2240,15 @@ else {
                             {[
                               ["현재가", `${price.toLocaleString()}원`, C.text],
                               ["중력원", `${dcfResults.avg.toLocaleString()}원`, C.gold],
+                              ["모드", traj.meta.regimeMode || traj.meta.crowdMode || "Gravity Mode", C.green],
+                              ["심리", traj.meta.psychologyLabel || "중립", traj.meta.direction==="BEAR"?C.red:traj.meta.direction==="BULL"?C.green:C.gold],
                               ["자동 k", traj.meta.autoK.toFixed(3), C.muted],
                               ["보정계수", `${traj.meta.scenarioMultiplier.toFixed(2)}×`, C.purple],
                               ["최종 k", traj.meta.finalK.toFixed(3), C.blue],
+                              ["상승 k", traj.meta.bullishK?.toFixed(3) || "—", C.green],
+                              ["하락 k", traj.meta.bearishK?.toFixed(3) || "—", C.red],
+                              ["군집 슈팅", `${((traj.meta.positiveNarrative||0)).toFixed(2)}×`, C.green],
+                              ["붕괴 압력", `${((traj.meta.negativeNarrative||0)).toFixed(2)}×`, C.red],
                               ["사이클", traj.meta.cycleMode, C.purple],
                             ].map(([k,v,col])=>(
                               <div key={k} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 9px"}}>
@@ -2266,6 +2291,7 @@ else {
                               <Area yAxisId="traj" dataKey="band80" name="80% 확률 구름" stroke="none" fill="url(#trajCloud80)" dot={false} isAnimationActive={false}/>
                               <Area yAxisId="traj" dataKey="band50" name="50% 확률 구름" stroke="none" fill="url(#trajCloud50)" dot={false} isAnimationActive={false}/>
                               <Line yAxisId="traj" dataKey="expected" name="기대 경로" stroke={C.blue} strokeWidth={3} dot={false}/>
+                              <Line yAxisId="traj" dataKey="gravityForce" name="중력 복귀선" stroke={C.muted} strokeWidth={1.5} strokeDasharray="3 5" dot={false}/>
                               <Line yAxisId="traj" dataKey="fairValue" name="내재가치 중력원" stroke={C.gold} strokeWidth={2} strokeDasharray="6 4" dot={false}/>
                             </ComposedChart>
                           </CW>
@@ -2308,12 +2334,12 @@ else {
                                 k는 고정값이 아니라 EPS 성장력, ROE 지속성, QMA 위치, MACD 방향, 사이클 모드를 합산해 산출합니다.
                               </div>
                               <div style={{marginTop:6,color:C.gold,fontFamily:"monospace",fontSize:8}}>
-                                P(t)=V+(P₀−V)e^(-kt)
+                                P(t)=Gravity+Momentum+Crowd−Collapse
                               </div>
                               <div style={{marginTop:4,color:C.muted,fontSize:7,lineHeight:1.5}}>
-                                P₀=현재가 · V=내재가치 중력원 · k=최종 수렴 가속도 · t=개월<br/>
+                                Gravity=내재가치 복귀력 · Momentum=추세 관성 · Crowd=군집 슈팅 · Collapse=붕괴 압력<br/>
                                 자동 k≈기본값+EPS성장속도+ROE지속성+QMA위치+MACD+사이클 보정<br/>
-                                최종 k=자동 k×시나리오 보정계수
+                                최종 k=자동 k×시나리오 보정계수, 단 실제 경로는 내재가치 상·하방 이탈을 허용
                               </div>
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
