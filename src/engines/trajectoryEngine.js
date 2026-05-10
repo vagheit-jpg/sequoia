@@ -346,7 +346,7 @@ export function buildTrajectoryLab({
   const regimeMode =
     negativeNarrative >= 1.2 ? "Panic / Collapse Mode" :
     positiveNarrative >= 1.4 ? "Bubble / Crowd Mode" :
-    Math.abs(momentumForce || 0) > p0 * 0.12 ? "Momentum Mode" :
+    Math.abs(lastPoint.momentumForce || 0) > p0 * 0.12 ? "Momentum Mode" :
     "Gravity Mode";
 
   return {
