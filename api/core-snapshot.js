@@ -56,26 +56,25 @@ async function makeKoreaSnapshot() {
   if (!r.ok) throw new Error(`/api/macro ${r.status}`);
   const d = await r.json();
 
-  // macro.js가 내려주는 구조에서 필요한 값 추출
-  const dc     = d?.defconData || {};
-  const intel  = d?.coreIntel  || {};
-  const state  = intel?.state  || {};
-  const temp   = intel?.temporal || {};
-  const phys   = intel?.physics  || {};
-  const regime = intel?.regime   || {};
-  const interp = intel?.interpretation || {};
-  const strat  = intel?.strategy || {};
+  const dc     = d?.defconData        || {};
+  const intel  = d?.coreIntel         || {};
+  const state  = intel?.state         || { sefconScore: dc?.totalScore ?? null, sefconLevel: dc?.defcon ?? null };
+  const temp   = intel?.temporal      || {};
+  const phys   = intel?.physics       || {};
+  const regime = intel?.regime        || { primaryLabel: dc?.defconLabel ?? "" };
+  const interp = intel?.interpretation|| {};
+  const strat  = intel?.strategy      || {};
 
   return {
     snapshot_date:  todayStr(),
     market:         "KOREA",
-    sefcon_score:   dc?.totalScore   ?? state?.sefconScore ?? null,
-    sefcon_level:   dc?.defcon       ?? state?.sefconLevel ?? null,
+    sefcon_score:   dc?.totalScore ?? null,
+    sefcon_level:   dc?.defcon    ?? null,
     state_json:     state,
     temporal_json:  temp,
     physics_json:   phys,
     regime_json:    regime,
-    interpretation: interp?.summary  ?? dc?.interpretation ?? "",
+    interpretation: interp?.summary ?? "",
     strategy_json:  strat,
     updated_at:     new Date().toISOString(),
   };
