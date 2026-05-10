@@ -128,6 +128,7 @@ export function buildTrajectoryLab({
   cycle = null,
   financials = {},
   months = 36,
+  scenario = {},
 }) {
   const p0 = safeNum(currentPrice, 0);
   const fair = safeNum(intrinsicValue, 0);
@@ -183,10 +184,34 @@ export function buildTrajectoryLab({
     cycleMode === "방어 우위" ? -0.020 :
     cycleMode === "초방어" ? -0.040 : 0;
 
-  // v3 EPS/ROE 중심 k.
+  // v3 EPS/ROE 중심 자동 k.
+  // 이 값은 Trajectory Lab의 원본 엔진 출력이며, 시나리오 모드는 이 값을 훼손하지 않고
+  // 별도 보정계수만 곱해 최종 k를 만든다.
   const baseK = 0.030;
   const rawK = baseK + epsGrowthK + epsAccelK + roeK + qmaK + distanceK + macdK + cycleK;
-  const k = clamp(rawK, 0.010, 0.240);
+  const autoK = clamp(rawK, 0.010, 0.240);
+
+  // 7) 시나리오 모드 보정계수.
+  // 입력값은 0~200(%) 또는 0~2 배율을 모두 허용한다. 100 또는 1.0이 중립이다.
+  const normScenario = (v, fallback = 1) => {
+    const n = safeNum(v, fallback);
+    return clamp(n > 5 ? n / 100 : n, 0, 2);
+  };
+  const scenarioInputs = {
+    marketEfficiency: normScenario(scenario.marketEfficiency, 1),
+    supplyEnergy: normScenario(scenario.supplyEnergy, 1),
+    catalystStrength: normScenario(scenario.catalystStrength, 1),
+  };
+  const scenarioMultiplier = clamp(
+    1
+    + (scenarioInputs.marketEfficiency - 1) * 0.35
+    + (scenarioInputs.supplyEnergy - 1) * 0.30
+    + (scenarioInputs.catalystStrength - 1) * 0.35,
+    0.50,
+    1.80
+  );
+  const finalK = clamp(autoK * scenarioMultiplier, 0.006, 0.320);
+  const k = finalK;
 
   // 불확실성: 월봉 변동성 + 방어 사이클이면 확대. EPS/ROE 품질이 낮으면 추가 확대.
   const qualityPenalty = gp.epsGrowthRate < 0 ? 0.03 : gp.roeLatest < 8 ? 0.025 : 0;
@@ -241,7 +266,11 @@ export function buildTrajectoryLab({
     points,
     probabilities:[makeProb(6), makeProb(12), makeProb(24), makeProb(36)],
     meta:{
-      k,
+      k: finalK,
+      autoK,
+      scenarioMultiplier,
+      finalK,
+      scenario: scenarioInputs,
       uncertainty,
       baseVol,
       macdBull,
