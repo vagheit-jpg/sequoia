@@ -155,13 +155,20 @@ function buildRegime(sefconResult, state, temporal) {
 function buildInterpretation(state, temporal, physics, regime) {
   const part1 = (() => {
     const dominantDesc = {
-      "유동성 압력":   "유동성 압력이 지배적인",
-      "밸류 중력":     "밸류에이션 부담이 지배적인",
-      "신용 응력":     "신용 스트레스가 주도하는",
-      "변동성 에너지": "변동성 에너지가 축적된",
-      "경기 모멘텀":   "경기 모멘텀이 약화된",
-    }[physics.dominantForce] || "";
-    return sanitizeText(`미국 시장은 ${regime.primaryLabel} 국면으로, ${dominantDesc} 환경입니다.`);
+      // sefconUS.js buildPhysicsUS의 force 이름과 동기화
+      "미국으로의 유동성 쏠림": "미국으로의 유동성 쏠림이 지배적인",
+      "밸류에이션 고평가":       "밸류에이션 부담이 지배적인",
+      "대출 난이도":             "신용 경색이 주도하는",
+      "변동성 급변 에너지":      "변동성 에너지가 축적된",
+      "경기 침체 위험":          "경기 침체 위험이 높아진",
+      // 구버전 호환
+      "유동성 압력":             "유동성 압력이 지배적인",
+      "밸류 중력":               "밸류에이션 부담이 지배적인",
+      "신용 응력":               "신용 스트레스가 주도하는",
+      "변동성 에너지":           "변동성 에너지가 축적된",
+      "경기 모멘텀":             "경기 모멘텀이 약화된",
+    }[physics.dominantForce] || "복합 요인이 작용하는";
+    return sanitizeText(`미국 시장은 현재 ${regime.primaryLabel} 국면에 있으며, ${dominantDesc} 환경이 지속되고 있습니다.`);
   })();
 
   const part2 = (() => {
@@ -182,7 +189,7 @@ function buildInterpretation(state, temporal, physics, regime) {
   })();
 
   const part4 = regime.transitionPath
-    ? sanitizeText(`국면 전이: ${regime.transitionPath}.`)
+    ? sanitizeText(`앞으로의 방향: ${regime.transitionPath}`)
     : null;
 
   const lines     = [part1, part2, part3, part4].filter(Boolean);
