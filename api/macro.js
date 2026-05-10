@@ -659,10 +659,10 @@ function calcDefcon(indicators) {
   // 유동성   15% — 일부 후행 포함
   // 물가     10% — 가장 후행적
   const CAT_WEIGHT = {
-    "신용위험": 0.30,
-    "시장공포": 0.25,
-    "실물경기": 0.20,
-    "유동성":   0.15,
+    "신용위험": 0.28,   // 소폭 하향 — 글로벌 신용 지표 중복 방지
+    "시장공포": 0.22,   // 소폭 하향 — 환율·외국인 과민 반응 완화
+    "실물경기": 0.23,   // 상향 — 한국 실물경기 반영 강화
+    "유동성":   0.17,   // 소폭 상향
     "물가":     0.10,
   };
   const cats = Object.keys(CAT_WEIGHT);
@@ -1025,7 +1025,7 @@ export default async function handler(req, res) {
         score: scoreV(last(rate), [4.0, 3.0, 2.0, 1.0], 1) },
       { cat:"유동성", key:"환율", label:"원/달러 환율", val:last(fx), unit:"원",
         good:"강세", warn:"중립", bad:"약세",
-        score: scoreV(last(fx), [1450, 1380, 1250, 1150], 1) },
+        score: Math.round(scoreV(last(fx), [1500, 1420, 1280, 1150], 1) * 0.7) },  // 환율 단독 영향 완화 (×0.7)
       { cat:"유동성", key:"CD스프레드", label:"CD금리-기준금리 스프레드", val:last(cdSpread), unit:"%p",
         good:"안정", warn:"보통", bad:"확대",
         score: scoreV(last(cdSpread), [1.5, 1.0, 0.3, 0.1], 1) },
@@ -1052,7 +1052,14 @@ export default async function handler(req, res) {
         })(),
         unit:"",
         good:"순매수", warn:"혼조", bad:"순매도",
-        score: foreignNetTrend ?? 0 },
+        // 시간감쇠: 3개월 평균 기반, 단기 순매도만으로 급락 방지
+        // 1일 순매도 = 영향 낮음, 2~4주 지속 = 영향 증가
+        score: (() => {
+          const trend = foreignNetTrend ?? 0;
+          // 3개월 평균이 극단적이지 않으면 영향 감쇠
+          if (Math.abs(trend) <= 1) return Math.round(trend * 0.5);
+          return Math.round(trend * 0.7);  // 최대 ×0.7 감쇠
+        })() },
 
       // ── 실물경기 (6개)
       { cat:"실물경기", key:"수출", label:"한국 수출 YoY", val:lastYoy(exportYoY), unit:"%",
