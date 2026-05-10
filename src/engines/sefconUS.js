@@ -155,11 +155,13 @@ function buildPhysicsUS(usData, catScores) {
   const lastLEI   = safeNum(last(usData?.lei),   100);
   const lastISM   = safeNum(last(usData?.ism),   100);
 
-  // 나스닥 6개월 상승률 (버블 에너지 측정)
+  // 나스닥 12개월 상승률 (버블 에너지 측정)
   const nq = usData?.nasdaq || [];
-  const nqTrend6m = nq.length >= 7
-    ? ((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-7)[0]?.value ?? 1) - 1) * 100
-    : 0;
+  const nqTrend12m = nq.length >= 13
+    ? ((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-13)[0]?.value ?? 1) - 1) * 100
+    : nq.length >= 7
+      ? ((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-7)[0]?.value ?? 1) - 1) * 100
+      : 0;
 
   // 유동성 압력
   const liquidityPressure = clamp01(
@@ -172,7 +174,7 @@ function buildPhysicsUS(usData, catScores) {
   const valuationGravity = clamp01(
     clamp01(lastTNX / 6)           * 0.40 +
     clamp01((lastHY - 0.8) / 4.2)  * 0.30 +
-    clamp01(Math.max(0, nqTrend6m) / 50) * 0.30  // 나스닥 급등 = 밸류 부담
+    clamp01(Math.max(0, nqTrend12m) / 50) * 0.30  // 나스닥 급등 = 밸류 부담
   );
 
   // 신용 응력
@@ -187,7 +189,7 @@ function buildPhysicsUS(usData, catScores) {
   const volatilityEnergy = clamp01(
     Math.max(0, (18 - lastVIX) / 10) * 0.40 +
     Math.max(0, (18 - vix6mAvg) / 10) * 0.30 +
-    clamp01(Math.max(0, nqTrend6m) / 60) * 0.30  // 급등 시 변동성 에너지 증가
+    clamp01(Math.max(0, nqTrend12m) / 60) * 0.30  // 급등 시 변동성 에너지 증가
   );
 
   // 경기 모멘텀
@@ -212,7 +214,7 @@ function buildPhysicsUS(usData, catScores) {
     volatilityEnergy:  +volatilityEnergy.toFixed(3),
     economicMomentum:  +economicMomentum.toFixed(3),
     dominantForce,
-    nqTrend6m:         +nqTrend6m.toFixed(1),
+    nqTrend12m:         +nqTrend12m.toFixed(1),
   };
 }
 
@@ -229,7 +231,7 @@ function buildRegimeUS(usData) {
   const spTrend = sp.length >= 4
     ? ((sp.slice(-1)[0]?.value ?? 0) / (sp.slice(-4)[0]?.value ?? 1) - 1) * 100 : 0;
   const nq     = usData?.nasdaq || [];
-  const nqTrend6m = nq.length >= 7
+  const nqTrend12m = nq.length >= 7
     ? ((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-7)[0]?.value ?? 1) - 1) * 100 : 0;
 
   let current     = "혼합/불확실형";
@@ -240,7 +242,7 @@ function buildRegimeUS(usData) {
   if (vix < 15 && lei >= 100.5 && m2Yoy >= 3 && t10y2y >= 0) {
     current = "돈 풀리는 시기"; primaryType = "expansion";
     confidence = 0.8; reason = "VIX 저점·M2 확장·LEI 상승 동시";
-  } else if (nqTrend6m > 25 && vix < 18 && spTrend > 10) {
+  } else if (nqTrend12m > 25 && vix < 18 && spTrend > 10) {
     current = "시장 과열"; primaryType = "bubble";
     confidence = 0.75; reason = "나스닥 6개월 급등·VIX 저점·S&P 강세";
   } else if (t10y2y < -0.5 && sloos > 25 && baml > 4.5) {
@@ -323,9 +325,11 @@ export function calcSefconUS(usData) {
   const spTrend3m = sp.length >= 4
     ? +((sp.slice(-1)[0]?.value ?? 0) / (sp.slice(-4)[0]?.value ?? 1) * 100 - 100).toFixed(1)
     : null;
-  const nqTrend6m = nq.length >= 7
-    ? +((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-7)[0]?.value ?? 1) * 100 - 100).toFixed(1)
-    : null;
+  const nqTrend12m = nq.length >= 13
+    ? +((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-13)[0]?.value ?? 1) * 100 - 100).toFixed(1)
+    : nq.length >= 7
+      ? +((nq.slice(-1)[0]?.value ?? 0) / (nq.slice(-7)[0]?.value ?? 1) * 100 - 100).toFixed(1)
+      : null;
 
   // Freshness 계산
   const fSLOOS = getFreshness(usData?.sloos, 90);   // 분기 데이터
@@ -382,10 +386,10 @@ export function calcSefconUS(usData) {
       score: spTrend3m==null ? 0 : spTrend3m<-15?-2:spTrend3m<-8?-1:spTrend3m>15?2:spTrend3m>5?1:0 },
 
     // ── 밸류버블 (신규 카테고리 — 미국 낙관편향 제거 핵심)
-    { cat:"밸류버블", key:"NASDAQ", label:"나스닥 6개월 상승률", freshness: 1.0,
-      val: nqTrend6m, unit:"%",
+    { cat:"밸류버블", key:"NASDAQ", label:"나스닥 12개월 상승률", freshness: 1.0,
+      val: nqTrend12m, unit:"%",
       // 급등 = 버블 에너지 = 위험 증가
-      score: nqTrend6m==null ? 0 : nqTrend6m>30?-2:nqTrend6m>15?-1:nqTrend6m<-20?2:nqTrend6m<-10?1:0 },
+      score: nqTrend12m==null ? 0 : nqTrend12m>40?-2:nqTrend12m>20?-1:nqTrend12m<-25?2:nqTrend12m<-12?1:0 },  // 12개월 기준 임계값
     { cat:"밸류버블", key:"GLD",    label:"금(GLD) 6개월 추세", freshness: 1.0,
       val: (() => { const a=usData.gld||[]; if(a.length<7)return null; const n=a.slice(-1)[0]?.value; const m=a.slice(-7)[0]?.value; return n&&m?+((n/m-1)*100).toFixed(1):null; })(),
       unit:"%",
