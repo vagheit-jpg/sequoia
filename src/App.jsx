@@ -2151,7 +2151,15 @@ else {
                             pt.fairValue,
                           ].filter(v=>Number.isFinite(Number(v))))
                         );
-                        const trajYMax = Math.ceil((trajYMaxRaw * 1.08) / 1000) * 1000;
+                        // Y축 좌표 보정: Recharts 자동 tick이 6,500원 같은 중간값을 섞으면
+                        // 실제 좌표와 눈금 해석이 어긋나 보인다. 그래서 0~상단값을
+                        // 4개 균등 눈금으로 고정한다. 예: 0 / 1만 / 2만 / 3만.
+                        const trajTickUnit = trajYMaxRaw <= 20000 ? 5000 : trajYMaxRaw <= 50000 ? 10000 : 50000;
+                        const trajYMax = Math.ceil((trajYMaxRaw * 1.08) / trajTickUnit) * trajTickUnit;
+                        const trajYTicks = Array.from(
+                          { length: Math.floor(trajYMax / trajTickUnit) + 1 },
+                          (_, i) => i * trajTickUnit
+                        );
                         return(
                         <div style={{background:`${C.blue}08`,border:`1px solid ${C.blue}28`,borderRadius:12,padding:"12px 14px",marginTop:14,marginBottom:12}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
@@ -2198,15 +2206,20 @@ else {
                               <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                               <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={(v)=>String(v).startsWith("현재")?"현재":String(v).includes("M")?v:`${v}M`} label={{value:"X축 단위: Month(개월)",position:"insideBottomRight",offset:-4,fill:C.muted,fontSize:9}}/>
                               <YAxis
+                                yAxisId="traj"
                                 {...yp("원",58)}
+                                type="number"
+                                scale="linear"
                                 domain={[0, trajYMax]}
+                                ticks={trajYTicks}
+                                allowDataOverflow={false}
                                 tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}
                               />
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
-                              <Area dataKey="band80" name="80% 확률 구름" stroke="none" fill="url(#trajCloud80)" dot={false} isAnimationActive={false}/>
-                              <Area dataKey="band50" name="50% 확률 구름" stroke="none" fill="url(#trajCloud50)" dot={false} isAnimationActive={false}/>
-                              <Line dataKey="expected" name="기대 경로" stroke={C.blue} strokeWidth={3} dot={false}/>
-                              <Line dataKey="fairValue" name="내재가치 중력원" stroke={C.gold} strokeWidth={2} strokeDasharray="6 4" dot={false}/>
+                              <Area yAxisId="traj" dataKey="band80" name="80% 확률 구름" stroke="none" fill="url(#trajCloud80)" dot={false} isAnimationActive={false}/>
+                              <Area yAxisId="traj" dataKey="band50" name="50% 확률 구름" stroke="none" fill="url(#trajCloud50)" dot={false} isAnimationActive={false}/>
+                              <Line yAxisId="traj" dataKey="expected" name="기대 경로" stroke={C.blue} strokeWidth={3} dot={false}/>
+                              <Line yAxisId="traj" dataKey="fairValue" name="내재가치 중력원" stroke={C.gold} strokeWidth={2} strokeDasharray="6 4" dot={false}/>
                             </ComposedChart>
                           </CW>
 
