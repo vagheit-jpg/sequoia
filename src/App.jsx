@@ -2124,6 +2124,11 @@ else {
                               <div key={k} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 9px"}}>
                                 <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{k}</div>
                                 <div style={{color:col,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{v}</div>
+                                {k==="수렴계수 k"&&(
+                                  <div style={{color:C.muted,fontSize:7,marginTop:3,lineHeight:1.4}}>
+                                    {traj.meta.k<0.03?"장기 횡보 가능성":traj.meta.k<0.08?"점진 수렴 구간":"강한 재평가 가능성"}
+                                  </div>
+                                )}
                               </div>
                             ))}
                           </div>
@@ -2141,7 +2146,7 @@ else {
                                 </linearGradient>
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                              <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                              <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={(v)=>String(v).includes("M")?v:`${v}M`} label={{value:"X축 단위: Month(개월)",position:"insideBottomRight",offset:-4,fill:C.muted,fontSize:9}}/>
                               <YAxis {...yp("원",58)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
                               <Tooltip content={<MTip/>} cursor={false}/>
                               <Area dataKey="upper80" name="80% 상단" stroke="none" fill="url(#trajCloud80)" dot={false}/>
@@ -2172,6 +2177,39 @@ else {
                           )}
                           <div style={{color:`${C.muted}88`,fontSize:7,lineHeight:1.6,marginTop:8}}>
                             ※ 예언 공식이 아니라 확률적 시나리오입니다. 내재가치 추정 오류, 산업 변화, 수급 충격에 따라 실제 경로는 크게 달라질 수 있습니다.
+                          </div>
+
+                          <div style={{marginTop:10,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8}}>
+                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
+                              <div style={{color:C.gold,fontSize:8,fontWeight:900,marginBottom:5}}>🧭 사이클 전략 범례</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>
+                                <span style={{color:C.green,fontWeight:800}}>공격</span>: 유동성·실적·추세 동시 우호<br/>
+                                <span style={{color:C.blue,fontWeight:800}}>선택적 공격</span>: 일부 섹터·종목만 우위<br/>
+                                <span style={{color:C.gold,fontWeight:800}}>중립</span>: 방향성 혼조, 분산·현금 병행<br/>
+                                <span style={{color:C.red,fontWeight:800}}>방어</span>: 유동성 압박·고밸류 회피
+                              </div>
+                            </div>
+                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
+                              <div style={{color:C.teal,fontSize:8,fontWeight:900,marginBottom:5}}>📈 경로 산출 원리</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>
+                                현재가·내재가치·MACD·QMA 이격도·변동성·사이클 상태를 결합해 미래 가격 분포를 시뮬레이션합니다.
+                              </div>
+                              <div style={{marginTop:6,color:C.gold,fontFamily:"monospace",fontSize:8}}>
+                                P(t)=V+(P₀−V)e^(-kt)
+                              </div>
+                              <div style={{marginTop:4,color:C.muted,fontSize:7,lineHeight:1.5}}>
+                                P₀=현재가 · V=내재가치 중력원 · k=수렴 가속도 · t=개월
+                              </div>
+                            </div>
+                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
+                              <div style={{color:C.purple,fontSize:8,fontWeight:900,marginBottom:5}}>⏱ 시간축 해석</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>
+                                T+6M = 6개월 후<br/>
+                                T+12M = 12개월 후<br/>
+                                T+36M = 36개월 후
+                              </div>
+                              <div style={{marginTop:6,color:C.muted,fontSize:7}}>X축 단위: Month(개월)</div>
+                            </div>
                           </div>
                         </div>
                         );
@@ -4563,6 +4601,35 @@ else {
       </div>
       )}
     </div>
+
+    {/* ── 코어 인텔리전스 브리핑 */}
+    {coreCycle&&(
+    <div style={{background:C.card2,border:`1px solid ${levelColor}33`,borderRadius:12,padding:"10px 12px",marginBottom:12}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:8}}>
+        <div style={{color:levelColor,fontSize:10,fontWeight:900}}>🧭 코어 인텔리전스 브리핑</div>
+        <span style={{color:C.muted,fontSize:7}}>Cycle · Physics · AEGIS</span>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(135px,1fr))",gap:6,marginBottom:9}}>
+        {[
+          ["사이클 위치", coreCycle.position || "—", C.gold],
+          ["심리 상태", coreCycle.psychology || coreCycle.riskAppetite || "—", C.blue],
+          ["공격/방어", coreCycle.attackDefenseMode || "—", levelColor],
+          ["다음 전이", coreCycle.transition || coreTrans || "—", C.purple],
+        ].map(([k,v,col])=>(
+          <div key={k} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 9px"}}>
+            <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{k}</div>
+            <div style={{color:col,fontSize:9,fontWeight:900,lineHeight:1.35}}>{v}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:`${levelColor}0b`,border:`1px solid ${levelColor}22`,borderRadius:9,padding:"9px 10px"}}>
+        <div style={{color:levelColor,fontSize:8,fontWeight:800,marginBottom:4}}>해석</div>
+        <div style={{color:C.text,fontSize:9,lineHeight:1.7}}>
+          {coreCycle.memo || `현재 시장은 ${coreCycle.position || regimeLabel} 사이클에 위치하며, ${coreForce || "주요 시장 압력"}과 밸류 부담이 동시에 작용하고 있습니다. ${coreCycle.attackDefenseMode ? `현재 전략 모드는 ${coreCycle.attackDefenseMode}입니다.` : "AEGIS 전략은 공격보다 위험 관리 비중을 함께 고려합니다."}`}
+        </div>
+      </div>
+    </div>
+    )}
 
     {/* ── keyPoints 태그 */}
     {timing.keyPoints&&(
