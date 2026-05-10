@@ -69,8 +69,15 @@ export function buildTrajectoryLab({
     cycleMode === "초방어" ? -0.04 : 0;
 
   // 수렴 계수: 저평가 이격 + 기술 모멘텀 + 사이클 환경을 반영하되 과도한 확정론 방지
+  // v2: 과도하게 느린 수렴을 방지하기 위해 가치 괴리(distance)와 QMA 저평가(gapForce)의 반영도를 상향.
+  // 해석 기준: k<0.04 느림 / 0.04~0.08 점진 / 0.08~0.12 빠른 재평가 / 0.12 초과 강한 촉매형.
   const distance = Math.abs(fair - p0) / Math.max(p0, fair);
-  const k = clamp(0.035 + distance * 0.035 + gapForce * 0.025 + (macdBull ? 0.015 : 0) + cycleBias * 0.25, 0.01, 0.16);
+  const baseK = 0.045;
+  const distanceK = distance * 0.045;
+  const qmaK = gapForce * 0.035;
+  const macdK = macdBull ? 0.018 : -0.004;
+  const cycleK = cycleBias * 0.30;
+  const k = clamp(baseK + distanceK + qmaK + macdK + cycleK, 0.015, 0.20);
 
   // 불확실성: 월봉 변동성 + 방어 사이클이면 확대
   const uncertainty = clamp(baseVol * 1.25 + (cycleMode === "초방어" ? 0.08 : cycleMode === "방어 우위" ? 0.04 : 0), 0.08, 0.45);
@@ -84,7 +91,7 @@ export function buildTrajectoryLab({
     const sd = expected * uncertainty * Math.sqrt(Math.max(t,1) / 12);
     points.push({
       month:t,
-      label:t===0?"현재":`T+${t}`,
+      label:t===0?"현재":`T+${t}M`,
       expected:Math.round(expected),
       upper80:Math.round(expected + 1.28 * sd),
       lower80:Math.max(0, Math.round(expected - 1.28 * sd)),
@@ -120,7 +127,22 @@ export function buildTrajectoryLab({
     ready:true,
     points,
     probabilities:[makeProb(6), makeProb(12), makeProb(24), makeProb(36)],
-    meta:{ k, uncertainty, baseVol, macdBull, cycleMode, fairValue:fair, currentPrice:p0, note:"실험적 확률 경로 — 투자 판단 보조용" },
+    meta:{
+      k,
+      uncertainty,
+      baseVol,
+      macdBull,
+      cycleMode,
+      fairValue:fair,
+      currentPrice:p0,
+      kParts:{ baseK, distanceK, qmaK, macdK, cycleK, distance, gapForce },
+      kGuide:[
+        { range:"0.015~0.040", label:"느린 수렴", desc:"촉매 부족·장기 횡보 가능" },
+        { range:"0.040~0.080", label:"점진 수렴", desc:"가치 괴리 해소가 천천히 진행" },
+        { range:"0.080~0.120", label:"빠른 재평가", desc:"저평가+추세/수급이 함께 작동" },
+        { range:"0.120+", label:"강한 촉매형", desc:"수급·실적·이벤트가 동시에 붙는 구간" },
+      ],
+      note:"실험적 확률 경로 — 투자 판단 보조용"
+    },
   };
 }
-
