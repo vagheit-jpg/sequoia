@@ -39,6 +39,7 @@ import { runCoreIntelligence } from "./engines/intelligence/coreIntelligence";
 import { calcSefconUS } from "./engines/sefconUS";
 import { runCoreIntelligenceUS } from "./engines/intelligence/coreIntelligenceUS";
 import { buildGlobalTransition } from "./engines/globalTransition";
+import { buildTrajectoryLab } from "./engines/trajectoryEngine";
 import { parseExcel } from "./services/excelParser";
 import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
@@ -291,7 +292,7 @@ export default function App(){
   // 실패해도 앱 안 죽음. UI에 오류 표시 없음.
   useEffect(() => {
     if (!coreIntel || !macroData) return;
-    const { state, temporal, physics, regime, interpretation, strategy } = coreIntel;
+    const { state, temporal, physics, regime, cycle, interpretation, strategy } = coreIntel;
     // 데이터 부족 시 저장 안 함
     if (state.sefconScore === 50 && state.creditRisk === 0.5) return;
 
@@ -308,6 +309,7 @@ export default function App(){
       temporal_json:  temporal,
       physics_json:   physics,
       regime_json:    regime,
+      cycle_json:     cycle,
       interpretation: interpretation.summary,
       strategy_json:  strategy,
     };
@@ -2085,6 +2087,95 @@ else {
                     </>
                     );
                   })()}
+
+                      {/* Trajectory Lab — 확률 경로 실험실 */}
+                      {hasFinData && price>0 && dcfResults.avg>0 && (()=>{
+                        const traj = buildTrajectoryLab({
+                          currentPrice: price,
+                          intrinsicValue: dcfResults.avg,
+                          monthly,
+                          macdData: withMACD,
+                          qmaGap: lastGap,
+                          cycle: coreIntel?.cycle,
+                          months: 36,
+                        });
+                        if(!traj.ready) return null;
+                        const p12 = traj.probabilities.find(p=>p.month===12) || traj.probabilities[1];
+                        const topBand = p12?.bands?.slice().sort((a,b)=>b.probability-a.probability)[0];
+                        return(
+                        <div style={{background:`${C.blue}08`,border:`1px solid ${C.blue}28`,borderRadius:12,padding:"12px 14px",marginTop:14,marginBottom:12}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
+                            <div>
+                              <div style={{color:C.blue,fontSize:11,fontWeight:900,letterSpacing:"0.04em"}}>🧪 Trajectory Lab — 확률 경로 실험실</div>
+                              <div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginTop:3}}>
+                                내재가치·월봉 추세·MACD·QMA 이격도·사이클 환경을 결합해 미래 가격 분포를 실험적으로 시뮬레이션합니다.
+                              </div>
+                            </div>
+                            <Tag color={C.purple} size={8}>Experimental</Tag>
+                          </div>
+
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:10}}>
+                            {[
+                              ["현재가", `${price.toLocaleString()}원`, C.text],
+                              ["중력원", `${dcfResults.avg.toLocaleString()}원`, C.gold],
+                              ["수렴계수 k", traj.meta.k.toFixed(3), C.blue],
+                              ["사이클", traj.meta.cycleMode, C.purple],
+                            ].map(([k,v,col])=>(
+                              <div key={k} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 9px"}}>
+                                <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{k}</div>
+                                <div style={{color:col,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{v}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          <CW h={250}>
+                            <ComposedChart data={traj.points} margin={{top:6,right:16,left:0,bottom:8}}>
+                              <defs>
+                                <linearGradient id="trajCloud80" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={C.blue} stopOpacity={0.20}/>
+                                  <stop offset="95%" stopColor={C.blue} stopOpacity={0.03}/>
+                                </linearGradient>
+                                <linearGradient id="trajCloud50" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={C.purple} stopOpacity={0.22}/>
+                                  <stop offset="95%" stopColor={C.purple} stopOpacity={0.04}/>
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
+                              <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                              <YAxis {...yp("원",58)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
+                              <Tooltip content={<MTip/>} cursor={false}/>
+                              <Area dataKey="upper80" name="80% 상단" stroke="none" fill="url(#trajCloud80)" dot={false}/>
+                              <Area dataKey="lower80" name="80% 하단" stroke="none" fill={C.card} dot={false}/>
+                              <Area dataKey="upper50" name="50% 상단" stroke="none" fill="url(#trajCloud50)" dot={false}/>
+                              <Area dataKey="lower50" name="50% 하단" stroke="none" fill={C.card} dot={false}/>
+                              <Line dataKey="expected" name="기대 경로" stroke={C.blue} strokeWidth={3} dot={false}/>
+                              <Line dataKey="fairValue" name="내재가치 중력원" stroke={C.gold} strokeWidth={2} strokeDasharray="6 4" dot={false}/>
+                            </ComposedChart>
+                          </CW>
+
+                          {p12&&(
+                            <div style={{marginTop:8,background:C.card2,borderRadius:9,padding:"9px 10px",border:`1px solid ${C.border}`}}>
+                              <div style={{color:C.gold,fontSize:9,fontWeight:800,marginBottom:6}}>12개월 후 확률 분포</div>
+                              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:6}}>
+                                {p12.bands.map((b,i)=>{
+                                  const col=b.probability>=30?C.green:b.probability>=18?C.gold:C.muted;
+                                  return(
+                                  <div key={i} style={{border:`1px solid ${col}33`,borderRadius:7,padding:"6px 8px",background:`${col}0b`}}>
+                                    <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{b.label}</div>
+                                    <div style={{color:col,fontSize:12,fontWeight:900,fontFamily:"monospace"}}>{b.probability}%</div>
+                                  </div>
+                                  );
+                                })}
+                              </div>
+                              {topBand&&<div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginTop:6}}>가장 높은 확률권: <span style={{color:C.gold,fontWeight:800}}>{topBand.label} · {topBand.probability}%</span></div>}
+                            </div>
+                          )}
+                          <div style={{color:`${C.muted}88`,fontSize:7,lineHeight:1.6,marginTop:8}}>
+                            ※ 예언 공식이 아니라 확률적 시나리오입니다. 내재가치 추정 오류, 산업 변화, 수급 충격에 따라 실제 경로는 크게 달라질 수 있습니다.
+                          </div>
+                        </div>
+                        );
+                      })()}
 
                       {/* 유지CAPEX 비율 업종 참조표 */}
                       <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"12px 14px",marginTop:4}}>
@@ -4398,6 +4489,7 @@ else {
   const coreDir   = coreIntel?.interpretation?.direction ?? "횡보";
   const coreForce = coreIntel?.physics?.dominantForce ?? null;
   const coreTrans = coreIntel?.regime?.transitionPath ?? null;
+  const coreCycle = coreIntel?.cycle ?? null;
 
   return(
   <div style={{background:C.card,border:`2px solid ${levelColor}44`,borderRadius:16,
@@ -4463,6 +4555,13 @@ else {
         <div style={{color:C.muted,fontSize:7,marginBottom:2}}>신호 강도</div>
         <div style={{color:levelColor,fontSize:9,fontWeight:800}}>{timingGrade}</div>
       </div>
+      {coreCycle&&(
+      <div style={{flex:1,minWidth:120,background:C.card2,borderRadius:8,padding:"6px 10px",
+        border:`1px solid ${C.gold}33`}}>
+        <div style={{color:C.muted,fontSize:7,marginBottom:2}}>사이클 판단</div>
+        <div style={{color:C.gold,fontSize:9,fontWeight:800}}>{coreCycle.position} · {coreCycle.attackDefenseMode}</div>
+      </div>
+      )}
     </div>
 
     {/* ── keyPoints 태그 */}
