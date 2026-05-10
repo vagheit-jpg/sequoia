@@ -2134,6 +2134,24 @@ else {
                         if(!traj.ready) return null;
                         const p12 = traj.probabilities.find(p=>p.month===12) || traj.probabilities[1];
                         const topBand = p12?.bands?.slice().sort((a,b)=>b.probability-a.probability)[0];
+
+                        // Recharts에서 상단/하단 Area를 개별로 겹쳐 그리면
+                        // 시각적 밴드와 tooltip 좌표가 어긋나 보일 수 있다.
+                        // 따라서 [lower, upper] range area로 50%/80% 확률 구름을 직접 그린다.
+                        const trajChartPoints = traj.points.map(pt=>({
+                          ...pt,
+                          band80:[pt.lower80, pt.upper80],
+                          band50:[pt.lower50, pt.upper50],
+                        }));
+                        const trajYMaxRaw = Math.max(
+                          ...traj.points.flatMap(pt=>[
+                            pt.upper80,
+                            pt.upper50,
+                            pt.expected,
+                            pt.fairValue,
+                          ].filter(v=>Number.isFinite(Number(v))))
+                        );
+                        const trajYMax = Math.ceil((trajYMaxRaw * 1.08) / 1000) * 1000;
                         return(
                         <div style={{background:`${C.blue}08`,border:`1px solid ${C.blue}28`,borderRadius:12,padding:"12px 14px",marginTop:14,marginBottom:12}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
@@ -2166,7 +2184,7 @@ else {
                           </div>
 
                           <CW h={250}>
-                            <ComposedChart data={traj.points} margin={{top:6,right:16,left:0,bottom:8}}>
+                            <ComposedChart data={trajChartPoints} margin={{top:6,right:16,left:0,bottom:8}}>
                               <defs>
                                 <linearGradient id="trajCloud80" x1="0" y1="0" x2="0" y2="1">
                                   <stop offset="5%" stopColor={C.blue} stopOpacity={0.20}/>
@@ -2179,12 +2197,14 @@ else {
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
                               <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={(v)=>String(v).startsWith("현재")?"현재":String(v).includes("M")?v:`${v}M`} label={{value:"X축 단위: Month(개월)",position:"insideBottomRight",offset:-4,fill:C.muted,fontSize:9}}/>
-                              <YAxis {...yp("원",58)} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
+                              <YAxis
+                                {...yp("원",58)}
+                                domain={[0, trajYMax]}
+                                tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}
+                              />
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
-                              <Area dataKey="upper80" name="80% 상단" stroke="none" fill="url(#trajCloud80)" dot={false}/>
-                              <Area dataKey="lower80" name="80% 하단" stroke="none" fill={C.card} dot={false}/>
-                              <Area dataKey="upper50" name="50% 상단" stroke="none" fill="url(#trajCloud50)" dot={false}/>
-                              <Area dataKey="lower50" name="50% 하단" stroke="none" fill={C.card} dot={false}/>
+                              <Area dataKey="band80" name="80% 확률 구름" stroke="none" fill="url(#trajCloud80)" dot={false} isAnimationActive={false}/>
+                              <Area dataKey="band50" name="50% 확률 구름" stroke="none" fill="url(#trajCloud50)" dot={false} isAnimationActive={false}/>
                               <Line dataKey="expected" name="기대 경로" stroke={C.blue} strokeWidth={3} dot={false}/>
                               <Line dataKey="fairValue" name="내재가치 중력원" stroke={C.gold} strokeWidth={2} strokeDasharray="6 4" dot={false}/>
                             </ComposedChart>
