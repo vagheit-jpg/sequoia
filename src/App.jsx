@@ -3133,7 +3133,11 @@ else {
               const physics = sefUS?.physics;
               const regime  = sefUS?.regime;
               const daily   = intelUS?.dailySummary;
-              const drivers = intelUS?.changeDrivers || [];
+              // changeDrivers: sefconUS + intelUS 병합 (중복 제거)
+              const sefDrivers = (sefUS?.changeDrivers||[]).map(d=>typeof d==="object"?d:{label:d,direction:"위험↑",impact:"medium"});
+              const intelDrivers = (intelUS?.changeDrivers||[]).map(d=>typeof d==="object"?d:{label:d,direction:"위험↑",impact:"medium"});
+              const allDrivers = [...sefDrivers,...intelDrivers].filter((d,i,arr)=>arr.findIndex(x=>x.label===d.label)===i).slice(0,5);
+              const drivers = allDrivers;
               const strategy= intelUS?.strategy;
               const state   = intelUS?.state;
               return(
@@ -3160,13 +3164,32 @@ else {
                       : "뚜렷한 방향 변화 없이 횡보 중입니다. 주요 지표 변화에 주목할 시기입니다."}
                   </div>
                   {drivers.length>0&&(
-                    <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-                      {drivers.map((d,i)=>(
-                        <span key={i} style={{fontSize:9,padding:"2px 8px",borderRadius:999,
-                          background:`${C.blue}18`,color:C.blue,border:`1px solid ${C.blue}33`}}>
-                          {d}
-                        </span>
-                      ))}
+                    <div style={{marginTop:4}}>
+                      <div style={{fontSize:9,color:C.muted,fontWeight:700,marginBottom:5}}>
+                        📌 현재 미국 시장 상태를 만드는 주요 원인
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                        {drivers.map((d,i)=>{
+                          const isObj = typeof d==="object";
+                          const label = isObj ? d.label : d;
+                          const dir   = isObj ? d.direction : "위험↑";
+                          const isUp  = dir?.includes("↑") || dir==="위험↑";
+                          const isDown= dir?.includes("↓") || dir==="위험↓";
+                          const col   = isUp ? C.red : isDown ? C.green : C.muted;
+                          const arrow = isUp ? "▲" : isDown ? "▼" : "—";
+                          return(
+                          <div key={i} style={{display:"flex",alignItems:"center",gap:6,
+                            padding:"4px 8px",background:C.card2,borderRadius:6,
+                            border:`1px solid ${col}22`}}>
+                            <span style={{color:col,fontSize:9,fontWeight:900,flexShrink:0}}>{arrow}</span>
+                            <span style={{fontSize:9,color:C.text,flex:1}}>{label}</span>
+                            <span style={{fontSize:8,color:col,fontWeight:700,flexShrink:0}}>
+                              {isUp?"위험↑":isDown?"완화↓":"중립"}
+                            </span>
+                          </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </Box>
@@ -3319,6 +3342,17 @@ else {
                     padding:"5px 8px",background:C.card2,borderRadius:6}}>
                     💡 국면이 바뀌는 신호는 보통 금리 방향, 유동성 변화, 고용 지표에서 먼저 나타납니다.
                   </div>
+                  {/* ── 다음 국면 전환 가능성 (Regime Transition — Memory 축적 후 활성화) */}
+                  <div style={{marginTop:10,padding:"8px 10px",background:`${C.blue}08`,
+                    borderRadius:8,border:`1px dashed ${C.blue}33`}}>
+                    <div style={{fontSize:9,color:`${C.blue}88`,fontWeight:700,marginBottom:4}}>
+                      🔮 다음 국면 전환 가능성 <span style={{fontSize:7,color:C.muted}}>(데이터 축적 중 — 90일 후 활성화)</span>
+                    </div>
+                    <div style={{fontSize:8,color:`${C.muted}88`,lineHeight:1.6}}>
+                      세콰이어가 충분한 시장 기억을 쌓으면, 현재 국면에서 다음 국면으로 이동할 확률을 계산합니다.
+                      예: 금리 전환 기대 → 유동성 확장 전환 가능성 XX%
+                    </div>
+                  </div>
                 </Box>
                 )}
 
@@ -3411,6 +3445,21 @@ else {
                   <div style={{color:C.text,fontSize:11,lineHeight:1.9,marginBottom:10}}>
                     {transition.summary}
                   </div>
+                  {/* 왜 지금 한국이 위험한가 브리핑 */}
+                  {transition.koreaLagging!==undefined&&(
+                  <div style={{padding:"8px 10px",background:`${C.teal}08`,borderRadius:8,
+                    border:`1px solid ${C.teal}22`,marginBottom:8}}>
+                    <div style={{fontSize:9,color:C.teal,fontWeight:700,marginBottom:4}}>
+                      🇰🇷 지금 한국이 주목해야 하는 이유
+                    </div>
+                    <div style={{fontSize:9,color:C.muted,lineHeight:1.7}}>
+                      {transition.koreaLagging
+                        ? "미국보다 한국 위험 수준이 낮게 나타나고 있습니다. 미국 충격이 전이될 경우 한국이 빠르게 따라잡을 가능성이 있습니다."
+                        : "한국이 미국보다 높은 위험 수준에 있습니다. 추가 외부 충격에 취약한 상태입니다."}
+                      {(transition.signals||[]).length>0&&` 현재 ${transition.signals[0]}이 감지됩니다.`}
+                    </div>
+                  </div>
+                  )}
                   <div style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",
                     background:`${C.gold}12`,borderRadius:8,border:`1px solid ${C.gold}28`}}>
                     <span style={{fontSize:12}}>⚡</span>
@@ -3453,16 +3502,33 @@ else {
                 <Box>
                   <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 현재 두 시장을 움직이는 힘</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>한국과 미국이 같은 힘에 의해 움직이고 있다면, 미국 충격이 한국에 더 빠르게 전달됩니다.</div>
-                  <div style={{display:"flex",gap:10}}>
-                    {[["🇰🇷 한국",koreaIntel?.physics?.dominantForce,C.teal],
-                      ["🇺🇸 미국",sefUS?.physics?.dominantForce,C.blue]].map(([label,force,col])=>(
-                      <div key={label} style={{flex:1,padding:"8px 10px",background:`${col}10`,
-                        borderRadius:8,border:`1px solid ${col}28`}}>
-                        <div style={{fontSize:8,color:C.muted,marginBottom:3}}>{label}</div>
-                        <div style={{fontSize:10,color:col,fontWeight:700}}>{force??"-"}</div>
-                      </div>
-                    ))}
-                  </div>
+                  {(()=>{
+                    // 한국 force 이름 → 쉬운 설명 매핑
+                    const krForceLabel = {
+                      "유동성 압력":  "달러 강세·금리 상승으로
+유동성 이탈 중",
+                      "밸류 중력":    "고금리·고평가로
+주가 하방 압력",
+                      "신용 응력":    "대출 기준 강화로
+신용 경색 진행",
+                      "변동성 에너지":"변동성 에너지
+축적 중",
+                    };
+                    const krForce = koreaIntel?.physics?.dominantForce;
+                    const usForce = sefUS?.physics?.dominantForce;
+                    return(
+                    <div style={{display:"flex",gap:10}}>
+                      {[["🇰🇷 한국", krForce, krForceLabel[krForce]??krForce, C.teal],
+                        ["🇺🇸 미국", usForce, usForce, C.blue]].map(([label,force,desc,col])=>(
+                        <div key={label} style={{flex:1,padding:"8px 10px",background:`${col}10`,
+                          borderRadius:8,border:`1px solid ${col}28`}}>
+                          <div style={{fontSize:8,color:C.muted,marginBottom:3}}>{label}</div>
+                          <div style={{fontSize:10,color:col,fontWeight:700,lineHeight:1.5}}>{desc??"-"}</div>
+                        </div>
+                      ))}
+                    </div>
+                    );
+                  })()}
                   {koreaIntel?.physics?.dominantForce===sefUS?.physics?.dominantForce&&(
                     <div style={{marginTop:8,fontSize:9,color:C.orange,textAlign:"center"}}>
                       ⚠️ 한·미 동조화 — 같은 힘이 두 시장을 지배하고 있습니다
@@ -3654,42 +3720,53 @@ else {
                   </div>
                 </div>
 
-                {/* ── 주요 위험 요인 TOP3 + 해설 */}
+                {/* ── 현재 상태를 만드는 주요 원인 브리핑 */}
                 {(()=>{
                   const inds=dc.indicators||[];
                   const worst=[...inds].sort((a,b)=>a.score-b.score).slice(0,3).filter(i=>i.score<0);
                   if(!worst.length) return null;
-                  const factor=worst[0];
-                  const factorDesc=factor.score<=-2
-                    ?`${factor.label}이(가) 위험 수준입니다. 즉각적인 주의가 필요합니다.`
-                    :`${factor.label}이(가) 경계 수준에 진입했습니다.`;
+                  // 원인 해석 자연어 매핑
+                  const causeMap = {
+                    "원/달러 환율":        "원화 약세로 외국인 자금 이탈 압력이 높아지고 있습니다",
+                    "외국인 KOSPI 순매수 추이": "외국인 순매도가 지속되며 수급 부담이 확대되고 있습니다",
+                    "CD금리-기준금리 스프레드": "단기 신용 스프레드가 확대되며 금융 긴장이 높아지고 있습니다",
+                    "미국 장단기금리차(T10Y2Y)": "미국 장단기 금리 역전이 글로벌 신용 위험 신호를 보내고 있습니다",
+                    "ICE BofA HY 스프레드": "글로벌 하이일드 스프레드 확대로 위험 자산 기피가 강해지고 있습니다",
+                    "미국 SLOOS 대출기준강화": "미국 대출 기준 강화가 글로벌 유동성을 압박하고 있습니다",
+                    "미국 LEI 경기선행지수": "미국 경기선행지수 하락이 글로벌 경기 우려를 키우고 있습니다",
+                    "한국 CPI YoY": "물가 상승이 한국은행 금리 정책에 부담을 주고 있습니다",
+                    "한국 PPI YoY": "생산자물가 상승이 기업 수익성 악화 우려를 키우고 있습니다",
+                    "BSI 제조업": "제조업 체감경기 악화로 내수 위축 신호가 감지되고 있습니다",
+                    "VIX 공포지수": "글로벌 공포지수 상승으로 위험 회피 심리가 강화되고 있습니다",
+                    "DXY 달러인덱스": "달러 강세가 신흥국 자산에 매도 압력을 가하고 있습니다",
+                  };
                   return(
-                  <div style={{marginBottom:12}}>
-                    <div style={{color:C.gold,fontSize:8,fontWeight:700,marginBottom:6}}>⚠️ 주요 위험 요인</div>
-                    <div style={{background:`${C.red}0d`,border:`1px solid ${C.red}33`,borderRadius:8,
-                      padding:"7px 10px",marginBottom:6,borderLeft:`3px solid ${C.red}88`}}>
-                      <div style={{color:`${C.muted}bb`,fontSize:7,marginBottom:4}}>{factorDesc}</div>
-                      <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                        {worst.map((ind,i)=>{
-                          const sc=ind.score;
-                          const sc_color=sc<=-2?C.red:C.orange;
-                          return(
-                          <div key={ind.key} style={{display:"flex",alignItems:"center",gap:6}}>
-                            <span style={{color:sc_color,fontSize:9,fontWeight:700,minWidth:14}}>
-                              {i+1}.
-                            </span>
-                            <span style={{color:C.muted,fontSize:9,flex:1}}>{ind.label}</span>
-                            <span style={{color:sc_color,fontSize:8,fontWeight:700,fontFamily:"monospace"}}>
-                              {ind.val!=null?`${ind.val}${ind.unit}`:"-"}
-                            </span>
-                            <span style={{color:sc_color,fontSize:7,
-                              background:`${sc_color}18`,borderRadius:4,padding:"1px 4px"}}>
-                              {sc<=-2?ind.bad:ind.warn}
-                            </span>
+                  <div style={{marginBottom:12,padding:"8px 10px",
+                    background:`${C.red}08`,border:`1px solid ${C.red}22`,borderRadius:8}}>
+                    <div style={{color:C.red,fontSize:9,fontWeight:700,marginBottom:6}}>
+                      📌 현재 한국 시장 위험을 만드는 주요 원인
+                    </div>
+                    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+                      {worst.map((ind,i)=>{
+                        const cause = causeMap[ind.label] || `${ind.label} 지표가 위험 구간에 진입했습니다`;
+                        const col = ind.score<=-2 ? C.red : C.orange;
+                        return(
+                        <div key={ind.key} style={{display:"flex",alignItems:"flex-start",gap:6,
+                          padding:"5px 7px",background:C.card,borderRadius:6,
+                          border:`1px solid ${col}22`}}>
+                          <span style={{color:col,fontSize:10,fontWeight:900,flexShrink:0,marginTop:1}}>▲</span>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:9,color:col,fontWeight:700,marginBottom:2}}>
+                              {ind.label}
+                              <span style={{marginLeft:6,fontFamily:"monospace",color:C.muted,fontWeight:400}}>
+                                {ind.val!=null?`${ind.val}${ind.unit}`:""}
+                              </span>
+                            </div>
+                            <div style={{fontSize:8,color:C.muted,lineHeight:1.5}}>{cause}</div>
                           </div>
-                          );
-                        })}
-                      </div>
+                        </div>
+                        );
+                      })}
                     </div>
                   </div>
                   );
