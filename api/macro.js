@@ -1269,6 +1269,78 @@ function calcSequoiaCIndex(defconData) {
   };
 }
     
+    // ── Core Intelligence 인라인 계산 (snapshot 저장용)
+    // src/ 파일 import 없이 macro.js 내부에서 직접 계산
+    const coreIntel = (() => {
+      try {
+        const dc  = defconData || {};
+        const cats = dc.catScores || [];
+        const catScore = name => (cats.find(c => c.cat === name)?.score ?? 50);
+        const clamp01 = v => Math.max(0, Math.min(1, isFinite(v) ? v : 0));
+
+        // State
+        const lastFX    = (fx||[]).slice(-1)[0]?.value ?? 1300;
+        const lastT10   = (fredT10Y2Y||[]).slice(-1)[0]?.value ?? 0;
+        const lastHY    = (fredHY||[]).slice(-1)[0]?.value ?? 2;
+        const lastVIX   = (fredVIX||[]).slice(-1)[0]?.value ?? 20;
+        const lastSLOOS = (fredSLOOS||[]).slice(-1)[0]?.value ?? 0;
+        const lastLEI   = (fredLEI||[]).slice(-1)[0]?.value ?? 100;
+
+        const creditRisk      = clamp01(1 - catScore("신용위험") / 100);
+        const liquidityRisk   = clamp01(1 - catScore("유동성") / 100);
+        const speculationRisk = clamp01(1 - catScore("시장공포") / 100);
+        const macroRisk       = clamp01(1 - catScore("실물경기") / 100);
+        const volatilityRisk  = clamp01(clamp01((lastVIX - 12) / 40) * 0.6 + speculationRisk * 0.4);
+        const valuationRisk   = clamp01(clamp01(lastHY / 5) * 0.6 + creditRisk * 0.4);
+        const sefBase         = dc.totalScore != null ? clamp01(1 - dc.totalScore / 100) : 0.5;
+        const totalRisk       = clamp01(sefBase * 0.6 + (creditRisk + liquidityRisk + speculationRisk + macroRisk) / 4 * 0.4);
+
+        const state = { creditRisk, liquidityRisk, speculationRisk, macroRisk, volatilityRisk, valuationRisk, totalRisk, sefconLevel: dc.defcon ?? 3, sefconScore: dc.totalScore ?? 50 };
+
+        // Physics (한국 기준)
+        const liquidityPressure = clamp01(clamp01((lastFX - 1200) / 400) * 0.5 + liquidityRisk * 0.5);
+        const valuationGravity  = clamp01(clamp01(lastHY / 5) * 0.6 + clamp01((lastFX - 1200) / 400) * 0.4);
+        const creditStress      = clamp01(creditRisk * 0.7 + clamp01(lastSLOOS / 50) * 0.3);
+        const volatilityEnergy  = clamp01(clamp01((20 - lastVIX) / 15) * 0.5 + volatilityRisk * 0.5);
+        const forces = [["유동성 압력", liquidityPressure], ["밸류 중력", valuationGravity], ["신용 응력", creditStress], ["변동성 에너지", volatilityEnergy]];
+        const dominantForce = forces.reduce((a, b) => a[1] > b[1] ? a : b)[0];
+        const physics = { liquidityPressure, valuationGravity, creditStress, volatilityEnergy, dominantForce };
+
+        // Temporal (간이)
+        const riskDir = totalRisk > 0.6 ? "악화" : totalRisk < 0.35 ? "개선" : "횡보";
+        const temporal = { riskAcceleration: totalRisk > 0.55 ? 0.2 : totalRisk < 0.35 ? -0.2 : 0, labels: { riskAcceleration: riskDir } };
+
+        // Regime
+        const regime = {
+          primaryLabel: regimeInsight?.primaryLabel ?? dc.defconLabel?.split("  ").slice(-1)[0] ?? "혼합",
+          direction:    dc.defcon <= 2 ? "악화" : dc.defcon >= 4 ? "개선" : "유지",
+          transitionPath: regimeInsight?.transitionPath ?? null,
+          statePhrase:  totalRisk > 0.7 ? "고위험 국면" : totalRisk > 0.5 ? "경계 국면" : totalRisk > 0.35 ? "중립 국면" : "안정 국면",
+        };
+
+        // Interpretation
+        const summary = `한국 시장은 ${regime.primaryLabel} 국면으로, ${dominantForce}이 지배적인 환경입니다. SEFCON ${dc.defcon ?? 3}단계 (점수 ${dc.totalScore ?? 50}).`;
+        const interpretation = { summary, direction: riskDir, riskScore: Math.round(totalRisk * 100) };
+
+        // Strategy
+        const sefLv = dc.defcon ?? 3;
+        const cashBias = sefLv <= 1 ? 70 : sefLv === 2 ? 50 : sefLv === 3 ? 30 : sefLv === 4 ? 15 : 10;
+        const strategy = {
+          cashBias,
+          defenseBias: Math.round(totalRisk * 70 + liquidityPressure * 30),
+          growthExposure: Math.round((1 - totalRisk) * 80),
+          riskLevel: totalRisk > 0.75 ? "매우 높음" : totalRisk > 0.55 ? "높음" : totalRisk > 0.35 ? "보통" : "낮음",
+          message: cashBias >= 50 ? "현금 비중 확대, 방어자산 중심 재편." : cashBias >= 25 ? "선별적 운용, 방어섹터 비중 유지." : "우량주 중심 적극 운용 가능.",
+          actions: [],
+        };
+
+        return { state, physics, temporal, regime, interpretation, strategy };
+      } catch (e) {
+        console.warn("[coreIntel inline]", e.message);
+        return null;
+      }
+    })();
+
     const data = {
       gdp, gdpLevel, dailyExport, exportYoY, exportKospiAlignment,
       rate, fx, ppi, cpi, bsi,
@@ -1284,6 +1356,7 @@ function calcSequoiaCIndex(defconData) {
       crisisAnalysis,
       regimeInsight,
       v3Adjustment,
+      coreIntel,
       updatedAt: Date.now(),
       _debug: {
         gdp:gdpArr.length, export:exportArr.length, rate:rateArr.length,
