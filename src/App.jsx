@@ -3148,8 +3148,16 @@ else {
                       <div style={{color:C.muted,fontSize:9}}>{new Date().toLocaleDateString("ko-KR")}</div>
                     </div>
                   </div>
-                  <div style={{color:C.text,fontSize:12,lineHeight:1.7,marginBottom:10}}>
+                  <div style={{color:C.text,fontSize:12,lineHeight:1.7,marginBottom:6}}>
                     {daily?.headline}
+                  </div>
+                  <div style={{color:C.muted,fontSize:9,lineHeight:1.6,padding:"5px 8px",
+                    background:C.card2,borderRadius:6,marginBottom:10}}>
+                    💡 {daily?.riskDirection==="악화"
+                      ? "위험 신호가 확대되는 방향입니다. 방어적 포지션을 점검할 시기입니다."
+                      : daily?.riskDirection==="개선"
+                      ? "위험 압력이 완화되는 방향입니다. 다만 추세가 확인될 때까지 신중한 접근을 권합니다."
+                      : "뚜렷한 방향 변화 없이 횡보 중입니다. 주요 지표 변화에 주목할 시기입니다."}
                   </div>
                   {drivers.length>0&&(
                     <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
@@ -3204,7 +3212,7 @@ else {
                   <div style={{display:"flex",flexDirection:"column",gap:5}}>
                     {(dc.catScores||[]).map(c=>{
                       const risk=100-c.score;
-                      const barCol=risk>=60?C.red:risk>=40?"#F97316":C.blue;
+                      const barCol=risk>=60?C.red:risk>=40?"#F97316":C.green;
                       return(
                       <div key={c.cat} style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{width:56,fontSize:9,color:C.muted,textAlign:"right",flexShrink:0}}>{c.cat}</div>
@@ -3223,32 +3231,32 @@ else {
                 {/* 시장을 움직이는 힘 카드 */}
                 {physics&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 지금 시장을 움직이는 힘</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 현재 시장을 움직이는 힘</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:10}}>
                     막대가 길수록 / 숫자가 클수록 = 위험. 막대가 짧을수록 / 숫자가 작을수록 = 안전. 빨간색은 주의 구간입니다.
                   </div>
                   {(()=>{
                     // 경기 모멘텀은 높을수록 좋으므로 위험도로 반전
                     const items=[
-                      {label:"돈이 빠져나가는 힘",sublabel:"유동성 압력",risk:physics.liquidityPressure,
+                      {label:"미국으로의 유동성 쏠림 정도",risk:physics.liquidityPressure,
                         comp:"달러인덱스(UUP) · 10년물 국채금리 · 연준 대차대조표",
                         desc:"막대가 길수록 위험. 달러가 강해지거나 금리가 오르면 전 세계 돈이 미국으로 빨려들어갑니다. 한국을 포함한 신흥국에서 자금이 빠져나가며 주가가 하락하는 경향이 있습니다."},
-                      {label:"주가를 끌어내리는 힘",sublabel:"밸류에이션 중력",risk:physics.valuationGravity,
+                      {label:"밸류에이션 고평가 정도",risk:physics.valuationGravity,
                         comp:"10년물 국채금리 · Baa 신용스프레드",
                         desc:"막대가 길수록 위험. 금리가 높으면 안전한 채권의 매력이 높아져 주식에서 자금이 이탈합니다. 특히 고평가된 성장주(나스닥 등)에 강한 하방 압력이 됩니다."},
-                      {label:"돈 빌리기 어려워지는 정도",sublabel:"신용 응력",risk:physics.creditStress,
+                      {label:"대출 난이도",risk:physics.creditStress,
                         comp:"ICE BofA HY 스프레드 · SLOOS 대출기준강화",
                         desc:"막대가 길수록 위험. 기업들이 돈을 빌리기 어려워지는 정도입니다. 스프레드가 벌어질수록, 은행이 대출 기준을 높일수록 기업 실적과 투자가 줄어들며 경기가 위축됩니다."},
-                      {label:"급변 가능성 축적",sublabel:"변동성 에너지",risk:physics.volatilityEnergy,
+                      {label:"변동성 급변 에너지",risk:physics.volatilityEnergy,
                         comp:"VIX 공포지수 · 6개월 평균 변동성 압축도",
                         desc:"막대가 길수록 위험. VIX가 오랫동안 낮게 유지되면 시장이 방심한 상태입니다. 이 기간이 길수록 작은 충격에도 급격한 하락이 올 수 있는 잠재 에너지가 쌓입니다."},
-                      {label:"경기 침체 위험도",sublabel:"경기 모멘텀 역전",risk:1-(physics.economicMomentum??0.5),
+                      {label:"경기 침체 위험도",risk:1-(physics.economicMomentum??0.5),
                         comp:"LEI 경기선행지수 · 산업생산지수(INDPRO)",
                         desc:"막대가 길수록 위험. 실제 경제 활력이 약해지는 정도입니다. 막대가 짧을수록 경기가 활발한 상태입니다. 막대가 길어지면 경기 침체 위험이 높아집니다."},
                     ];
                     return items.map(({label,sublabel,risk,comp,desc})=>{
                       const r=risk??0;
-                      const barColor=r>0.6?C.red:r>0.4?"#F97316":C.blue;
+                      const barColor=r>0.6?C.red:r>0.4?"#F97316":C.green;
                       return(
                       <div key={label} style={{marginBottom:12,padding:"8px 10px",background:C.card2,borderRadius:8,
                         border:`1px solid ${r>0.6?C.red+"44":r>0.4?"#F9731644":C.border}`}}>
@@ -3317,10 +3325,7 @@ else {
                 {/* 세콰이어 종합 판단 */}
                 {intelUS?.interpretation?.summary&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔭 세콰이어 종합 판단 — 미국</div>
-                  <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>
-                    위의 모든 지표와 힘을 종합해 세콰이어가 내린 현재 시장 해석입니다.
-                  </div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:8}}>🛡️ AEGIS 종합 진단 — 미국</div>
                   <div style={{color:C.text,fontSize:11,lineHeight:1.9}}>
                     {intelUS.interpretation.summary}
                   </div>
@@ -3399,7 +3404,7 @@ else {
 
                 {/* 전이 요약 */}
                 <Box>
-                  <div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:4}}>🌏 미국 위험이 한국으로 옮겨올 가능성</div>
+                  <div style={{color:C.gold,fontSize:11,fontWeight:700,marginBottom:4}}>🌏 미국 위험 한국 전이 정도</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>
                     미국 시장의 충격은 달러 강세·외국인 이탈·변동성 확산 등 세 가지 경로로 한국에 전달됩니다. 아래 수치는 현재 그 전달 강도를 나타냅니다.
                   </div>
@@ -3446,7 +3451,7 @@ else {
 
                 {/* Physics 비교 */}
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 지금 두 시장을 지배하는 힘</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 현재 두 시장을 움직이는 힘</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>한국과 미국이 같은 힘에 의해 움직이고 있다면, 미국 충격이 한국에 더 빠르게 전달됩니다.</div>
                   <div style={{display:"flex",gap:10}}>
                     {[["🇰🇷 한국",koreaIntel?.physics?.dominantForce,C.teal],
@@ -3468,7 +3473,7 @@ else {
                 {/* 전이 세부 신호 */}
                 {(transition.signals||[]).length>0&&(
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>📡 지금 감지된 경보 신호</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>📡 감지 위험 신호</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:8}}>미국 위험이 한국으로 전달될 가능성을 높이는 신호들입니다.</div>
                   {transition.signals.map((s,i)=>(
                     <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,
@@ -3482,7 +3487,7 @@ else {
 
                 {/* 전이 세부 수치 */}
                 <Box>
-                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔬 미국 충격이 한국에 전달되는 세 가지 경로</div>
+                  <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔬 미국발 충격 전이 경로</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:10}}>
                     미국 시장의 위험은 아래 세 경로를 통해 한국에 영향을 줍니다. 수치가 높을수록 해당 경로가 활성화된 상태입니다.
                   </div>
