@@ -3551,32 +3551,55 @@ else {
                 <Box>
                   <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>🔬 미국발 충격 전이 경로</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:10}}>
-                    미국 시장의 위험은 아래 세 경로를 통해 한국에 영향을 줍니다. 수치가 높을수록 해당 경로가 활성화된 상태입니다.
+                    미국 위험이 한국에 전달되는 세 가지 서로 다른 경로입니다. 각 경로는 별개의 메커니즘으로 작동합니다.
                   </div>
                   {[
-                    {label:"① 달러 강세 충격",val:transition.dollarShock,
-                      short:"달러↑ → 원화↓ → 외국인 이탈",
-                      detail:"미국 금리가 높거나 달러가 강해지면 외국인 투자자들이 원화 자산을 팔고 달러로 돌아갑니다. 코스피에서 외국인이 빠져나가면 주가가 하락합니다."},
-                    {label:"② 유동성 축소 전이",val:transition.liquidityTransmission,
-                      short:"미국 돈줄 축소 → 글로벌 자금 감소 → 한국 타격",
-                      detail:"연준이 돈을 줄이거나 달러가 부족해지면 전 세계 시장에서 동시에 자금이 빠집니다. 한국처럼 수출 의존도 높은 나라가 특히 타격받습니다."},
-                    {label:"③ 공포 전이",val:transition.volatilitySpillover,
-                      short:"미국 VIX 급등 → 한국 변동성 동반 상승",
-                      detail:"미국 시장이 불안해지면(VIX 급등) 글로벌 투자자들이 일제히 위험 자산을 줄입니다. 한국 시장도 연쇄적으로 출렁이는 경향이 있습니다."},
-                  ].map(({label,val,short,detail})=>(
-                    <div key={label} style={{marginBottom:10,padding:"8px 10px",background:C.card2,borderRadius:8,
+                    {label:"① 외환·수급 경로",val:transition.dollarShock,
+                      mechanism:"달러 강세 → 원화 약세 → 외국인 이탈",
+                      detail:"달러가 강해지면 원화 자산의 매력이 떨어져 외국인이 한국 주식을 팔고 달러로 돌아갑니다. 환율과 외국인 수급이 동시에 악화되는 경로입니다.",
+                      indicators:["DXY(달러인덱스)","원/달러 환율","외국인 순매수"],
+                      color:"#E85D04"},
+                    {label:"② 글로벌 유동성 경로",val:transition.liquidityTransmission,
+                      mechanism:"연준 긴축 → 달러 총량 감소 → 전 세계 투자 위축",
+                      detail:"환율과 무관하게, 연준이 돈을 줄이면 세계 시장에 돌아다니는 달러 자체가 줄어듭니다. 수출·외자 의존도가 높은 한국은 글로벌 자금 축소의 직접 타격을 받습니다.",
+                      indicators:["연준 대차대조표(QT)","미국 M2","글로벌 신용 스프레드"],
+                      color:"#7209B7"},
+                    {label:"③ 투자심리 경로",val:transition.volatilitySpillover,
+                      mechanism:"VIX 급등 → 위험 회피 심리 확산 → 신흥국 동반 출렁임",
+                      detail:"달러나 유동성과 관계없이, 미국 시장이 불안해지면 글로벌 투자자들이 심리적으로 위험 자산을 동시에 줄입니다. 한국 시장은 이 심리 전파에 빠르게 반응합니다.",
+                      indicators:["VIX 공포지수","코스피 변동성","외국인 선물 포지션"],
+                      color:"#0077B6"},
+                  ].map(({label,val,mechanism,detail,indicators,color})=>(
+                    <div key={label} style={{marginBottom:10,padding:"10px 12px",background:C.card2,borderRadius:8,
                       border:`1px solid ${(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green}33`}}>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      {/* 제목 + 수치 */}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:5}}>
                         <span style={{fontSize:10,color:C.text,fontWeight:700}}>{label}</span>
-                        <span style={{fontSize:11,color:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green,
+                        <span style={{fontSize:12,color:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green,
                           fontFamily:"monospace",fontWeight:900}}>{Math.round((val??0)*100)}</span>
                       </div>
-                      <div style={{background:C.card,borderRadius:4,height:5,overflow:"hidden",marginBottom:5}}>
+                      {/* 막대 */}
+                      <div style={{background:C.card,borderRadius:4,height:5,overflow:"hidden",marginBottom:7}}>
                         <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,
                           background:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:C.green}}/>
                       </div>
-                      <div style={{fontSize:9,color:C.muted,fontWeight:700,marginBottom:3}}>→ {short}</div>
-                      <div style={{fontSize:8,color:`${C.muted}cc`,lineHeight:1.6}}>{detail}</div>
+                      {/* 메커니즘 */}
+                      <div style={{fontSize:9,color:color,fontWeight:700,marginBottom:5,
+                        padding:"3px 7px",background:`${color}12`,borderRadius:5,display:"inline-block"}}>
+                        {mechanism}
+                      </div>
+                      {/* 설명 */}
+                      <div style={{fontSize:8,color:`${C.muted}cc`,lineHeight:1.7,marginBottom:6}}>{detail}</div>
+                      {/* 핵심 지표 */}
+                      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
+                        <span style={{fontSize:7,color:C.muted,alignSelf:"center"}}>핵심 지표:</span>
+                        {indicators.map(ind=>(
+                          <span key={ind} style={{fontSize:7,padding:"1px 6px",borderRadius:999,
+                            background:`${color}15`,color:color,border:`1px solid ${color}33`,fontWeight:600}}>
+                            {ind}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </Box>
