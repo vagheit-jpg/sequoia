@@ -301,7 +301,7 @@ export default function App(){
 
     const snap = {
       snapshot_date:  today,
-      market:         "GLOBAL",
+      market:         "KOREA",
       sefcon_score:   state.sefconScore,
       sefcon_level:   state.sefconLevel,
       state_json:     state,
@@ -3199,19 +3199,23 @@ else {
                     padding:"6px 10px",background:C.card2,borderRadius:7}}>
                     💬 {dc.defconDesc}
                   </div>
-                  {/* 카테고리 점수 */}
-                  <div style={{color:C.muted,fontSize:8,marginBottom:6,fontWeight:700}}>항목별 점수 (100점 = 완전 안전)</div>
+                  {/* 카테고리 위험도 */}
+                  <div style={{color:C.muted,fontSize:8,marginBottom:6,fontWeight:700}}>항목별 위험도 (막대가 길수록 위험 / 짧을수록 안전)</div>
                   <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                    {(dc.catScores||[]).map(c=>(
+                    {(dc.catScores||[]).map(c=>{
+                      const risk=100-c.score;
+                      const barCol=risk>=60?C.red:risk>=40?"#F97316":C.blue;
+                      return(
                       <div key={c.cat} style={{display:"flex",alignItems:"center",gap:8}}>
                         <div style={{width:56,fontSize:9,color:C.muted,textAlign:"right",flexShrink:0}}>{c.cat}</div>
                         <div style={{flex:1,background:C.card2,borderRadius:4,height:6,overflow:"hidden"}}>
-                          <div style={{width:`${c.score}%`,height:"100%",borderRadius:4,
-                            background:c.score>=60?C.green:c.score>=40?C.gold:C.red,transition:"width 0.6s"}}/>
+                          <div style={{width:`${risk}%`,height:"100%",borderRadius:4,
+                            background:barCol,transition:"width 0.6s"}}/>
                         </div>
-                        <div style={{width:28,fontSize:9,color:C.muted,fontFamily:"monospace"}}>{c.score}</div>
+                        <div style={{width:28,fontSize:9,color:barCol,fontFamily:"monospace",fontWeight:700}}>{risk}</div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </Box>
                 )}
@@ -3221,46 +3225,54 @@ else {
                 <Box>
                   <div style={{color:C.text,fontSize:11,fontWeight:700,marginBottom:4}}>⚡ 지금 시장을 움직이는 힘</div>
                   <div style={{color:C.muted,fontSize:8,lineHeight:1.5,marginBottom:10}}>
-                    숫자가 높을수록 해당 힘이 강하게 작용 중입니다. 막대가 빨간색에 가까울수록 위험 신호입니다.
+                    막대가 길수록 / 숫자가 클수록 = 위험. 막대가 짧을수록 / 숫자가 작을수록 = 안전. 빨간색은 주의 구간입니다.
                   </div>
-                  {[
-                    {label:"돈이 빠져나가는 힘",sublabel:"유동성 압력",val:physics.liquidityPressure,col:C.blue,
-                      comp:"달러인덱스(UUP) · 10년물 국채금리 · 연준 대차대조표",
-                      desc:"달러가 강해지거나 금리가 오르면 전 세계 돈이 미국으로 빨려들어갑니다. 한국을 포함한 신흥국에서 자금이 빠져나가며 주가가 하락하는 경향이 있습니다."},
-                    {label:"주가를 끌어내리는 힘",sublabel:"밸류에이션 중력",val:physics.valuationGravity,col:C.orange,
-                      comp:"10년물 국채금리 · Baa 신용스프레드",
-                      desc:"금리가 높으면 '안전한 채권'의 매력이 높아져 주식에서 자금이 이탈합니다. 특히 고평가된 성장주(나스닥 등)에 강한 하방 압력이 됩니다."},
-                    {label:"돈 빌리기 어려워지는 정도",sublabel:"신용 응력",val:physics.creditStress,col:C.red,
-                      comp:"ICE BofA HY 스프레드 · SLOOS 대출기준강화",
-                      desc:"기업들이 돈을 빌리기 어려워지는 정도입니다. 하이일드 스프레드가 벌어질수록, 은행이 대출 기준을 높일수록 기업 실적과 투자가 줄어들며 경기가 위축됩니다."},
-                    {label:"급변 가능성 축적",sublabel:"변동성 에너지",val:physics.volatilityEnergy,col:C.purple,
-                      comp:"VIX 공포지수 · 6개월 평균 변동성 압축도",
-                      desc:"VIX가 오랫동안 낮게 유지되면 시장이 방심한 상태입니다. 이 기간이 길수록 작은 충격에도 급격한 하락이 올 수 있는 잠재 에너지가 쌓입니다."},
-                    {label:"실물경기 흐름 강도",sublabel:"경기 모멘텀",val:physics.economicMomentum,col:C.green,
-                      comp:"LEI 경기선행지수 · 산업생산지수(INDPRO)",
-                      desc:"실제 경제가 얼마나 활발한지 나타냅니다. 높을수록 기업 실적 개선 기대가 높아집니다. 낮으면 경기 침체 위험 신호입니다."},
-                  ].map(({label,sublabel,val,col,comp,desc})=>(
-                    <div key={label} style={{marginBottom:12,padding:"8px 10px",background:C.card2,borderRadius:8,
-                      border:`1px solid ${(val??0)>0.6?col+"44":C.border}`}}>
-                      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
-                        <div style={{flex:1}}>
-                          <div style={{fontSize:10,color:C.text,fontWeight:700}}>{label}</div>
-                          <div style={{fontSize:8,color:C.muted}}>{sublabel}</div>
+                  {(()=>{
+                    // 경기 모멘텀은 높을수록 좋으므로 위험도로 반전
+                    const items=[
+                      {label:"돈이 빠져나가는 힘",sublabel:"유동성 압력",risk:physics.liquidityPressure,
+                        comp:"달러인덱스(UUP) · 10년물 국채금리 · 연준 대차대조표",
+                        desc:"막대가 길수록 위험. 달러가 강해지거나 금리가 오르면 전 세계 돈이 미국으로 빨려들어갑니다. 한국을 포함한 신흥국에서 자금이 빠져나가며 주가가 하락하는 경향이 있습니다."},
+                      {label:"주가를 끌어내리는 힘",sublabel:"밸류에이션 중력",risk:physics.valuationGravity,
+                        comp:"10년물 국채금리 · Baa 신용스프레드",
+                        desc:"막대가 길수록 위험. 금리가 높으면 안전한 채권의 매력이 높아져 주식에서 자금이 이탈합니다. 특히 고평가된 성장주(나스닥 등)에 강한 하방 압력이 됩니다."},
+                      {label:"돈 빌리기 어려워지는 정도",sublabel:"신용 응력",risk:physics.creditStress,
+                        comp:"ICE BofA HY 스프레드 · SLOOS 대출기준강화",
+                        desc:"막대가 길수록 위험. 기업들이 돈을 빌리기 어려워지는 정도입니다. 스프레드가 벌어질수록, 은행이 대출 기준을 높일수록 기업 실적과 투자가 줄어들며 경기가 위축됩니다."},
+                      {label:"급변 가능성 축적",sublabel:"변동성 에너지",risk:physics.volatilityEnergy,
+                        comp:"VIX 공포지수 · 6개월 평균 변동성 압축도",
+                        desc:"막대가 길수록 위험. VIX가 오랫동안 낮게 유지되면 시장이 방심한 상태입니다. 이 기간이 길수록 작은 충격에도 급격한 하락이 올 수 있는 잠재 에너지가 쌓입니다."},
+                      {label:"경기 침체 위험도",sublabel:"경기 모멘텀 역전",risk:1-(physics.economicMomentum??0.5),
+                        comp:"LEI 경기선행지수 · 산업생산지수(INDPRO)",
+                        desc:"막대가 길수록 위험. 실제 경제 활력이 약해지는 정도입니다. 막대가 짧을수록 경기가 활발한 상태입니다. 막대가 길어지면 경기 침체 위험이 높아집니다."},
+                    ];
+                    return items.map(({label,sublabel,risk,comp,desc})=>{
+                      const r=risk??0;
+                      const barColor=r>0.6?C.red:r>0.4?"#F97316":C.blue;
+                      return(
+                      <div key={label} style={{marginBottom:12,padding:"8px 10px",background:C.card2,borderRadius:8,
+                        border:`1px solid ${r>0.6?C.red+"44":r>0.4?"#F9731644":C.border}`}}>
+                        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:5}}>
+                          <div style={{flex:1}}>
+                            <div style={{fontSize:10,color:C.text,fontWeight:700}}>{label}</div>
+                            <div style={{fontSize:8,color:C.muted}}>{sublabel}</div>
+                          </div>
+                          <div style={{fontSize:13,color:barColor,fontFamily:"monospace",fontWeight:900,flexShrink:0}}>
+                            {Math.round(r*100)}
+                          </div>
                         </div>
-                        <div style={{fontSize:13,color:col,fontFamily:"monospace",fontWeight:900,flexShrink:0}}>
-                          {((val??0)*100).toFixed(0)}
+                        <div style={{background:C.card,borderRadius:4,height:6,overflow:"hidden",marginBottom:6}}>
+                          <div style={{width:`${Math.round(r*100)}%`,height:"100%",borderRadius:4,
+                            background:barColor,transition:"width 0.6s"}}/>
                         </div>
+                        <div style={{fontSize:8,color:`${C.muted}99`,marginBottom:3}}>
+                          📊 <span style={{color:C.muted}}>{comp}</span>
+                        </div>
+                        <div style={{fontSize:8,color:`${C.muted}cc`,lineHeight:1.6}}>{desc}</div>
                       </div>
-                      <div style={{background:C.card,borderRadius:4,height:6,overflow:"hidden",marginBottom:6}}>
-                        <div style={{width:`${Math.round((val??0)*100)}%`,height:"100%",borderRadius:4,
-                          background:(val??0)>0.6?C.red:(val??0)>0.4?C.orange:col,transition:"width 0.6s"}}/>
-                      </div>
-                      <div style={{fontSize:8,color:`${C.muted}99`,marginBottom:3}}>
-                        📊 <span style={{color:C.muted}}>{comp}</span>
-                      </div>
-                      <div style={{fontSize:8,color:`${C.muted}cc`,lineHeight:1.6}}>{desc}</div>
-                    </div>
-                  ))}
+                      );
+                    });
+                  })()}
                   <div style={{padding:"7px 10px",background:`${C.gold}12`,borderRadius:7,
                     border:`1px solid ${C.gold}28`,fontSize:9,color:C.gold}}>
                     🏆 현재 가장 강한 힘: <strong>{physics.dominantForce}</strong>
@@ -3322,21 +3334,38 @@ else {
                   <div style={{color:C.blue,fontSize:9,fontWeight:800,marginBottom:5}}>
                     🛡️ AEGIS 전략 (US) — {strategy.riskLevel} 위험
                   </div>
-                  <div style={{color:C.muted,fontSize:9,lineHeight:1.5,marginBottom:8}}>{strategy.message}</div>
-                  <div style={{display:"flex",gap:8,marginBottom:8}}>
-                    {[["현금",strategy.cashBias,C.gold],["방어",strategy.defenseBias,C.red],["성장",strategy.growthExposure,C.green]].map(([l,v,col])=>(
-                      <div key={l} style={{flex:1,textAlign:"center",padding:"6px 0",background:`${col}15`,
+                  <div style={{color:C.muted,fontSize:9,lineHeight:1.6,marginBottom:8}}>{strategy.message}</div>
+                  {/* 자산 배분 */}
+                  <div style={{display:"flex",gap:8,marginBottom:10}}>
+                    {[["현금·채권",strategy.cashBias,C.gold,"단기 미국 국채(SHY·BIL) 또는 예금"],
+                      ["방어 자산",strategy.defenseBias,C.red,"헬스케어·필수소비재·유틸리티 ETF"],
+                      ["성장 자산",strategy.growthExposure,C.green,"S&P500 우량주·배당성장주"]].map(([l,v,col,hint])=>(
+                      <div key={l} style={{flex:1,textAlign:"center",padding:"7px 4px",background:`${col}15`,
                         borderRadius:7,border:`1px solid ${col}33`}}>
-                        <div style={{color:col,fontSize:13,fontWeight:900,fontFamily:"monospace"}}>{v}%</div>
-                        <div style={{color:C.muted,fontSize:8}}>{l}</div>
+                        <div style={{color:col,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>{v}%</div>
+                        <div style={{color:C.muted,fontSize:8,marginBottom:3}}>{l}</div>
+                        <div style={{color:`${C.muted}88`,fontSize:7,lineHeight:1.4}}>{hint}</div>
                       </div>
                     ))}
                   </div>
-                  {(strategy.actions||[]).map((a,i)=>(
-                    <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:9,color:C.text,lineHeight:1.5,marginBottom:2}}>
-                      <span style={{color:C.blue,fontWeight:900,flexShrink:0}}>▸</span><span>{a}</span>
-                    </div>
-                  ))}
+                  {/* 행동 지침 */}
+                  {(strategy.actions||[]).length>0&&(
+                  <div style={{marginBottom:8}}>
+                    <div style={{fontSize:8,color:C.muted,fontWeight:700,marginBottom:4}}>📋 구체적 행동 지침</div>
+                    {(strategy.actions||[]).map((a,i)=>(
+                      <div key={i} style={{display:"flex",alignItems:"flex-start",gap:6,fontSize:9,
+                        color:C.text,lineHeight:1.6,marginBottom:4,padding:"4px 8px",
+                        background:C.card2,borderRadius:6}}>
+                        <span style={{color:C.blue,fontWeight:900,flexShrink:0}}>▸</span><span>{a}</span>
+                      </div>
+                    ))}
+                  </div>
+                  )}
+                  {/* 주의사항 */}
+                  <div style={{padding:"6px 8px",background:`${C.gold}10`,borderRadius:6,
+                    border:`1px solid ${C.gold}22`,fontSize:8,color:`${C.muted}cc`,lineHeight:1.6}}>
+                    💡 이 전략은 현재 지표 기반의 참고 방향입니다. 개인 투자 판단에 활용하되, 최종 결정은 본인의 상황에 맞게 조정하세요.
+                  </div>
                 </div>
                 )}
 
