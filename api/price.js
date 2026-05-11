@@ -5,9 +5,15 @@
  * 10년치 월봉 한 번에 수신 — adjclose 사용으로 액면분할 소급 보정
  *
  * 시가총액은 KIS REST API에서 1순위로 가져옵니다.
- * - inquire-price: hts_avls 우선
- * - search-stock-info: hts_avls/lstg_stqt 보조
- * - 실패 시 shares × currentPrice fallback, 단 비정상 범위는 null 처리
+ * - 1순위 KIS inquire-price: hts_avls 우선
+ * - 2순위 KIS search-stock-info: hts_avls/lstg_stqt 보조
+ * - 3순위 Naver fallback: _market_sum / 조·억원 문자열 파싱
+ * - 4순위 shares × currentPrice fallback
+ *
+ * 중요:
+ * - 삼성전자·SK하이닉스처럼 1000조를 넘는 초대형주는 정상값입니다.
+ * - 시가총액 상한 cap을 두지 않습니다.
+ * - 숫자가 양수이면 표시하고, 실패 시에만 null 처리합니다.
  */
 
 let KIS_TOKEN_CACHE = null;
@@ -26,20 +32,22 @@ function normalizeMarketCapWon(value) {
   const n = toNumber(value);
   if (!n || n <= 0) return null;
 
-  // KIS hts_avls는 보통 억원 단위입니다. 이미 원 단위로 온 경우도 방어합니다.
+  // KIS hts_avls는 보통 '억원' 단위입니다.
+  // 다만 환경/필드에 따라 이미 '원' 단위처럼 큰 값이 올 수 있어 둘 다 방어합니다.
   const won = n > 10_000_000_000 ? n : n * 100_000_000;
 
-  // 한국 상장사 현실 범위 방어: 0.01조 미만 또는 1,500조 초과는 비정상으로 간주.
-  if (won < 10_000_000_000 || won > 1_500 * 1_000_000_000_000) return null;
-  return Math.round(won);
+  // 삼성전자·SK하이닉스 등 초대형주는 1000조를 넘을 수 있으므로 상한 cap을 두지 않습니다.
+  // 음수/0/NaN만 제거합니다.
+  return Number.isFinite(won) && won > 0 ? Math.round(won) : null;
 }
 
 function normalizeShares(value) {
   const n = toNumber(value);
   if (!n || n <= 0) return null;
-  // 보통 발행주식수는 수백만~수십억 주. 100억주 초과면 단위 오류 가능성.
-  if (n < 100_000 || n > 10_000_000_000) return null;
-  return Math.round(n);
+
+  // 상장주식수도 과도한 임의 상한을 두지 않습니다.
+  // 단, 1주 미만/NaN만 제거합니다.
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 }
 
 async function fetchKISAccessToken() {
@@ -108,7 +116,7 @@ async function fetchKISMarketCap(ticker, currentPrice) {
       "FHKST01010100"
     );
     const cap = normalizeMarketCapWon(out?.hts_avls || out?.stck_avls || out?.mktcap);
-    const shares = normalizeShares(out?.lstn_stcn || out?.lstg_stqt || out?.stck_sdpr);
+    const shares = normalizeShares(out?.lstn_stcn || out?.lstg_stqt || out?.lstg_st_cnt);
     if (cap) {
       result.marketCapWon = cap;
       result.marketCap = cap;
@@ -140,10 +148,11 @@ async function fetchKISMarketCap(ticker, currentPrice) {
     console.warn("[api/price] KIS search-stock-info fallback:", e?.message || e);
   }
 
-  // 3순위: KIS 상장주식수 × 현재가. 삼성전기 5100조 같은 오류를 막기 위해 sanity check를 강하게 적용합니다.
+  // 3순위: KIS 상장주식수 × 현재가 fallback.
+  // 삼성전자·SK하이닉스 등 1000조 초과 대형주도 정상값이므로 상한 cap을 두지 않습니다.
   if (result.shares && currentPrice > 0) {
     const fallbackCap = result.shares * currentPrice;
-    if (fallbackCap >= 10_000_000_000 && fallbackCap <= 1_500 * 1_000_000_000_000) {
+    if (Number.isFinite(fallbackCap) && fallbackCap > 0) {
       result.marketCapWon = Math.round(fallbackCap);
       result.marketCap = result.marketCapWon;
       result.kisSource = "shares*price-fallback";
@@ -153,6 +162,38 @@ async function fetchKISMarketCap(ticker, currentPrice) {
   return result.marketCapWon ? result : null;
 }
 
+
+function parseKoreanMarketCapToWon(raw) {
+  if (raw == null) return null;
+
+  const s = String(raw)
+    .replace(/&nbsp;/g, " ")
+    .replace(/&#x2F;/g, "/")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!s) return null;
+
+  // 예: "1,669조 2,345억원", "1,669조", "4,451,783억원"
+  const joMatch = s.match(/([0-9,]+(?:\.\d+)?)\s*조/);
+  const eokMatch = s.match(/([0-9,]+(?:\.\d+)?)\s*억/);
+
+  let won = 0;
+
+  if (joMatch) {
+    won += toNumber(joMatch[1]) * 1_000_000_000_000;
+    if (eokMatch) won += toNumber(eokMatch[1]) * 100_000_000;
+  } else if (eokMatch) {
+    won += toNumber(eokMatch[1]) * 100_000_000;
+  } else {
+    // _market_sum 값은 대개 '억원' 단위 숫자입니다.
+    const n = toNumber(s);
+    if (n > 0) won = n * 100_000_000;
+  }
+
+  return Number.isFinite(won) && won > 0 ? Math.round(won) : null;
+}
 
 async function fetchNaverMarketCap(ticker) {
   const url = `https://finance.naver.com/item/main.naver?code=${ticker}`;
@@ -164,29 +205,32 @@ async function fetchNaverMarketCap(ticker) {
       "Referer": "https://finance.naver.com/",
     },
   });
+
   if (!r.ok) throw new Error(`Naver marketCap ${r.status}`);
   const html = await r.text();
 
-  // Naver 종목 페이지의 시가총액은 보통 <em id="_market_sum">... </em> 형태이며 단위는 억원입니다.
   let raw = null;
+
+  // 1순위: 네이버 공식 시총 영역. 대개 억원 단위 숫자입니다.
   const idMatch = html.match(/id=["']_market_sum["'][^>]*>\s*([^<]+)\s*</i);
   if (idMatch) raw = idMatch[1];
 
-  // 구조 변경 대비: "시가총액" 주변 숫자 추출 fallback
+  // 2순위: 시가총액 주변의 "조/억원" 문자열 전체 추출.
   if (!raw) {
     const compact = html.replace(/\s+/g, " ");
-    const m = compact.match(/시가총액[\s\S]{0,400}?([0-9,]+)\s*억원/i);
+    const m = compact.match(/시가총액[\s\S]{0,700}?([0-9,]+(?:\.\d+)?\s*조(?:\s*[0-9,]+(?:\.\d+)?\s*억원?)?|[0-9,]+(?:\.\d+)?\s*억원?)/i);
     if (m) raw = m[1];
   }
 
-  const eok = toNumber(raw);
-  const marketCapWon = eok > 0 ? eok * 100_000_000 : null;
-  if (!marketCapWon || marketCapWon < 10_000_000_000 || marketCapWon > 1_500 * 1_000_000_000_000) return null;
+  const marketCapWon = parseKoreanMarketCapToWon(raw);
+  if (!marketCapWon) return null;
+
   return {
-    marketCapWon: Math.round(marketCapWon),
-    marketCap: Math.round(marketCapWon),
+    marketCapWon,
+    marketCap: marketCapWon,
     shares: null,
     marketCapSource: "naver",
+    naverRawMarketCap: raw,
   };
 }
 
@@ -330,6 +374,7 @@ module.exports = async function handler(req, res) {
       shares: marketInfo?.shares || null,
       kisSource: marketInfo?.kisSource || null,
       marketCapSource: marketInfo?.marketCapSource || marketInfo?.kisSource || null,
+      naverRawMarketCap: marketInfo?.naverRawMarketCap || null,
     });
 
   } catch (err) {
