@@ -10,6 +10,59 @@ function getYahooTicker(ticker, market) {
   return `${ticker}.KS`;
 }
 
+
+async function fetchKISAccessToken() {
+  const appKey = process.env.KIS_APP_KEY || process.env.KIS_APPKEY || process.env.KOREA_INVESTMENT_APP_KEY;
+  const appSecret = process.env.KIS_APP_SECRET || process.env.KIS_APPSECRET || process.env.KOREA_INVESTMENT_APP_SECRET;
+  if (!appKey || !appSecret) return null;
+
+  const tokenRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "client_credentials",
+      appkey: appKey,
+      appsecret: appSecret,
+    }),
+  });
+  if (!tokenRes.ok) throw new Error(`KIS token ${tokenRes.status}`);
+  const tokenJson = await tokenRes.json();
+  if (!tokenJson?.access_token) throw new Error("KIS access_token 없음");
+  return { accessToken: tokenJson.access_token, appKey, appSecret };
+}
+
+async function fetchKISMarketCap(ticker) {
+  const auth = await fetchKISAccessToken();
+  if (!auth) return null;
+
+  const url = `https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/search-stock-info?PRDT_TYPE_CD=300&PDNO=${ticker}`;
+  const r = await fetch(url, {
+    headers: {
+      "authorization": `Bearer ${auth.accessToken}`,
+      "appkey": auth.appKey,
+      "appsecret": auth.appSecret,
+      "tr_id": "CTPF1002R",
+      "custtype": "P",
+    },
+  });
+  if (!r.ok) throw new Error(`KIS marketCap ${r.status}`);
+  const json = await r.json();
+  const out = json?.output || {};
+
+  const shares = Number(String(out.lstg_stqt || out.lstg_st_cnt || "0").replace(/,/g, ""));
+  const htsAvls = Number(String(out.hts_avls || "0").replace(/,/g, ""));
+
+  // KIS hts_avls는 보통 억원 단위 시가총액입니다.
+  const marketCapWon = htsAvls > 0 ? htsAvls * 100000000 : 0;
+
+  return {
+    shares: Number.isFinite(shares) && shares > 0 ? shares : null,
+    marketCapWon: Number.isFinite(marketCapWon) && marketCapWon > 0 ? marketCapWon : null,
+    marketCap: Number.isFinite(marketCapWon) && marketCapWon > 0 ? marketCapWon : null,
+    kisRaw: out,
+  };
+}
+
 async function fetchYahoo(yahooTicker) {
   const now = Math.floor(Date.now() / 1000);
   const tenYearsAgo = now - 10 * 365 * 24 * 60 * 60;
@@ -132,6 +185,11 @@ module.exports = async function handler(req, res) {
         : "s-maxage=3600, stale-while-revalidate=300"
     );
 
+    const kisMarket = await fetchKISMarketCap(ticker).catch((e) => {
+      console.warn("[api/price] KIS market cap fallback:", e?.message || e);
+      return null;
+    });
+
     return res.status(200).json({
       monthly,
       currentPrice,
@@ -139,8 +197,11 @@ module.exports = async function handler(req, res) {
       change,
       changePct,
       priceDateStr,
-      source: "yahoo",
+      source: kisMarket?.marketCapWon ? "yahoo+kis" : "yahoo",
       yahooTicker: usedTicker,
+      marketCapWon: kisMarket?.marketCapWon || null,
+      marketCap: kisMarket?.marketCapWon || null,
+      shares: kisMarket?.shares || null,
     });
 
   } catch (err) {
