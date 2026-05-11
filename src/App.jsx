@@ -117,20 +117,25 @@ const TrajectoryTip=({active,payload,label})=>{
   if(!active||!payload?.length)return null;
   const d=payload[0]?.payload||{};
   const fmt=(v)=>Number.isFinite(Number(v))?`${Math.round(Number(v)).toLocaleString()}원`:"—";
+
+  const coreRows=[
+    ["기업가치 중심축",d.dynamicIV,C.gold],
+    ["시장 예상 경로",d.expected,C.blue],
+  ].filter(([,v])=>Number.isFinite(Number(v)))
+   .sort((a,b)=>Number(b[1])-Number(a[1]));
+
+  const rows=[
+    ["50% 상단",d.upper50,C.muted],
+    ...coreRows,
+    ["50% 하단",d.lower50,C.muted],
+  ];
+
   return(
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",fontSize:11,minWidth:170,boxShadow:"0 8px 24px rgba(0,0,0,0.18)"}}>
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 12px",fontSize:11,minWidth:190,boxShadow:"0 8px 24px rgba(0,0,0,0.18)"}}>
       <div style={{color:C.gold,fontWeight:900,marginBottom:7,fontFamily:"monospace"}}>{label}</div>
-      {[
-        ["80% 상단",d.upper80,C.muted],
-        ["50% 상단",d.upper50,C.muted],
-        ["시장 예상 경로",d.expected,C.blue],
-        ["50% 하단",d.lower50,C.muted],
-        ["80% 하단",d.lower80,C.muted],
-        ["기업가치 중심축",d.dynamicIV??d.fairValue,C.gold],
-        ...(d.dcfAnchor!=null?[["DCF 기준점",d.dcfAnchor,C.muted]]:[]),
-      ].map(([name,value,color])=>(
+      {rows.map(([name,value,color])=>(
         <div key={name} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:4,alignItems:"center"}}>
-          <span style={{color:C.muted,fontWeight:name==="시장 예상 경로"?800:600}}>{name}</span>
+          <span style={{color:C.muted,fontWeight:(name==="기업가치 중심축"||name==="시장 예상 경로")?800:600}}>{name}</span>
           <span style={{color,fontFamily:"monospace",fontWeight:900}}>{fmt(value)}</span>
         </div>
       ))}
@@ -2150,7 +2155,7 @@ else {
                         }));
                         const p12 = formula.probabilities?.find(p=>p.month===12);
                         const topBand = p12?.bands?.slice().sort((a,b)=>b.probability-a.probability)[0];
-                        const maxY = Math.max(...chartPoints.flatMap(p=>[p.upper80,p.dynamicIV,p.expected,p.qmaLine||0,price,dcfResults.avg]).filter(v=>Number.isFinite(Number(v))));
+                        const maxY = Math.max(...chartPoints.flatMap(p=>[p.upper50,p.dynamicIV,p.expected,price]).filter(v=>Number.isFinite(Number(v))));
                         const yMax = Math.ceil((maxY*1.12)/1000)*1000;
                         const fmtPct = v => Number.isFinite(Number(v)) ? `${(Number(v)*100).toFixed(1)}%` : "—";
                         const fmtMul = v => Number.isFinite(Number(v)) ? `${Number(v).toFixed(1)}배` : "—";
@@ -2174,9 +2179,9 @@ else {
                               ["EPS 성장궤적", fmtPct(formula.meta.blendedGrowth), C.green, formula.meta.trajectoryLabel],
                               ["현재 내재가치 Anchor", fmtWon(dcfResults.avg), C.gold, "DCF·그레이엄·ROE·오너이익 4방식 평균 기준점"],
                               ["시장 성장 프리미엄", fmtMul(formula.meta.dynamicMultiple), C.blue, `성장률·ROE 기반 미래 기대 멀티플 · ${formula.meta.multipleLabel}`],
-                              ["과거 시장 평균 PER", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`최근 ${formula.meta.historicalMultipleStats.count}개월 시장 평균 평가 · 현실 보정 ${(Number(formula.meta.historicalWeight||0)*100).toFixed(0)}%`:"이론 중심"],
+                              ["과거 시장 평균 PER", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`최근 평균값 보정`:"이론 중심"],
                               ["ROE 품질", `${Number(formula.meta.roeLatest||0).toFixed(1)}%`, C.teal, `3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`],
-                              ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, `${Math.round(formula.meta.qmaGap||0)}% 이격 · 유효 ${Math.round(formula.meta.effectiveQmaGap||formula.meta.qmaGap||0)}%`],
+                              ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, formula.meta.qmaGap>20?`${Math.round(formula.meta.qmaGap)}% 과열 (하방 중력 강화)`:formula.meta.qmaGap<-20?`${Math.round(formula.meta.qmaGap)}% 침체 (상방 중력 강화)`:`${Math.round(formula.meta.qmaGap||0)}% 이격 (중립권)`],
                               ["확률밴드 σ", `${Number(formula.meta.sigmaBase*100).toFixed(1)}%`, C.gold, "변동성·ROE·이격 반영"],
                             ].map(([k,v,col,sub])=>(
                               <div key={k} style={{background:C.card2,border:`1px solid ${col}33`,borderRadius:9,padding:"8px 10px"}}>
@@ -2203,17 +2208,14 @@ else {
                               <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
                               <YAxis {...yp("원",58)} domain={[0,yMax]} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
-                              <Area dataKey="upper80" name="80% 확률밴드" stroke="none" fill="url(#formulaBand80)" dot={false} isAnimationActive={false}/>
                               <Area dataKey="upper50" name="50% 확률밴드" stroke="none" fill="url(#formulaBand50)" dot={false} isAnimationActive={false}/>
                               <Line dataKey="dynamicIV" name="미래 내재가치 궤적 IV(t)" stroke={C.gold} strokeWidth={3} dot={false}/>
                               <Line dataKey="expected" name="시장 예상 경로 P(t)" stroke={C.blue} strokeWidth={3} dot={false}/>
-                              <Line dataKey="qmaLine" name="QMA 중력 중심선" stroke={C.green} strokeWidth={2} strokeDasharray="5 4" dot={false}/>
-                              <ReferenceLine y={dcfResults.avg} stroke={C.gold} strokeDasharray="3 5" label={{value:"Anchor",fill:C.gold,fontSize:9}}/>
                               <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
                             </ComposedChart>
                           </CW>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",color:C.muted,fontSize:8,fontFamily:"monospace",marginTop:-4,marginRight:12}}>
-                            <span>노란선=미래 내재가치 궤적 IV(t), 파란선=현재가에서 출발하는 시장 예상 경로 P(t), 초록 점선=QMA 중력 중심선, 금색 점선=현재 내재가치 Anchor, 붉은 점선=현재가</span>
+                            <span>노란선=기업가치 중심축, 파란선=현재가에서 출발하는 시장 예상 경로, 붉은 점선=현재가</span>
                             <span>X축: Month(개월)</span>
                           </div>
 
@@ -2250,7 +2252,7 @@ else {
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.gold,fontSize:8,fontWeight:900,marginBottom:5}}>④ 차트 읽는 법</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>노란선은 EPS×동적 멀티플로 산출한 미래 내재가치 궤적입니다. 파란선은 현재가에서 출발해 QMA 중력과 내재가치 궤적을 반영한 시장 예상 경로입니다. 초록 점선은 QMA 중력 중심선입니다.</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>노란선은 EPS×동적 멀티플로 산출한 기업가치 중심축입니다. 파란선은 현재가에서 출발해 QMA 중력과 기업가치 중심축을 반영한 시장 예상 경로입니다.</div>
                             </div>
                           </div>
                         </div>
