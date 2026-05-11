@@ -17,6 +17,8 @@ const SB_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_ANON_KEY
 const safeNum = (v, fb = null) =>
   Number.isFinite(Number(v)) ? Number(v) : fb;
 
+const clamp01 = v => Math.max(0, Math.min(1, isFinite(v) ? v : 0));
+
 const last    = arr => arr?.slice(-1)[0]?.value ?? null;
 const lastYoy = arr => [...(arr||[])].reverse().find(r => r.yoy != null)?.yoy ?? null;
 
@@ -162,10 +164,7 @@ async function makeKoreaSnapshot() {
  * 4. changeDrivers — 변화 원인 레이어 추가
  */
 
-const last    = arr => arr?.slice(-1)[0]?.value ?? null;
-const lastYoy = arr => [...(arr || [])].reverse().find(r => r.yoy != null)?.yoy ?? null;
-const clamp01 = v => Math.max(0, Math.min(1, isFinite(v) ? v : 0));
-const safeNum = (v, fb = 0) => Number.isFinite(Number(v)) ? Number(v) : fb;
+// last, lastYoy, clamp01, safeNum 상단에 이미 선언됨
 
 const scoreV = (v, [bad2, bad1, good1, good2], dir = 1) => {
   if (v == null) return 0;
