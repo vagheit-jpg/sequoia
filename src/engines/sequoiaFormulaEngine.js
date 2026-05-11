@@ -275,6 +275,10 @@ export function buildSequoiaFormulaLab({
     const lower50 = expected - 0.67 * sigma * downsideSkew;
     const upper80 = expected + 1.28 * sigma * upsideSkew;
     const lower80 = expected - 1.28 * sigma * downsideSkew;
+
+    // 세콰이어 하방 방어선: 기업가치 중심축이 살아있는 경우 확률밴드 하단이 0원으로 붕괴하지 않게 제한합니다.
+    // 단순한 가격 예측 바닥이 아니라, IV(t)의 생존가치 하단을 의미합니다.
+    const valueFloor = Math.max(1, dynamicIV * 0.35);
     const qmaLine = qmaLine0 * Math.pow(1 + clamp(gp.blendedGrowth * 0.45, -0.08, 0.14), years);
 
     points.push({
@@ -288,9 +292,9 @@ export function buildSequoiaFormulaLab({
       qmaGravityAdj: Math.round(qmaGravityAdj),
       effectiveGap: Number((effectiveGap * 100).toFixed(1)),
       upper80: Math.round(upper80),
-      lower80: Math.max(0, Math.round(lower80)),
+      lower80: Math.max(Math.round(valueFloor), Math.round(lower80)),
       upper50: Math.round(upper50),
-      lower50: Math.max(0, Math.round(lower50)),
+      lower50: Math.max(Math.round(valueFloor), Math.round(lower50)),
       sd: Math.round(sigma),
       eps: Math.round(epsT),
       multiple: Number(m.calibratedMultiple.toFixed(1)),
@@ -345,6 +349,10 @@ export function buildSequoiaFormulaLab({
       historicalWeight: mNow.historicalWeight,
       historicalMultipleStats: hist,
       multipleLabel,
+      dynamicMultipleDesc: "고성장·고ROE 기반 미래 기대 멀티플",
+      historicalMultipleDesc: "최근 시장이 이 종목에 실제 부여했던 평균 PER",
+      valueCoreDesc: "기업가치 중심축 = EPS(t) × M(t)",
+      expectedPathDesc: "시장 예상 가격 경로 = 기업가치 중심축 + QMA 중력장",
       growthPremium: mNow.growthPremium,
       roePremium: mNow.roePremium,
       qmaGap: gapPct,
