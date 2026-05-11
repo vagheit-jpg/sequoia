@@ -2262,7 +2262,7 @@ else {
                               <Line dataKey="dynamicIV" name="기업가치 중심축 IV(t)" stroke={C.gold} strokeWidth={2.5} dot={false}/>
                               <Line dataKey="expected" name="시장 예상 경로 P(t)" stroke={C.blue} strokeWidth={2.5} dot={false}/>
                               <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
-                              <ReferenceLine y={dcfResults.avg} stroke={C.gold} strokeDasharray="2 4" strokeOpacity={0.5} label={{value:"내재가치 Anchor",fill:C.gold,fontSize:9}}/>
+                              <ReferenceLine y={dcfResults.avg} stroke={C.gold} strokeDasharray="2 4" strokeOpacity={0.5} label={{value:"내재가치",fill:C.gold,fontSize:9}}/>
                             </ComposedChart>
                           </CW>
 
