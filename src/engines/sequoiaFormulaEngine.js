@@ -268,17 +268,22 @@ export function buildSequoiaFormulaLab({
 
     const gravityDecay = Math.exp(-0.045 * t);
     const qmaGravityAdj = gravityAdjustment({ gap, dynamicIV, lambda, decay: gravityDecay });
-    const expected = Math.max(dynamicIV * 0.35, dynamicIV + qmaGravityAdj);
 
-    const sigma = expected * sigmaBase * Math.sqrt(Math.max(t, 1) / 12);
+    // 기업가치 중심축(dynamicIV)은 EPS×Multiple로 산출되는 "가치의 중심"입니다.
+    // 시장 예상 경로(expected)는 현재가에서 출발해, QMA 중력장이 반영된 목표 경로로 점진 수렴해야 직관적입니다.
+    // 따라서 t=0에서는 반드시 현재가(p0)와 일치시키고, 시간이 흐를수록 formulaTarget을 따라가게 만듭니다.
+    const formulaTarget = Math.max(dynamicIV * 0.35, dynamicIV + qmaGravityAdj);
+    const convergence = t === 0 ? 0 : (1 - Math.exp(-0.085 * t));
+    const expected = Math.max(1, p0 + (formulaTarget - p0) * convergence);
+
+    const sigma = expected * sigmaBase * Math.sqrt(Math.max(t, 0) / 12);
     const upper50 = expected + 0.67 * sigma * upsideSkew;
     const lower50 = expected - 0.67 * sigma * downsideSkew;
     const upper80 = expected + 1.28 * sigma * upsideSkew;
     const lower80 = expected - 1.28 * sigma * downsideSkew;
 
-    // 세콰이어 하방 방어선: 기업가치 중심축이 살아있는 경우 확률밴드 하단이 0원으로 붕괴하지 않게 제한합니다.
-    // 단순한 가격 예측 바닥이 아니라, IV(t)의 생존가치 하단을 의미합니다.
-    const valueFloor = Math.max(1, dynamicIV * 0.35);
+    // 세콰이어 하방 방어선: 확률밴드 하단이 0원으로 붕괴하지 않되, 예상 경로보다 위로 올라오지는 않게 제한합니다.
+    const valueFloor = Math.max(1, Math.min(expected * 0.82, dynamicIV * 0.30));
     const qmaLine = qmaLine0 * Math.pow(1 + clamp(gp.blendedGrowth * 0.45, -0.08, 0.14), years);
 
     points.push({
@@ -367,7 +372,7 @@ export function buildSequoiaFormulaLab({
       dcfAnchor,
       currentPrice: p0,
       qmaLine0,
-      note: "EPS 성장궤적 × 동적 멀티플(역사 PER 보조 보정) + 포화형 QMA 평균회귀 중력장 + 확률분포 밴드",
+      note: "기업가치 중심축은 EPS×Multiple, 시장 예상 경로는 현재가에서 출발해 QMA 중력 반영 목표경로로 수렴합니다.",
     },
   };
 }
