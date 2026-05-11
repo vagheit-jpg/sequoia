@@ -532,7 +532,7 @@ export default function App(){
   const ma60val=withMA60.slice(-1)[0]?.ma60||0;
   const per=lastAnn.per||(lastAnn.eps&&price?Math.round(price/lastAnn.eps*10)/10:0);
   const pbr=lastAnn.pbr||(lastAnn.bps&&price?Math.round(price/lastAnn.bps*100)/100:0);
-  const marketCapWon=priceInfo?.marketCapWon||priceInfo?.marketCap||((price>0&&lastAnn.shares&&price*lastAnn.shares<1000*1e12)?price*lastAnn.shares:null);
+  const marketCapWon=priceInfo?.marketCapWon||priceInfo?.marketCap||((price>0&&lastAnn.shares&&price*lastAnn.shares<10000*1e12)?price*lastAnn.shares:null);
   const formatMarketCap=(won)=>{
     if(!won||!Number.isFinite(Number(won)))return "—";
     const eok=won/1e8;
@@ -2154,13 +2154,14 @@ else {
                         const yMax = Math.ceil((maxY*1.12)/1000)*1000;
                         const fmtPct = v => Number.isFinite(Number(v)) ? `${(Number(v)*100).toFixed(1)}%` : "—";
                         const fmtMul = v => Number.isFinite(Number(v)) ? `${Number(v).toFixed(1)}배` : "—";
+                        const fmtWon = v => Number.isFinite(Number(v)) ? `${Math.round(Number(v)).toLocaleString()}원` : "—";
                         return (
                         <div style={{background:`linear-gradient(135deg,${C.card2},${C.card})`,border:`1.5px solid ${C.green}33`,borderRadius:14,padding:"14px 16px",marginTop:14}}>
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:12,flexWrap:"wrap"}}>
                             <div>
                               <div style={{color:C.green,fontSize:12,fontWeight:900,letterSpacing:"0.04em"}}>🌲 SEQUOIA Formula Lab™ — 가치 동역학 공식</div>
                               <div style={{color:C.muted,fontSize:8,lineHeight:1.7,marginTop:4}}>
-                                기업가치 중심축(EPS×멀티플)과 시장 예상 경로(QMA 중력 반영)를 함께 표시합니다.
+                                현재 내재가치 Anchor(4방식 평균)를 기준으로, 미래 내재가치 궤적과 현재가에서 출발하는 시장 예상 경로를 함께 표시합니다.
                               </div>
                             </div>
                             <div style={{background:`${C.gold}12`,border:`1px solid ${C.gold}44`,borderRadius:9,padding:"7px 10px",fontFamily:"monospace",fontSize:10,color:C.gold,fontWeight:900}}>
@@ -2171,7 +2172,8 @@ else {
                           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:12}}>
                             {[
                               ["EPS 성장궤적", fmtPct(formula.meta.blendedGrowth), C.green, formula.meta.trajectoryLabel],
-                              ["시장 성장 프리미엄", fmtMul(formula.meta.dynamicMultiple), C.blue, `고성장·고ROE 기반 미래 기대 멀티플 · ${formula.meta.multipleLabel}`],
+                              ["현재 내재가치 Anchor", fmtWon(dcfResults.avg), C.gold, "DCF·그레이엄·ROE·오너이익 4방식 평균 기준점"],
+                              ["시장 성장 프리미엄", fmtMul(formula.meta.dynamicMultiple), C.blue, `성장률·ROE 기반 미래 기대 멀티플 · ${formula.meta.multipleLabel}`],
                               ["과거 시장 평균 PER", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`최근 ${formula.meta.historicalMultipleStats.count}개월 시장 평균 평가 · 현실 보정 ${(Number(formula.meta.historicalWeight||0)*100).toFixed(0)}%`:"이론 중심"],
                               ["ROE 품질", `${Number(formula.meta.roeLatest||0).toFixed(1)}%`, C.teal, `3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`],
                               ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, `${Math.round(formula.meta.qmaGap||0)}% 이격 · 유효 ${Math.round(formula.meta.effectiveQmaGap||formula.meta.qmaGap||0)}%`],
@@ -2203,13 +2205,17 @@ else {
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
                               <Area dataKey="upper80" name="80% 확률밴드" stroke="none" fill="url(#formulaBand80)" dot={false} isAnimationActive={false}/>
                               <Area dataKey="upper50" name="50% 확률밴드" stroke="none" fill="url(#formulaBand50)" dot={false} isAnimationActive={false}/>
-                              <Line dataKey="dynamicIV" name="IV(t) 내재가치 궤적" stroke={C.gold} strokeWidth={3} dot={false}/>
-                              <Line dataKey="expected" name="P(t) 기대 가격장" stroke={C.blue} strokeWidth={3} dot={false}/>
+                              <Line dataKey="dynamicIV" name="미래 내재가치 궤적 IV(t)" stroke={C.gold} strokeWidth={3} dot={false}/>
+                              <Line dataKey="expected" name="시장 예상 경로 P(t)" stroke={C.blue} strokeWidth={3} dot={false}/>
                               <Line dataKey="qmaLine" name="QMA 중력 중심선" stroke={C.green} strokeWidth={2} strokeDasharray="5 4" dot={false}/>
+                              <ReferenceLine y={dcfResults.avg} stroke={C.gold} strokeDasharray="3 5" label={{value:"Anchor",fill:C.gold,fontSize:9}}/>
                               <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
                             </ComposedChart>
                           </CW>
-                          <div style={{display:"flex",justifyContent:"flex-end",color:C.muted,fontSize:8,fontFamily:"monospace",marginTop:-4,marginRight:12}}>X축: Month(개월)</div>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",color:C.muted,fontSize:8,fontFamily:"monospace",marginTop:-4,marginRight:12}}>
+                            <span>노란선=미래 내재가치 궤적 IV(t), 파란선=현재가에서 출발하는 시장 예상 경로 P(t), 초록 점선=QMA 중력 중심선, 금색 점선=현재 내재가치 Anchor, 붉은 점선=현재가</span>
+                            <span>X축: Month(개월)</span>
+                          </div>
 
                           {p12&&(
                             <div style={{marginTop:9,background:C.card2,borderRadius:9,padding:"9px 10px",border:`1px solid ${C.border}`}}>
@@ -2236,7 +2242,7 @@ else {
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.blue,fontSize:8,fontWeight:900,marginBottom:5}}>② M(t) 동적 멀티플</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>시장 성장 프리미엄은 성장률·ROE가 만드는 미래 기대 멀티플입니다. 과거 시장 평균 PER은 이론값이 과도해지지 않도록 보조 보정으로만 반영됩니다.</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>시장 성장 프리미엄은 성장률·ROE가 만드는 미래 기대 멀티플입니다. 과거 시장 평균 PER은 이론값이 과도해지지 않도록 보조 보정으로만 반영되며, 현재 내재가치 Anchor는 기존 4방식 평균을 사용합니다.</div>
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.orange,fontSize:8,fontWeight:900,marginBottom:5}}>③ Gqma(t) QMA 중력장</div>
@@ -2244,7 +2250,7 @@ else {
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.gold,fontSize:8,fontWeight:900,marginBottom:5}}>④ 차트 읽는 법</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>노란선은 기업가치 중심축, 파란선은 QMA 중력까지 반영한 시장 예상 경로입니다. 과열 이격이 크면 파란선이 노란선보다 눌리고, 저평가 이격이면 위로 당겨집니다.</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>노란선은 EPS×동적 멀티플로 산출한 미래 내재가치 궤적입니다. 파란선은 현재가에서 출발해 QMA 중력과 내재가치 궤적을 반영한 시장 예상 경로입니다. 초록 점선은 QMA 중력 중심선입니다.</div>
                             </div>
                           </div>
                         </div>
