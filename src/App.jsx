@@ -40,6 +40,7 @@ import { calcSefconUS } from "./engines/sefconUS";
 import { runCoreIntelligenceUS } from "./engines/intelligence/coreIntelligenceUS";
 import { buildGlobalTransition } from "./engines/globalTransition";
 import { buildTrajectoryLab } from "./engines/trajectoryEngine";
+import { buildSequoiaFormulaLab } from "./engines/sequoiaFormulaEngine";
 import { parseExcel } from "./services/excelParser";
 import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
@@ -126,8 +127,6 @@ const TrajectoryTip=({active,payload,label})=>{
         ["50% 하단",d.lower50,C.muted],
         ["80% 하단",d.lower80,C.muted],
         ["내재가치 중력원",d.fairValue,C.gold],
-        ["군집 슈팅",d.crowdForce,C.green],
-        ["붕괴 압력",d.collapseForce,C.red],
       ].map(([name,value,color])=>(
         <div key={name} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:4,alignItems:"center"}}>
           <span style={{color:C.muted,fontWeight:name==="기대 경로"?800:600}}>{name}</span>
@@ -167,7 +166,7 @@ export default function App(){
   const DCF_DEFAULT_INIT={bondYield:3.5,riskPrem:2.0,gr:8.0,reqReturn:10.0,capexRatio:50};
   const [dcfDraft,setDcfDraft]=useState({});
   const [dcfApplied,setDcfApplied]=useState({...DCF_DEFAULT_INIT});
-  const TRAJECTORY_SCENARIO_DEFAULT={marketEfficiency:100,supplyEnergy:100,catalystStrength:100,psychologyDirection:0,shootingPressure:100,collapsePressure:100};
+  const TRAJECTORY_SCENARIO_DEFAULT={marketEfficiency:100,supplyEnergy:100,catalystStrength:100};
   const [trajectoryScenario,setTrajectoryScenario]=useState({...TRAJECTORY_SCENARIO_DEFAULT});
   const BAND_DEFAULT={perLo:7,perMid:13,perHi:20,pbrLo:1.0,pbrMid:2.0,pbrHi:3.5};
   const [bandDraft,setBandDraft]=useState(null); // null=자동모드
@@ -532,18 +531,9 @@ export default function App(){
   const ma60val=withMA60.slice(-1)[0]?.ma60||0;
   const per=lastAnn.per||(lastAnn.eps&&price?Math.round(price/lastAnn.eps*10)/10:0);
   const pbr=lastAnn.pbr||(lastAnn.bps&&price?Math.round(price/lastAnn.bps*100)/100:0);
-  const calcMarketCapWon=(priceValue,sharesValue)=>{
-    const p=Number(priceValue), s=Number(sharesValue);
-    if(!Number.isFinite(p)||!Number.isFinite(s)||p<=0||s<=0)return null;
-    const cap=p*s;
-    // 한국 상장사 기준 1,000조 초과는 대개 주가 단위/발행주식수 데이터 불일치입니다.
-    // 잘못된 숫자를 보여주지 않고 확인 필요로 처리합니다.
-    if(cap>1000*1e12)return null;
-    return cap;
-  };
-  const marketCapWon=calcMarketCapWon(price,lastAnn.shares);
+  const marketCapWon=priceInfo?.marketCapWon||priceInfo?.marketCap||((price>0&&lastAnn.shares&&price*lastAnn.shares<1000*1e12)?price*lastAnn.shares:null);
   const formatMarketCap=(won)=>{
-    if(!won||!Number.isFinite(Number(won)))return "데이터 확인 필요";
+    if(!won||!Number.isFinite(Number(won)))return "—";
     const eok=won/1e8;
     if(eok>=10000)return `${(eok/10000).toLocaleString(undefined,{maximumFractionDigits:2})}조`;
     return `${Math.round(eok).toLocaleString()}억`;
@@ -2135,169 +2125,92 @@ else {
                     );
                   })()}
 
-                      {/* Trajectory Lab — 확률 경로 실험실 */}
+                      {/* SEQUOIA Formula Lab — 가치 동역학 공식 */}
                       {hasFinData && price>0 && dcfResults.avg>0 && (()=>{
-                        const traj = buildTrajectoryLab({
+                        const formula = buildSequoiaFormulaLab({
                           currentPrice: price,
                           intrinsicValue: dcfResults.avg,
                           monthly,
-                          macdData: withMACD,
                           qmaGap: lastGap,
-                          cycle: coreIntel?.cycle,
                           financials: {
                             annData: co?.annData || [],
                             qtrData: co?.qtrData || [],
-                            epsTrend: readingEngine?.epsTrend,
-                            roe: readingEngine?.roe,
-                            avgRoe3: readingEngine?.avgRoe3,
+                            eps: lastAnn.eps,
+                            roe: lastAnn.roe,
+                            avgRoe3: readingEngine.avgRoe3,
                           },
                           months: 36,
-                          scenario: trajectoryScenario,
                         });
-                        if(!traj.ready) return null;
-                        const p12 = traj.probabilities.find(p=>p.month===12) || traj.probabilities[1];
-                        const topBand = p12?.bands?.slice().sort((a,b)=>b.probability-a.probability)[0];
-
-                        // Recharts에서 상단/하단 Area를 개별로 겹쳐 그리면
-                        // 시각적 밴드와 tooltip 좌표가 어긋나 보일 수 있다.
-                        // 따라서 [lower, upper] range area로 50%/80% 확률 구름을 직접 그린다.
-                        const trajChartPoints = traj.points.map(pt=>({
-                          ...pt,
-                          band80:[pt.lower80, pt.upper80],
-                          band50:[pt.lower50, pt.upper50],
+                        if(!formula?.ready) return null;
+                        const chartPoints = formula.points.map(p=>({
+                          ...p,
+                          band80: Math.max(0, p.upper80 - p.lower80),
+                          band50: Math.max(0, p.upper50 - p.lower50),
                         }));
-                        const trajYMaxRaw = Math.max(
-                          ...traj.points.flatMap(pt=>[
-                            pt.upper80,
-                            pt.upper50,
-                            pt.expected,
-                            pt.fairValue,
-                          ].filter(v=>Number.isFinite(Number(v))))
-                        );
-                        // Y축 좌표 보정: Recharts 자동 tick이 6,500원 같은 중간값을 섞으면
-                        // 실제 좌표와 눈금 해석이 어긋나 보인다. 그래서 0~상단값을
-                        // 4개 균등 눈금으로 고정한다. 예: 0 / 1만 / 2만 / 3만.
-                        const trajTickUnit = trajYMaxRaw <= 20000 ? 5000 : trajYMaxRaw <= 50000 ? 10000 : 50000;
-                        const trajYMax = Math.ceil((trajYMaxRaw * 1.08) / trajTickUnit) * trajTickUnit;
-                        const trajYTicks = Array.from(
-                          { length: Math.floor(trajYMax / trajTickUnit) + 1 },
-                          (_, i) => i * trajTickUnit
-                        );
-                        return(
-                        <div style={{background:`${C.blue}08`,border:`1px solid ${C.blue}28`,borderRadius:12,padding:"12px 14px",marginTop:14,marginBottom:12}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:8}}>
+                        const p12 = formula.probabilities?.find(p=>p.month===12);
+                        const topBand = p12?.bands?.slice().sort((a,b)=>b.probability-a.probability)[0];
+                        const maxY = Math.max(...chartPoints.flatMap(p=>[p.upper80,p.dynamicIV,p.expected,p.qmaLine||0,price,dcfResults.avg]).filter(v=>Number.isFinite(Number(v))));
+                        const yMax = Math.ceil((maxY*1.12)/1000)*1000;
+                        const fmtPct = v => Number.isFinite(Number(v)) ? `${(Number(v)*100).toFixed(1)}%` : "—";
+                        const fmtMul = v => Number.isFinite(Number(v)) ? `${Number(v).toFixed(1)}배` : "—";
+                        return (
+                        <div style={{background:`linear-gradient(135deg,${C.card2},${C.card})`,border:`1.5px solid ${C.green}33`,borderRadius:14,padding:"14px 16px",marginTop:14}}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:12,flexWrap:"wrap"}}>
                             <div>
-                              <div style={{color:C.blue,fontSize:11,fontWeight:900,letterSpacing:"0.04em"}}>🧪 Trajectory Lab — 확률 경로 실험실</div>
-                              <div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginTop:3}}>
-                                EPS 증가속도·ROE 지속성·QMA 위치·MACD·사이클 환경을 결합해 미래 가격 분포를 실험적으로 시뮬레이션합니다.
+                              <div style={{color:C.green,fontSize:12,fontWeight:900,letterSpacing:"0.04em"}}>🌲 SEQUOIA Formula Lab™ — 가치 동역학 공식</div>
+                              <div style={{color:C.muted,fontSize:8,lineHeight:1.7,marginTop:4}}>
+                                EPS 성장궤적 × Dynamic Multiple × QMA 평균회귀 중력장 × 확률분포 밴드
                               </div>
                             </div>
-                            <Tag color={C.purple} size={8}>Experimental</Tag>
-                          </div>
-
-                          <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"10px 11px",marginBottom:10}}>
-                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:8,flexWrap:"wrap"}}>
-                              <div>
-                                <div style={{color:C.gold,fontSize:9,fontWeight:900}}>🎛 시나리오 모드</div>
-                                <div style={{color:C.muted,fontSize:7,lineHeight:1.5,marginTop:2}}>자동 k는 유지하고, 시장 효율성·수급·촉매·심리·슈팅/붕괴 압력으로 인간 시장 동역학을 실험합니다.</div>
-                              </div>
-                              <button onClick={()=>setTrajectoryScenario({...TRAJECTORY_SCENARIO_DEFAULT})}
-                                style={{background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:7,padding:"5px 8px",fontSize:8,cursor:"pointer",fontWeight:800}}>
-                                중립 리셋
-                              </button>
-                            </div>
-                            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:10}}>
-                              {[
-                                {key:"marketEfficiency",label:"시장 효율성",desc:"가치 발견 속도",color:C.blue,min:50,max:200,step:5,left:"저효율",right:"고효율",suffix:"%"},
-                                {key:"supplyEnergy",label:"수급 에너지",desc:"매수세/유동성",color:C.teal,min:50,max:200,step:5,left:"약함",right:"폭발",suffix:"%"},
-                                {key:"catalystStrength",label:"촉매 강도",desc:"실적·수주·이벤트",color:C.purple,min:50,max:200,step:5,left:"약함",right:"강함",suffix:"%"},
-                                {key:"psychologyDirection",label:"심리 방향",desc:"공포 ↔ 탐욕",color:C.gold,min:-100,max:100,step:5,left:"극단 매도",right:"극단 매수",suffix:""},
-                                {key:"shootingPressure",label:"슈팅 압력",desc:"내재가치 상방 이탈",color:C.green,min:50,max:200,step:5,left:"낮음",right:"광기",suffix:"%"},
-                                {key:"collapsePressure",label:"붕괴 압력",desc:"경착륙/언더슈팅",color:C.red,min:50,max:200,step:5,left:"낮음",right:"패닉",suffix:"%"},
-                              ].map(item=>{
-                                const raw=trajectoryScenario[item.key];
-                                const display=item.key==="psychologyDirection"
-                                  ? (raw>0?`매수 +${raw}`:raw<0?`매도 ${raw}`:"중립 0")
-                                  : `${raw}${item.suffix}`;
-                                return(
-                                <div key={item.key}>
-                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                                    <span style={{color:C.text,fontSize:8,fontWeight:800}}>{item.label}</span>
-                                    <span style={{color:item.color,fontSize:10,fontWeight:900,fontFamily:"monospace"}}>{display}</span>
-                                  </div>
-                                  <input type="range" min={item.min} max={item.max} step={item.step} value={raw}
-                                    onChange={e=>setTrajectoryScenario(p=>({...p,[item.key]:+e.target.value}))}
-                                    style={{width:"100%",accentColor:item.color}}/>
-                                  <div style={{display:"flex",justifyContent:"space-between",color:C.muted,fontSize:7,marginTop:2}}>
-                                    <span>{item.left}</span><span>{item.desc}</span><span>{item.right}</span>
-                                  </div>
-                                </div>
-                              )})}
+                            <div style={{background:`${C.gold}12`,border:`1px solid ${C.gold}44`,borderRadius:9,padding:"7px 10px",fontFamily:"monospace",fontSize:10,color:C.gold,fontWeight:900}}>
+                              P(t) ≈ [EPS(t) × M(t)] + Gqma(t) ± B(t)
                             </div>
                           </div>
 
-                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(110px,1fr))",gap:8,marginBottom:10}}>
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:12}}>
                             {[
-                              ["현재가", `${price.toLocaleString()}원`, C.text],
-                              ["중력원", `${dcfResults.avg.toLocaleString()}원`, C.gold],
-                              ["모드", traj.meta.regimeMode || traj.meta.crowdMode || "Gravity Mode", C.green],
-                              ["심리", traj.meta.psychologyLabel || "중립", traj.meta.direction==="BEAR"?C.red:traj.meta.direction==="BULL"?C.green:C.gold],
-                              ["자동 k", traj.meta.autoK.toFixed(3), C.muted],
-                              ["보정계수", `${traj.meta.scenarioMultiplier.toFixed(2)}×`, C.purple],
-                              ["최종 k", traj.meta.finalK.toFixed(3), C.blue],
-                              ["상승 k", traj.meta.bullishK?.toFixed(3) || "—", C.green],
-                              ["하락 k", traj.meta.bearishK?.toFixed(3) || "—", C.red],
-                              ["군집 슈팅", `${((traj.meta.positiveNarrative||0)).toFixed(2)}×`, C.green],
-                              ["붕괴 압력", `${((traj.meta.negativeNarrative||0)).toFixed(2)}×`, C.red],
-                              ["사이클", traj.meta.cycleMode, C.purple],
-                            ].map(([k,v,col])=>(
-                              <div key={k} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"7px 9px"}}>
-                                <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{k}</div>
-                                <div style={{color:col,fontSize:11,fontWeight:900,fontFamily:"monospace"}}>{v}</div>
-                                {k==="최종 k"&&(
-                                  <div style={{color:C.muted,fontSize:7,marginTop:3,lineHeight:1.4}}>
-                                    {traj.meta.finalK<0.04?"느린 수렴 구간":traj.meta.finalK<0.08?"점진 수렴 구간":traj.meta.finalK<0.12?"빠른 재평가 구간":"강한 촉매형 수렴"}
-                                  </div>
-                                )}
+                              ["EPS 성장궤적", fmtPct(formula.meta.blendedGrowth), C.green, formula.meta.trajectoryLabel],
+                              ["Dynamic Multiple", fmtMul(formula.meta.dynamicMultiple), C.blue, formula.meta.multipleLabel],
+                              ["역사 PER 보정", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`${formula.meta.historicalMultipleStats.count}개월`:"이론 중심"],
+                              ["ROE 품질", `${Number(formula.meta.roeLatest||0).toFixed(1)}%`, C.teal, `3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`],
+                              ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, `${Math.round(formula.meta.qmaGap||0)}% 이격`],
+                              ["확률밴드 σ", `${Number(formula.meta.sigmaBase*100).toFixed(1)}%`, C.gold, "변동성·ROE·이격 반영"],
+                            ].map(([k,v,col,sub])=>(
+                              <div key={k} style={{background:C.card2,border:`1px solid ${col}33`,borderRadius:9,padding:"8px 10px"}}>
+                                <div style={{color:C.muted,fontSize:8,marginBottom:3}}>{k}</div>
+                                <div style={{color:col,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>{v}</div>
+                                <div style={{color:C.muted,fontSize:7,marginTop:3,lineHeight:1.4}}>{sub}</div>
                               </div>
                             ))}
                           </div>
 
-                          <CW h={250}>
-                            <ComposedChart data={trajChartPoints} margin={{top:6,right:16,left:0,bottom:8}}>
+                          <CW h={280}>
+                            <ComposedChart data={chartPoints} margin={{top:8,right:18,left:0,bottom:10}}>
                               <defs>
-                                <linearGradient id="trajCloud80" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={C.blue} stopOpacity={0.20}/>
-                                  <stop offset="95%" stopColor={C.blue} stopOpacity={0.03}/>
+                                <linearGradient id="formulaBand80" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={C.purple} stopOpacity={0.18}/>
+                                  <stop offset="95%" stopColor={C.purple} stopOpacity={0.03}/>
                                 </linearGradient>
-                                <linearGradient id="trajCloud50" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={C.purple} stopOpacity={0.22}/>
-                                  <stop offset="95%" stopColor={C.purple} stopOpacity={0.04}/>
+                                <linearGradient id="formulaBand50" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={C.blue} stopOpacity={0.22}/>
+                                  <stop offset="95%" stopColor={C.blue} stopOpacity={0.04}/>
                                 </linearGradient>
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                              <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5} tickFormatter={(v)=>String(v).startsWith("현재")?"현재":String(v).includes("M")?v:`${v}M`} label={{value:"X축 단위: Month(개월)",position:"insideBottomRight",offset:-4,fill:C.muted,fontSize:9}}/>
-                              <YAxis
-                                yAxisId="traj"
-                                {...yp("원",58)}
-                                type="number"
-                                scale="linear"
-                                domain={[0, trajYMax]}
-                                ticks={trajYTicks}
-                                allowDataOverflow={false}
-                                tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}
-                              />
+                              <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
+                              <YAxis {...yp("원",58)} domain={[0,yMax]} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
-                              <Area yAxisId="traj" dataKey="band80" name="80% 확률 구름" stroke="none" fill="url(#trajCloud80)" dot={false} isAnimationActive={false}/>
-                              <Area yAxisId="traj" dataKey="band50" name="50% 확률 구름" stroke="none" fill="url(#trajCloud50)" dot={false} isAnimationActive={false}/>
-                              <Line yAxisId="traj" dataKey="expected" name="기대 경로" stroke={C.blue} strokeWidth={3} dot={false}/>
-                              <Line yAxisId="traj" dataKey="gravityForce" name="중력 복귀선" stroke={C.muted} strokeWidth={1.5} strokeDasharray="3 5" dot={false}/>
-                              <Line yAxisId="traj" dataKey="fairValue" name="내재가치 중력원" stroke={C.gold} strokeWidth={2} strokeDasharray="6 4" dot={false}/>
+                              <Area dataKey="upper80" name="80% 확률밴드" stroke="none" fill="url(#formulaBand80)" dot={false} isAnimationActive={false}/>
+                              <Area dataKey="upper50" name="50% 확률밴드" stroke="none" fill="url(#formulaBand50)" dot={false} isAnimationActive={false}/>
+                              <Line dataKey="dynamicIV" name="IV(t) 내재가치 궤적" stroke={C.gold} strokeWidth={3} dot={false}/>
+                              <Line dataKey="expected" name="P(t) 기대 가격장" stroke={C.blue} strokeWidth={3} dot={false}/>
+                              <Line dataKey="qmaLine" name="QMA 중력 중심선" stroke={C.green} strokeWidth={2} strokeDasharray="5 4" dot={false}/>
+                              <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
                             </ComposedChart>
                           </CW>
 
                           {p12&&(
-                            <div style={{marginTop:8,background:C.card2,borderRadius:9,padding:"9px 10px",border:`1px solid ${C.border}`}}>
+                            <div style={{marginTop:9,background:C.card2,borderRadius:9,padding:"9px 10px",border:`1px solid ${C.border}`}}>
                               <div style={{color:C.gold,fontSize:9,fontWeight:800,marginBottom:6}}>12개월 후 확률 분포</div>
                               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:6}}>
                                 {p12.bands.map((b,i)=>{
@@ -2313,49 +2226,19 @@ else {
                               {topBand&&<div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginTop:6}}>가장 높은 확률권: <span style={{color:C.gold,fontWeight:800}}>{topBand.label} · {topBand.probability}%</span></div>}
                             </div>
                           )}
-                          <div style={{color:`${C.muted}88`,fontSize:7,lineHeight:1.6,marginTop:8}}>
-                            ※ 예언 공식이 아니라 확률적 시나리오입니다. 내재가치 추정 오류, 산업 변화, 수급 충격에 따라 실제 경로는 크게 달라질 수 있습니다.
-                          </div>
 
                           <div style={{marginTop:10,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8}}>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.gold,fontSize:8,fontWeight:900,marginBottom:5}}>🧭 사이클 전략 범례</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>
-                                <span style={{color:C.green,fontWeight:800}}>공격</span>: 유동성·실적·추세 동시 우호<br/>
-                                <span style={{color:C.blue,fontWeight:800}}>선택적 공격</span>: 일부 섹터·종목만 우위<br/>
-                                <span style={{color:C.gold,fontWeight:800}}>중립</span>: 방향성 혼조, 분산·현금 병행<br/>
-                                <span style={{color:C.red,fontWeight:800}}>방어</span>: 유동성 압박·고밸류 회피
-                              </div>
+                              <div style={{color:C.green,fontSize:8,fontWeight:900,marginBottom:5}}>① EPS(t) 성장 엔진</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>장기성장률 60% + 최근성장률 30% + EPS가속도 10%로 내재가치 궤적의 기울기와 곡률을 만듭니다.</div>
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.teal,fontSize:8,fontWeight:900,marginBottom:5}}>📈 경로 산출 원리</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>
-                                EPS 증가속도를 k의 중심축으로 두고, ROE가 그 성장의 지속성을 보정합니다. QMA 이격도는 위치 보정으로 작동하여 낮은 이격은 수렴을 부스팅하고 높은 이격은 감속시킵니다.
-                                k는 고정값이 아니라 EPS 성장력, ROE 지속성, QMA 위치, MACD 방향, 사이클 모드를 합산해 산출합니다.
-                              </div>
-                              <div style={{marginTop:6,color:C.gold,fontFamily:"monospace",fontSize:8}}>
-                                P(t)=Gravity+Momentum+Crowd−Collapse
-                              </div>
-                              <div style={{marginTop:4,color:C.muted,fontSize:7,lineHeight:1.5}}>
-                                Gravity=내재가치 복귀력 · Momentum=추세 관성 · Crowd=군집 슈팅 · Collapse=붕괴 압력<br/>
-                                자동 k≈기본값+EPS성장속도+ROE지속성+QMA위치+MACD+사이클 보정<br/>
-                                최종 k=자동 k×시나리오 보정계수, 단 실제 경로는 내재가치 상·하방 이탈을 허용
-                              </div>
+                              <div style={{color:C.blue,fontSize:8,fontWeight:900,marginBottom:5}}>② M(t) 동적 멀티플</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>DCF Anchor, 현재 PER, 종목별 역사 PER 밴드를 함께 반영합니다. 성장률과 ROE가 높을수록 멀티플이 확장됩니다.</div>
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.purple,fontSize:8,fontWeight:900,marginBottom:5}}>⚙️ 수렴계수 k 범례</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>
-                                <span style={{color:C.muted,fontWeight:800}}>0.015~0.040</span>: 느린 수렴 · 촉매 부족/횡보 가능<br/>
-                                <span style={{color:C.gold,fontWeight:800}}>0.040~0.080</span>: 점진 수렴 · 가치 괴리 천천히 해소<br/>
-                                <span style={{color:C.blue,fontWeight:800}}>0.080~0.120</span>: 빠른 재평가 · 저평가+수급/추세 동시 작동<br/>
-                                <span style={{color:C.green,fontWeight:800}}>0.120+</span>: 강한 촉매형 · 이벤트/수급 폭발 구간
-                              </div>
-                              <div style={{marginTop:6,color:C.muted,fontSize:7,lineHeight:1.5}}>
-                                자동 k: <span style={{color:C.muted,fontWeight:900}}>{traj.meta.autoK.toFixed(3)}</span> · 보정계수 <span style={{color:C.purple,fontWeight:900}}>{traj.meta.scenarioMultiplier.toFixed(2)}×</span> · 최종 k: <span style={{color:C.blue,fontWeight:900}}>{traj.meta.finalK.toFixed(3)}</span>
-                                {traj.meta?.kParts?.epsGrowthRate!=null&&<> · EPS 성장 {Math.round(traj.meta.kParts.epsGrowthRate*100)}%</>}
-                                {traj.meta?.kParts?.roeLatest!=null&&<> · ROE {traj.meta.kParts.roeLatest.toFixed(1)}%</>}
-                                {traj.meta?.kParts?.qmaGap!=null&&<> · QMA {Math.round(traj.meta.kParts.qmaGap)}%</>}
-                              </div>
+                              <div style={{color:C.orange,fontSize:8,fontWeight:900,marginBottom:5}}>③ Gqma(t) QMA 중력장</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>QMA 이격도는 잠재에너지입니다. 플러스 이격은 하방 중력, 마이너스 이격은 상방 중력이며 gap²로 비선형 증폭됩니다.</div>
                             </div>
                           </div>
                         </div>
