@@ -2150,7 +2150,7 @@ else {
                         if(!formula?.ready) return null;
                         const chartPoints = formula.points.map(p=>({
                           ...p,
-                          band80: Math.max(0, p.upper80 - p.lower80),
+                          band50Range: [p.lower50, p.upper50],
                           band50: Math.max(0, p.upper50 - p.lower50),
                         }));
                         const p12 = formula.probabilities?.find(p=>p.month===12);
@@ -2208,7 +2208,7 @@ else {
                               <XAxis dataKey="label" tick={{fill:C.muted,fontSize:9}} tickLine={false} axisLine={{stroke:C.border}} interval={5}/>
                               <YAxis {...yp("원",58)} domain={[0,yMax]} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
-                              <Area dataKey="upper50" name="50% 확률밴드" stroke="none" fill="url(#formulaBand50)" dot={false} isAnimationActive={false}/>
+                              <Area dataKey="band50Range" name="50% 확률밴드" stroke="none" fill="url(#formulaBand50)" dot={false} isAnimationActive={false}/>
                               <Line dataKey="dynamicIV" name="미래 내재가치 궤적 IV(t)" stroke={C.gold} strokeWidth={3} dot={false}/>
                               <Line dataKey="expected" name="시장 예상 경로 P(t)" stroke={C.blue} strokeWidth={3} dot={false}/>
                               <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
