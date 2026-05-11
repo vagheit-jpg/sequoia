@@ -153,6 +153,43 @@ async function fetchKISMarketCap(ticker, currentPrice) {
   return result.marketCapWon ? result : null;
 }
 
+
+async function fetchNaverMarketCap(ticker) {
+  const url = `https://finance.naver.com/item/main.naver?code=${ticker}`;
+  const r = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7",
+      "Referer": "https://finance.naver.com/",
+    },
+  });
+  if (!r.ok) throw new Error(`Naver marketCap ${r.status}`);
+  const html = await r.text();
+
+  // Naver 종목 페이지의 시가총액은 보통 <em id="_market_sum">... </em> 형태이며 단위는 억원입니다.
+  let raw = null;
+  const idMatch = html.match(/id=["']_market_sum["'][^>]*>\s*([^<]+)\s*</i);
+  if (idMatch) raw = idMatch[1];
+
+  // 구조 변경 대비: "시가총액" 주변 숫자 추출 fallback
+  if (!raw) {
+    const compact = html.replace(/\s+/g, " ");
+    const m = compact.match(/시가총액[\s\S]{0,400}?([0-9,]+)\s*억원/i);
+    if (m) raw = m[1];
+  }
+
+  const eok = toNumber(raw);
+  const marketCapWon = eok > 0 ? eok * 100_000_000 : null;
+  if (!marketCapWon || marketCapWon < 10_000_000_000 || marketCapWon > 1_500 * 1_000_000_000_000) return null;
+  return {
+    marketCapWon: Math.round(marketCapWon),
+    marketCap: Math.round(marketCapWon),
+    shares: null,
+    marketCapSource: "naver",
+  };
+}
+
 async function fetchYahoo(yahooTicker) {
   const now = Math.floor(Date.now() / 1000);
   const tenYearsAgo = now - 10 * 365 * 24 * 60 * 60;
@@ -272,6 +309,13 @@ module.exports = async function handler(req, res) {
       return null;
     });
 
+    const naverMarket = kisMarket?.marketCapWon ? null : await fetchNaverMarketCap(ticker).catch((e) => {
+      console.warn("[api/price] Naver market cap fallback:", e?.message || e);
+      return null;
+    });
+
+    const marketInfo = kisMarket?.marketCapWon ? kisMarket : naverMarket;
+
     return res.status(200).json({
       monthly,
       currentPrice,
@@ -279,12 +323,13 @@ module.exports = async function handler(req, res) {
       change,
       changePct,
       priceDateStr,
-      source: kisMarket?.marketCapWon ? "yahoo+kis" : "yahoo",
+      source: marketInfo?.marketCapWon ? (marketInfo.marketCapSource === "naver" ? "yahoo+naver" : "yahoo+kis") : "yahoo",
       yahooTicker: usedTicker,
-      marketCapWon: kisMarket?.marketCapWon || null,
-      marketCap: kisMarket?.marketCapWon || null,
-      shares: kisMarket?.shares || null,
-      kisSource: kisMarket?.kisSource || null,
+      marketCapWon: marketInfo?.marketCapWon || null,
+      marketCap: marketInfo?.marketCapWon || null,
+      shares: marketInfo?.shares || null,
+      kisSource: marketInfo?.kisSource || null,
+      marketCapSource: marketInfo?.marketCapSource || marketInfo?.kisSource || null,
     });
 
   } catch (err) {
