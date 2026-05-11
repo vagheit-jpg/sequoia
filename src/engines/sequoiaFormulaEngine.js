@@ -248,8 +248,12 @@ export function buildSequoiaFormulaLab({
     0.07,
     0.48
   );
+  // 참고용 비대칭 압력값.
+  // 이전 버전은 이 값을 상단/하단 밴드에 각각 곱해 하단 50%가 비정상적으로 넓어지는 문제가 있었습니다.
+  // 이제 skew는 확률분포의 방향성 진단값으로만 남기고, 실제 50% 밴드는 P(t)=시장 예상 경로를 중심으로 대칭 계산합니다.
   const upsideSkew = clamp(1 + Math.max(0, -effectiveGap) * 0.65 + Math.max(0, gp.blendedGrowth) * 0.28, 0.75, 1.90);
   const downsideSkew = clamp(1 + Math.max(0, effectiveGap) * 0.72 + Math.max(0, -gp.blendedGrowth) * 0.45, 0.80, 2.05);
+  const bandExpansion = clamp((upsideSkew + downsideSkew) / 2, 0.85, 1.75);
 
   const points = [];
   for (let t = 0; t <= months; t++) {
@@ -277,10 +281,17 @@ export function buildSequoiaFormulaLab({
     const expected = Math.max(1, p0 + (formulaTarget - p0) * convergence);
 
     const sigma = expected * sigmaBase * Math.sqrt(Math.max(t, 0) / 12);
-    const upper50 = expected + 0.67 * sigma * upsideSkew;
-    const lower50 = expected - 0.67 * sigma * downsideSkew;
-    const upper80 = expected + 1.28 * sigma * upsideSkew;
-    const lower80 = expected - 1.28 * sigma * downsideSkew;
+
+    // TRUE_FINAL_BAND_SYMMETRIC_FIX
+    // 50% 밴드는 시장 예상 경로(expected)를 중심으로 ±B(t)를 동일 폭으로 적용합니다.
+    // QMA 중력장(Gqma)은 expected 경로를 휘게 만들 뿐, 하단 밴드만 별도로 붕괴시키지 않습니다.
+    const bandSigma = sigma * bandExpansion;
+    const band50 = 0.67 * bandSigma;
+    const band80 = 1.28 * bandSigma;
+    const upper50 = expected + band50;
+    const lower50 = expected - band50;
+    const upper80 = expected + band80;
+    const lower80 = expected - band80;
 
     // 세콰이어 하방 방어선: 확률밴드 하단이 0원으로 붕괴하지 않되, 예상 경로보다 위로 올라오지는 않게 제한합니다.
     const valueFloor = Math.max(1, Math.min(expected * 0.82, dynamicIV * 0.30));
@@ -300,7 +311,9 @@ export function buildSequoiaFormulaLab({
       lower80: Math.max(Math.round(valueFloor), Math.round(lower80)),
       upper50: Math.round(upper50),
       lower50: Math.max(Math.round(valueFloor), Math.round(lower50)),
-      sd: Math.round(sigma),
+      sd: Math.round(bandSigma),
+      band50Width: Math.round(band50),
+      band80Width: Math.round(band80),
       eps: Math.round(epsT),
       multiple: Number(m.calibratedMultiple.toFixed(1)),
       theoryMultiple: Number(m.multiple.toFixed(1)),
@@ -368,11 +381,12 @@ export function buildSequoiaFormulaLab({
       sigmaBase,
       upsideSkew,
       downsideSkew,
+      bandExpansion,
       baseVol,
       dcfAnchor,
       currentPrice: p0,
       qmaLine0,
-      note: "기업가치 중심축은 EPS×Multiple, 시장 예상 경로는 현재가에서 출발해 QMA 중력 반영 목표경로로 수렴합니다.",
+      note: "기업가치 중심축은 EPS×Multiple, 시장 예상 경로는 현재가에서 출발해 QMA 중력 반영 목표경로로 수렴합니다. 50% 밴드는 시장 예상 경로를 중심으로 상·하단 동일 폭으로 계산합니다.",
     },
   };
 }
