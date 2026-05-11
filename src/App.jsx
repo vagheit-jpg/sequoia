@@ -2160,48 +2160,98 @@ else {
                         const fmtPct = v => Number.isFinite(Number(v)) ? `${(Number(v)*100).toFixed(1)}%` : "—";
                         const fmtMul = v => Number.isFinite(Number(v)) ? `${Number(v).toFixed(1)}배` : "—";
                         const fmtWon = v => Number.isFinite(Number(v)) ? `${Math.round(Number(v)).toLocaleString()}원` : "—";
+                        // ── 현재가 vs 내재가치 괴리율
+                        const ivGap = dcfResults.avg > 0 ? ((price - dcfResults.avg) / dcfResults.avg * 100) : 0;
+                        const ivGapLabel = ivGap > 0 ? `고평가 +${ivGap.toFixed(1)}%` : `저평가 ${ivGap.toFixed(1)}%`;
+                        const ivGapColor = ivGap > 15 ? C.red : ivGap > 0 ? C.orange : ivGap < -15 ? C.green : C.teal;
+                        const qmaGapNum = Math.round(formula.meta.qmaGap || 0);
+                        const qmaGapColor = qmaGapNum > 30 ? C.red : qmaGapNum > 0 ? C.orange : qmaGapNum < -30 ? C.green : C.teal;
+                        const qmaDesc = qmaGapNum > 30 ? `주가가 장기 평균보다 ${qmaGapNum}% 위 — 하방 압력이 강하게 작용 중`
+                          : qmaGapNum > 0 ? `주가가 장기 평균보다 ${qmaGapNum}% 위 — 약한 하방 압력`
+                          : qmaGapNum < -30 ? `주가가 장기 평균보다 ${Math.abs(qmaGapNum)}% 아래 — 강한 상방 반등력`
+                          : `장기 평균 근처 — 중립 구간`;
+
                         return (
-                        <div style={{background:`linear-gradient(135deg,${C.card2},${C.card})`,border:`1.5px solid ${C.green}33`,borderRadius:14,padding:"14px 16px",marginTop:14}}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:12,flexWrap:"wrap"}}>
+                        <div style={{background:`linear-gradient(135deg,${C.card2},${C.card})`,border:`1.5px solid ${C.green}44`,borderRadius:16,padding:"16px",marginTop:14,boxShadow:`0 0 32px ${C.green}11`}}>
+
+                          {/* ── 헤더 */}
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10,marginBottom:14,flexWrap:"wrap"}}>
                             <div>
-                              <div style={{color:C.green,fontSize:12,fontWeight:900,letterSpacing:"0.04em"}}>🌲 SEQUOIA Formula Lab™ — 가치 동역학 공식</div>
-                              <div style={{color:C.muted,fontSize:8,lineHeight:1.7,marginTop:4}}>
-                                현재 내재가치 Anchor(4방식 평균)를 기준으로, 미래 내재가치 궤적과 현재가에서 출발하는 시장 예상 경로를 함께 표시합니다.
+                              <div style={{color:C.text,fontSize:9,fontWeight:700,letterSpacing:"0.07em",marginBottom:4,opacity:0.6}}>
+                                🌲 SEQUOIA Formula Lab™
+                              </div>
+                              <div style={{color:C.green,fontSize:15,fontWeight:900,lineHeight:1.3}}>
+                                가치 동역학 공식
+                              </div>
+                              <div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginTop:4}}>
+                                DCF·그레이엄·ROE·오너이익 4방식 평균을 Anchor로, 미래 기업가치 궤적과 시장 예상 경로를 36개월 시뮬레이션합니다.
                               </div>
                             </div>
-                            <div style={{background:`${C.gold}12`,border:`1px solid ${C.gold}44`,borderRadius:9,padding:"7px 10px",fontFamily:"monospace",fontSize:10,color:C.gold,fontWeight:900}}>
-                              P(t) ≈ [EPS(t) × M(t)] + Gqma(t) ± B(t)
+                            <div style={{background:`${C.gold}12`,border:`1px solid ${C.gold}44`,borderRadius:10,padding:"8px 12px",fontFamily:"monospace",fontSize:11,color:C.gold,fontWeight:900,whiteSpace:"nowrap"}}>
+                              P(t) = [EPS(t) × M(t)] + Gqma(t) ± B(t)
                             </div>
                           </div>
 
-                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:12}}>
+                          {/* ── 핵심 판단 요약 (현재가 vs 내재가치) */}
+                          <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+                            <div style={{flex:2,minWidth:160,background:`${ivGapColor}10`,border:`1.5px solid ${ivGapColor}44`,borderRadius:10,padding:"10px 12px"}}>
+                              <div style={{color:C.muted,fontSize:8,marginBottom:4}}>📍 현재가 vs 내재가치 Anchor</div>
+                              <div style={{display:"flex",alignItems:"baseline",gap:8,flexWrap:"wrap"}}>
+                                <span style={{color:ivGapColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>{ivGapLabel}</span>
+                                <span style={{color:C.muted,fontSize:8}}>현재가 {price.toLocaleString()}원 / 내재가치 {Math.round(dcfResults.avg).toLocaleString()}원</span>
+                              </div>
+                              <div style={{color:C.muted,fontSize:8,marginTop:4,lineHeight:1.5}}>
+                                {ivGap > 15 ? "현재 주가가 내재가치보다 많이 높습니다. 신규 매수 시 밸류에이션 부담을 고려하세요."
+                                  : ivGap > 0 ? "현재 주가가 내재가치보다 소폭 높습니다. 추가 성장 확인 후 접근을 권장합니다."
+                                  : ivGap < -15 ? "현재 주가가 내재가치보다 많이 낮습니다. 안전마진이 확보된 구간입니다."
+                                  : "현재 주가가 내재가치 근처에 있습니다. 적정 가격대입니다."}
+                              </div>
+                            </div>
+                            <div style={{flex:1,minWidth:120,background:`${qmaGapColor}10`,border:`1.5px solid ${qmaGapColor}44`,borderRadius:10,padding:"10px 12px"}}>
+                              <div style={{color:C.muted,fontSize:8,marginBottom:4}}>⚡ QMA 중력장</div>
+                              <div style={{color:qmaGapColor,fontSize:18,fontWeight:900,fontFamily:"monospace"}}>{formula.meta.gravityLabel}</div>
+                              <div style={{color:C.muted,fontSize:8,marginTop:4,lineHeight:1.5}}>{qmaDesc}</div>
+                            </div>
+                          </div>
+
+                          {/* ── 지표 카드 그리드 */}
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:6,marginBottom:14}}>
                             {[
-                              ["EPS 성장궤적", fmtPct(formula.meta.blendedGrowth), C.green, formula.meta.trajectoryLabel],
-                              ["현재 내재가치 Anchor", fmtWon(dcfResults.avg), C.gold, "DCF·그레이엄·ROE·오너이익 4방식 평균 기준점"],
-                              ["시장 성장 프리미엄", fmtMul(formula.meta.dynamicMultiple), C.blue, `성장률·ROE 기반 미래 기대 멀티플 · ${formula.meta.multipleLabel}`],
-                              ["과거 시장 평균 PER", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`최근 평균값 보정`:"이론 중심"],
-                              ["ROE 품질", `${Number(formula.meta.roeLatest||0).toFixed(1)}%`, C.teal, `3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`],
-                              ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, formula.meta.qmaGap>20?`${Math.round(formula.meta.qmaGap)}% 과열 (하방 중력 강화)`:formula.meta.qmaGap<-20?`${Math.round(formula.meta.qmaGap)}% 침체 (상방 중력 강화)`:`${Math.round(formula.meta.qmaGap||0)}% 이격 (중립권)`],
-                              ["확률밴드 σ", `${Number(formula.meta.sigmaBase*100).toFixed(1)}%`, C.gold, "변동성·ROE·이격 반영"],
-                            ].map(([k,v,col,sub])=>(
+                              {k:"EPS 성장궤적", v:fmtPct(formula.meta.blendedGrowth), col:C.green,
+                               sub:formula.meta.trajectoryLabel,
+                               hint:"매년 이익(EPS)이 이 속도로 성장 중입니다"},
+                              {k:"내재가치 Anchor", v:fmtWon(dcfResults.avg), col:C.gold,
+                               sub:"4방식 평균 기준점",
+                               hint:"DCF·그레이엄·ROE·오너이익 4가지 방법으로 계산한 이 회사의 적정 주가"},
+                              {k:"시장 성장 프리미엄", v:fmtMul(formula.meta.dynamicMultiple), col:C.blue,
+                               sub:formula.meta.multipleLabel,
+                               hint:"시장이 이 회사 이익의 몇 배를 기꺼이 지불하는가 — 성장률·ROE 기반"},
+                              {k:"과거 시장 평균 PER", v:formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", col:C.purple,
+                               sub:formula.meta.historicalMultipleStats?.count?"최근 평균값 보정":"이론 중심",
+                               hint:"이 회사 주가가 역사적으로 이익의 몇 배에 거래됐는가"},
+                              {k:"ROE 품질", v:`${Number(formula.meta.roeLatest||0).toFixed(1)}%`, col:C.teal,
+                               sub:`3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`,
+                               hint:"자기자본 대비 이익률. 높을수록 돈을 효율적으로 버는 회사"},
+                              {k:"확률밴드 σ", v:`${Number(formula.meta.sigmaBase*100).toFixed(1)}%`, col:C.gold,
+                               sub:"변동성·ROE·이격 반영",
+                               hint:"주가 예측의 불확실성 폭. 클수록 상하단 예상 범위가 넓어짐"},
+                            ].map(({k,v,col,sub,hint})=>(
                               <div key={k} style={{background:C.card2,border:`1px solid ${col}33`,borderRadius:9,padding:"8px 10px"}}>
-                                <div style={{color:C.muted,fontSize:8,marginBottom:3}}>{k}</div>
-                                <div style={{color:col,fontSize:14,fontWeight:900,fontFamily:"monospace"}}>{v}</div>
-                                <div style={{color:C.muted,fontSize:7,marginTop:3,lineHeight:1.4}}>{sub}</div>
+                                <div style={{color:C.muted,fontSize:7.5,marginBottom:3}}>{k}</div>
+                                <div style={{color:col,fontSize:13,fontWeight:900,fontFamily:"monospace",marginBottom:2}}>{v}</div>
+                                <div style={{color:C.muted,fontSize:7,lineHeight:1.4,marginBottom:3}}>{sub}</div>
+                                <div style={{color:`${C.muted}88`,fontSize:7,lineHeight:1.4,fontStyle:"italic",borderTop:`1px solid ${C.border}`,paddingTop:3}}>💡 {hint}</div>
                               </div>
                             ))}
                           </div>
 
+                          {/* ── 차트 */}
                           <CW h={280}>
                             <ComposedChart data={chartPoints} margin={{top:8,right:18,left:0,bottom:10}}>
                               <defs>
-                                <linearGradient id="formulaBand80" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={C.purple} stopOpacity={0.18}/>
-                                  <stop offset="95%" stopColor={C.purple} stopOpacity={0.03}/>
-                                </linearGradient>
                                 <linearGradient id="formulaBand50" x1="0" y1="0" x2="0" y2="1">
-                                  <stop offset="5%" stopColor={C.blue} stopOpacity={0.22}/>
-                                  <stop offset="95%" stopColor={C.blue} stopOpacity={0.04}/>
+                                  <stop offset="5%" stopColor={C.blue} stopOpacity={0.20}/>
+                                  <stop offset="95%" stopColor={C.blue} stopOpacity={0.03}/>
                                 </linearGradient>
                               </defs>
                               <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
@@ -2209,51 +2259,100 @@ else {
                               <YAxis {...yp("원",58)} domain={[0,yMax]} tickFormatter={v=>v>=10000?`${Math.round(v/10000)}만`:`${Math.round(v)}`}/>
                               <Tooltip content={<TrajectoryTip/>} cursor={false}/>
                               <Area dataKey="band50Range" name="50% 확률밴드" stroke="none" fill="url(#formulaBand50)" dot={false} isAnimationActive={false}/>
-                              <Line dataKey="dynamicIV" name="미래 내재가치 궤적 IV(t)" stroke={C.gold} strokeWidth={3} dot={false}/>
-                              <Line dataKey="expected" name="시장 예상 경로 P(t)" stroke={C.blue} strokeWidth={3} dot={false}/>
+                              <Line dataKey="dynamicIV" name="기업가치 중심축 IV(t)" stroke={C.gold} strokeWidth={2.5} dot={false}/>
+                              <Line dataKey="expected" name="시장 예상 경로 P(t)" stroke={C.blue} strokeWidth={2.5} dot={false}/>
                               <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
+                              <ReferenceLine y={dcfResults.avg} stroke={C.gold} strokeDasharray="2 4" strokeOpacity={0.5} label={{value:"내재가치",fill:C.gold,fontSize:8,position:"right"}}/>
                             </ComposedChart>
                           </CW>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,flexWrap:"wrap",color:C.muted,fontSize:8,fontFamily:"monospace",marginTop:-4,marginRight:12}}>
-                            <span>노란선=기업가치 중심축, 파란선=현재가에서 출발하는 시장 예상 경로, 붉은 점선=현재가</span>
-                            <span>X축: Month(개월)</span>
+
+                          {/* ── 차트 범례 */}
+                          <div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:4,marginBottom:12,marginRight:12}}>
+                            {[
+                              {color:C.gold, label:"기업가치 중심축 (EPS × 동적멀티플)"},
+                              {color:C.blue, label:"시장 예상 경로 (현재가 출발)"},
+                              {color:C.red,  label:"현재가", dash:true},
+                              {color:C.gold, label:"내재가치 Anchor", dash:true, opacity:0.5},
+                            ].map(({color,label,dash,opacity})=>(
+                              <div key={label} style={{display:"flex",alignItems:"center",gap:4}}>
+                                <div style={{width:20,height:2,background:dash?"transparent":"none",
+                                  borderBottom:dash?`2px dashed ${color}`:`2px solid ${color}`,
+                                  opacity:opacity||1}}/>
+                                <span style={{color:C.muted,fontSize:7.5}}>{label}</span>
+                              </div>
+                            ))}
+                            <span style={{color:C.muted,fontSize:7.5,marginLeft:"auto"}}>X축: 개월(Month)</span>
                           </div>
 
+                          {/* ── 12개월 확률 분포 — 히스토그램 형태 */}
                           {p12&&(
-                            <div style={{marginTop:9,background:C.card2,borderRadius:9,padding:"9px 10px",border:`1px solid ${C.border}`}}>
-                              <div style={{color:C.gold,fontSize:9,fontWeight:800,marginBottom:6}}>12개월 후 확률 분포</div>
-                              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:6}}>
+                            <div style={{marginBottom:12,background:C.card2,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}`}}>
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                                <div style={{color:C.gold,fontSize:10,fontWeight:800}}>📊 12개월 후 확률 분포</div>
+                                {topBand&&(
+                                  <div style={{color:C.gold,fontSize:8,fontWeight:700,background:`${C.gold}14`,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"2px 8px"}}>
+                                    최고 확률구간: {topBand.label} · {topBand.probability}%
+                                  </div>
+                                )}
+                              </div>
+                              <div style={{display:"flex",flexDirection:"column",gap:5}}>
                                 {p12.bands.map((b,i)=>{
-                                  const col=b.probability>=30?C.green:b.probability>=18?C.gold:C.muted;
+                                  const maxProb = Math.max(...p12.bands.map(x=>x.probability));
+                                  const barWidth = `${(b.probability/maxProb*100).toFixed(0)}%`;
+                                  const isTop = b===topBand;
+                                  const col = isTop ? C.green : b.probability>=18 ? C.gold : C.muted;
                                   return(
-                                  <div key={i} style={{border:`1px solid ${col}33`,borderRadius:7,padding:"6px 8px",background:`${col}0b`}}>
-                                    <div style={{color:C.muted,fontSize:7,marginBottom:2}}>{b.label}</div>
-                                    <div style={{color:col,fontSize:12,fontWeight:900,fontFamily:"monospace"}}>{b.probability}%</div>
+                                  <div key={i}>
+                                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                                      <div style={{color:C.muted,fontSize:8,minWidth:110,flexShrink:0}}>{b.label}</div>
+                                      <div style={{flex:1,height:18,background:C.bg,borderRadius:4,overflow:"hidden"}}>
+                                        <div style={{width:barWidth,height:"100%",background:`linear-gradient(90deg,${col},${col}88)`,borderRadius:4,
+                                          transition:"width 0.5s",display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6}}>
+                                          <span style={{color:"#fff",fontSize:7.5,fontWeight:900}}>{b.probability}%</span>
+                                        </div>
+                                      </div>
+                                      {isTop&&<span style={{color:C.green,fontSize:7,fontWeight:900,flexShrink:0}}>★ 최고</span>}
+                                    </div>
                                   </div>
                                   );
                                 })}
                               </div>
-                              {topBand&&<div style={{color:C.muted,fontSize:8,lineHeight:1.6,marginTop:6}}>가장 높은 확률권: <span style={{color:C.gold,fontWeight:800}}>{topBand.label} · {topBand.probability}%</span></div>}
+                              <div style={{color:`${C.muted}88`,fontSize:7.5,marginTop:8,lineHeight:1.6,fontStyle:"italic"}}>
+                                ※ 확률 분포는 EPS 성장 궤적, QMA 중력장, 변동성 밴드를 몬테카를로 방식으로 시뮬레이션한 참고값입니다.
+                              </div>
                             </div>
                           )}
 
-                          <div style={{marginTop:10,display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(180px,1fr))",gap:8}}>
-                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.green,fontSize:8,fontWeight:900,marginBottom:5}}>① EPS(t) 성장 엔진</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>장기성장률 60% + 최근성장률 30% + EPS가속도 10%로 내재가치 궤적의 기울기와 곡률을 만듭니다.</div>
-                            </div>
-                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.blue,fontSize:8,fontWeight:900,marginBottom:5}}>② M(t) 동적 멀티플</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>시장 성장 프리미엄은 성장률·ROE가 만드는 미래 기대 멀티플입니다. 과거 시장 평균 PER은 이론값이 과도해지지 않도록 보조 보정으로만 반영되며, 현재 내재가치 Anchor는 기존 4방식 평균을 사용합니다.</div>
-                            </div>
-                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.orange,fontSize:8,fontWeight:900,marginBottom:5}}>③ Gqma(t) QMA 중력장</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>QMA 이격도는 잠재에너지입니다. 플러스 이격은 하방 중력, 마이너스 이격은 상방 중력이며 gap²로 비선형 증폭되되 극단 이격은 포화 처리됩니다.</div>
-                            </div>
-                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
-                              <div style={{color:C.gold,fontSize:8,fontWeight:900,marginBottom:5}}>④ 차트 읽는 법</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>노란선은 EPS×동적 멀티플로 산출한 기업가치 중심축입니다. 파란선은 현재가에서 출발해 QMA 중력과 기업가치 중심축을 반영한 시장 예상 경로입니다.</div>
-                            </div>
+                          {/* ── 공식 설명 4개 박스 */}
+                          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:8,marginBottom:10}}>
+                            {[
+                              {num:"①", title:"EPS(t) 성장 엔진", col:C.green,
+                               easy:"이 회사가 앞으로 얼마나 이익을 늘릴지 예측합니다.",
+                               detail:"장기성장률 60% + 최근성장률 30% + EPS가속도 10% 가중 조합으로 내재가치 궤적의 기울기와 곡률을 결정합니다."},
+                              {num:"②", title:"M(t) 동적 멀티플", col:C.blue,
+                               easy:"시장이 이 회사 이익의 몇 배를 지불할 의향이 있는지를 동적으로 계산합니다.",
+                               detail:"성장률·ROE 기반 기대 멀티플과 과거 시장 평균 PER을 조합합니다. 과거 PER은 이론값 과도 팽창 방지를 위한 보조 보정으로만 반영됩니다."},
+                              {num:"③", title:"Gqma(t) QMA 중력장", col:C.orange,
+                               easy:"주가가 장기 평균에서 너무 멀어지면 다시 끌어당기는 힘이 작용합니다.",
+                               detail:"QMA 이격도의 제곱(gap²)으로 비선형 증폭되며, 극단 이격은 포화 처리됩니다. 과열 시 하방 중력, 침체 시 상방 반등력으로 작용합니다."},
+                              {num:"④", title:"차트 읽는 법", col:C.gold,
+                               easy:"노란선이 기업가치, 파란선이 시장 예상 경로입니다. 파란선이 노란선에 수렴하면 적정 가격에 도달하는 과정입니다.",
+                               detail:"노란선=EPS×동적멀티플로 산출한 기업가치 중심축. 파란선=현재가에서 출발해 QMA 중력과 기업가치 중심축을 반영한 시장 예상 경로."},
+                            ].map(({num,title,col,easy,detail})=>(
+                              <div key={num} style={{background:C.card2,border:`1px solid ${col}33`,borderRadius:10,padding:"10px 12px"}}>
+                                <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:6}}>
+                                  <span style={{color:"#fff",fontSize:8,fontWeight:900,background:col,borderRadius:"50%",width:18,height:18,display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>{num}</span>
+                                  <span style={{color:col,fontSize:9,fontWeight:900}}>{title}</span>
+                                </div>
+                                <div style={{color:C.text,fontSize:8.5,lineHeight:1.7,marginBottom:6,fontWeight:500}}>{easy}</div>
+                                <div style={{color:C.muted,fontSize:7.5,lineHeight:1.6,borderTop:`1px solid ${C.border}`,paddingTop:6}}>{detail}</div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* ── 면책 고지 */}
+                          <div style={{padding:"8px 12px",borderRadius:8,background:C.card2,border:`1px dashed ${C.border}`,color:C.muted,fontSize:7.5,lineHeight:1.6}}>
+                            ※ 본 Formula Lab 결과는 과거 데이터 기반 참고값이며, 실제 투자 수익을 보장하지 않습니다. 모든 투자 판단과 책임은 본인에게 있습니다.
                           </div>
                         </div>
                         );
