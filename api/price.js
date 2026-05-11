@@ -36,18 +36,20 @@ function normalizeMarketCapWon(value) {
   // 다만 환경/필드에 따라 이미 '원' 단위처럼 큰 값이 올 수 있어 둘 다 방어합니다.
   const won = n > 10_000_000_000 ? n : n * 100_000_000;
 
-  // 삼성전자·SK하이닉스 등 초대형주는 1000조를 넘을 수 있으므로 상한 cap을 두지 않습니다.
-  // 음수/0/NaN만 제거합니다.
+  // 삼성전자·SK하이닉스처럼 1000조를 넘는 초대형주는 정상값입니다.
+  // 따라서 시가총액 상한 cap은 두지 않고, 음수/0/NaN만 제거합니다.
   return Number.isFinite(won) && won > 0 ? Math.round(won) : null;
 }
 
 function normalizeShares(value) {
   const n = toNumber(value);
-  if (!n || n <= 0) return null;
 
-  // 상장주식수도 과도한 임의 상한을 두지 않습니다.
-  // 단, 1주 미만/NaN만 제거합니다.
-  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  // 발행주식수도 임의 상한/하한을 두지 않습니다.
+  // 삼성전자·SK하이닉스·ETF·우선주 등에서 단위/범위 오판을 막기 위해
+  // 숫자로 변환되고 0보다 크면 그대로 사용합니다.
+  if (!Number.isFinite(n) || n <= 0) return null;
+
+  return Math.round(n);
 }
 
 async function fetchKISAccessToken() {
