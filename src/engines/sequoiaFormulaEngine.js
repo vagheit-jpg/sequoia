@@ -108,7 +108,11 @@ function growthProfile(financials = {}) {
   const latestGrowth = rates.length ? rates.at(-1) : 0;
   const prevGrowth = rates.length >= 2 ? rates.at(-2) : latestGrowth;
   const epsAcceleration = latestGrowth - prevGrowth;
-  const blendedGrowth = clamp(longGrowth * 0.60 + recentGrowth * 0.30 + epsAcceleration * 0.10, -0.30, 0.50);
+
+  // 장기성장률 60% + 최근성장률 30% + EPS 가속도 10%.
+  // 단, 가속도는 향후 3년 전체를 지배하지 않도록 이후 계산에서 별도 감쇠 처리한다.
+  const blendedGrowth = clamp(longGrowth * 0.60 + recentGrowth * 0.30 + epsAcceleration * 0.10, -0.20, 0.42);
+
   const roeSeries = annual.filter((r) => r.roe != null && Number.isFinite(Number(r.roe))).map((r) => Number(r.roe));
   const roeLatest = roeSeries.length ? roeSeries.at(-1) : safeNum(financials.roe, 10);
   const roeAvg3 = roeSeries.length ? roeSeries.slice(-3).reduce((s, v) => s + v, 0) / roeSeries.slice(-3).length : safeNum(financials.avgRoe3, roeLatest);
@@ -157,10 +161,10 @@ function historicalMultipleStats({ monthly = [], annData = [] }) {
 
 function theoryMultiple({ growth, roe, roeDelta, baseMultiple }) {
   const base = clamp(baseMultiple || 18, 6, 35);
-  const growthPremium = clamp(1 + growth * 1.70, 0.55, 2.05);
-  const roePremium = clamp(1 + ((roe - 10) / 100) * 1.50, 0.70, 1.65);
-  const roeTrendPremium = clamp(1 + (roeDelta / 100) * 1.10, 0.88, 1.16);
-  const multiple = clamp(base * growthPremium * roePremium * roeTrendPremium, 4, 60);
+  const growthPremium = clamp(1 + growth * 1.55, 0.65, 1.85);
+  const roePremium = clamp(1 + ((roe - 10) / 100) * 1.35, 0.75, 1.55);
+  const roeTrendPremium = clamp(1 + (roeDelta / 100) * 0.90, 0.90, 1.12);
+  const multiple = clamp(base * growthPremium * roePremium * roeTrendPremium, 4, 55);
   return { base, growthPremium, roePremium, roeTrendPremium, multiple };
 }
 
@@ -169,12 +173,30 @@ function calibratedMultiple({ growth, roe, roeDelta, baseMultiple, hist }) {
   if (!hist || hist.count < 12 || !Number.isFinite(hist.median)) {
     return { ...theory, historicalMultiple: null, historicalWeight: 0, calibratedMultiple: theory.multiple };
   }
-  const histCenter = clamp(hist.median, 4, 60);
-  const histBandMid = hist.p75 && hist.p25 ? clamp((hist.p25 + hist.p75) / 2, 4, 60) : histCenter;
-  const historicalMultiple = histCenter * 0.65 + histBandMid * 0.35;
-  const historicalWeight = clamp(hist.count / 60, 0.25, 0.55);
-  const calibrated = clamp(theory.multiple * (1 - historicalWeight) + historicalMultiple * historicalWeight, 4, 60);
+
+  const histCenter = clamp(hist.median, 4, 55);
+  const histBandMid = hist.p75 && hist.p25 ? clamp((hist.p25 + hist.p75) / 2, 4, 55) : histCenter;
+  const historicalMultiple = histCenter * 0.70 + histBandMid * 0.30;
+
+  // 핵심 보정: 역사 PER은 보조 보정값입니다. 기업의 현재 성장성과 ROE가 만드는 이론 멀티플을 지배하지 못하게 25% 상한을 둡니다.
+  const historicalWeight = clamp(hist.count / 240, 0.10, 0.25);
+  const calibrated = clamp(theory.multiple * (1 - historicalWeight) + historicalMultiple * historicalWeight, 4, 55);
   return { ...theory, historicalMultiple, historicalWeight, calibratedMultiple: calibrated };
+}
+
+function saturatedGap(rawGap) {
+  const sign = Math.sign(rawGap);
+  const abs = Math.abs(rawGap);
+  // QMA 이격은 잠재에너지이지만 무한 중력이 아닙니다. tanh로 포화시켜 극단 이격에서 1원 붕괴를 방지합니다.
+  return sign * 1.35 * Math.tanh(abs / 1.35);
+}
+
+function gravityAdjustment({ gap, dynamicIV, lambda, decay }) {
+  const egap = saturatedGap(gap);
+  const raw = -lambda * Math.sign(egap) * Math.pow(Math.abs(egap), 2) * dynamicIV * decay;
+  // 중력은 내재가치 궤적을 누르거나 끌어올리지만, 내재가치 자체를 파괴하지 못하도록 ±45% cap을 둡니다.
+  const cap = dynamicIV * 0.45;
+  return clamp(raw, -cap, cap);
 }
 
 export function buildSequoiaFormulaLab({
@@ -197,55 +219,63 @@ export function buildSequoiaFormulaLab({
   const dcfMultiple = latestEps > 0 ? dcfAnchor / latestEps : 15;
   const hist = historicalMultipleStats({ monthly, annData: financials.annData || [] });
   const histAnchor = hist?.median ? clamp(hist.median, 4, 45) : null;
+
+  // DCF Anchor를 중심으로 두되, 현재 시장 PER과 역사 PER는 보조 보정값으로만 사용합니다.
   const baseMultiple = clamp(
     histAnchor != null
-      ? dcfMultiple * 0.45 + histAnchor * 0.35 + (Number.isFinite(impliedCurrentMultiple) ? impliedCurrentMultiple : histAnchor) * 0.20
+      ? dcfMultiple * 0.60 + histAnchor * 0.20 + (Number.isFinite(impliedCurrentMultiple) ? impliedCurrentMultiple : histAnchor) * 0.20
       : Number.isFinite(impliedCurrentMultiple)
-        ? dcfMultiple * 0.65 + impliedCurrentMultiple * 0.35
+        ? dcfMultiple * 0.70 + impliedCurrentMultiple * 0.30
         : dcfMultiple,
     4,
-    45
+    42
   );
 
   const baseVol = monthlyVolatility(monthly);
   const gapPct = qmaGap == null ? 0 : safeNum(qmaGap, 0);
   const gap = clamp(gapPct / 100, -2.5, 3.5);
+  const effectiveGap = saturatedGap(gap);
   const qmaLine0 = Math.max(1, p0 / Math.max(0.05, 1 + gap));
-  const lambda = 0.34;
+  const lambda = 0.24;
   const mNow = calibratedMultiple({ growth: gp.blendedGrowth, roe: gp.roeLatest, roeDelta: gp.roeDelta, baseMultiple, hist });
-  const qmaGravityNow = -lambda * Math.sign(gap) * Math.pow(Math.abs(gap), 2) * dcfAnchor;
+  const qmaGravityNow = gravityAdjustment({ gap, dynamicIV: dcfAnchor, lambda, decay: 1 });
 
   const roeQuality = clamp(gp.roeLatest / 15, 0.45, 1.55);
-  const growthStabilityPenalty = clamp(Math.abs(gp.epsAcceleration) * 0.80, 0, 0.20);
+  const growthStabilityPenalty = clamp(Math.abs(gp.epsAcceleration) * 0.55, 0, 0.16);
   const histUncertaintyDiscount = hist.count >= 36 ? -0.015 : hist.count >= 12 ? -0.005 : 0.02;
   const sigmaBase = clamp(
-    baseVol * 1.12 + growthStabilityPenalty + histUncertaintyDiscount + (roeQuality < 1 ? (1 - roeQuality) * 0.07 : -Math.min(0.04, (roeQuality - 1) * 0.035)),
+    baseVol * 1.08 + growthStabilityPenalty + histUncertaintyDiscount + (roeQuality < 1 ? (1 - roeQuality) * 0.07 : -Math.min(0.04, (roeQuality - 1) * 0.035)),
     0.07,
-    0.52
+    0.48
   );
-  const upsideSkew = clamp(1 + Math.max(0, -gap) * 0.75 + Math.max(0, gp.blendedGrowth) * 0.35, 0.70, 2.15);
-  const downsideSkew = clamp(1 + Math.max(0, gap) * 0.90 + Math.max(0, -gp.blendedGrowth) * 0.55, 0.75, 2.45);
+  const upsideSkew = clamp(1 + Math.max(0, -effectiveGap) * 0.65 + Math.max(0, gp.blendedGrowth) * 0.28, 0.75, 1.90);
+  const downsideSkew = clamp(1 + Math.max(0, effectiveGap) * 0.72 + Math.max(0, -gp.blendedGrowth) * 0.45, 0.80, 2.05);
 
   const points = [];
   for (let t = 0; t <= months; t++) {
     const years = t / 12;
-    const accelCurve = 0.5 * gp.epsAcceleration * years * Math.min(years, 1.5);
-    const growthForT = clamp(gp.blendedGrowth + accelCurve, -0.30, 0.50);
+
+    // EPS 가속도는 중요하지만, 3년 전체를 지배하면 과도한 우하향/우상향 왜곡이 생깁니다. 초기에만 완만히 반영하고 빠르게 감쇠시킵니다.
+    const accelAdj = clamp(gp.epsAcceleration, -0.12, 0.12) * 0.18 * Math.exp(-years / 1.25);
+    const growthForT = clamp(gp.blendedGrowth + accelAdj, -0.18, 0.38);
+
     const epsT = latestEps * Math.pow(1 + growthForT, years);
     const m = calibratedMultiple({ growth: growthForT, roe: gp.roeLatest, roeDelta: gp.roeDelta, baseMultiple, hist });
     const rawIv = epsT * m.calibratedMultiple;
     const rawIv0 = latestEps * mNow.calibratedMultiple;
     const anchorScale = rawIv0 > 0 ? dcfAnchor / rawIv0 : 1;
     const dynamicIV = Math.max(1, rawIv * anchorScale);
-    const gravityDecay = Math.exp(-0.050 * t);
-    const qmaGravityAdj = -lambda * Math.sign(gap) * Math.pow(Math.abs(gap), 2) * dynamicIV * gravityDecay;
-    const expected = Math.max(1, dynamicIV + qmaGravityAdj);
+
+    const gravityDecay = Math.exp(-0.045 * t);
+    const qmaGravityAdj = gravityAdjustment({ gap, dynamicIV, lambda, decay: gravityDecay });
+    const expected = Math.max(dynamicIV * 0.35, dynamicIV + qmaGravityAdj);
+
     const sigma = expected * sigmaBase * Math.sqrt(Math.max(t, 1) / 12);
     const upper50 = expected + 0.67 * sigma * upsideSkew;
     const lower50 = expected - 0.67 * sigma * downsideSkew;
     const upper80 = expected + 1.28 * sigma * upsideSkew;
     const lower80 = expected - 1.28 * sigma * downsideSkew;
-    const qmaLine = qmaLine0 * Math.pow(1 + clamp(gp.blendedGrowth * 0.45, -0.10, 0.16), years);
+    const qmaLine = qmaLine0 * Math.pow(1 + clamp(gp.blendedGrowth * 0.45, -0.08, 0.14), years);
 
     points.push({
       month: t,
@@ -256,6 +286,7 @@ export function buildSequoiaFormulaLab({
       dcfAnchor: Math.round(dcfAnchor),
       qmaLine: Math.round(qmaLine),
       qmaGravityAdj: Math.round(qmaGravityAdj),
+      effectiveGap: Number((effectiveGap * 100).toFixed(1)),
       upper80: Math.round(upper80),
       lower80: Math.max(0, Math.round(lower80)),
       upper50: Math.round(upper50),
@@ -317,6 +348,7 @@ export function buildSequoiaFormulaLab({
       growthPremium: mNow.growthPremium,
       roePremium: mNow.roePremium,
       qmaGap: gapPct,
+      effectiveQmaGap: effectiveGap * 100,
       qmaGravityNow,
       gravityLabel,
       trajectoryLabel,
@@ -327,8 +359,7 @@ export function buildSequoiaFormulaLab({
       dcfAnchor,
       currentPrice: p0,
       qmaLine0,
-      note: "EPS 성장궤적 × 동적 멀티플(역사 PER 보정) + QMA 평균회귀 중력장 + 확률분포 밴드",
+      note: "EPS 성장궤적 × 동적 멀티플(역사 PER 보조 보정) + 포화형 QMA 평균회귀 중력장 + 확률분포 밴드",
     },
   };
 }
-
