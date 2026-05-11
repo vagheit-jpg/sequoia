@@ -1,20 +1,55 @@
 /**
- * api/price.js — Yahoo Finance 주가 중계
+ * api/price.js — Yahoo Finance 주가 + KIS 시가총액 중계
  * GET /api/price?ticker=005930
  * 한국 주식: .KS (KOSPI) / .KQ (KOSDAQ) 자동 판별
  * 10년치 월봉 한 번에 수신 — adjclose 사용으로 액면분할 소급 보정
+ *
+ * 시가총액은 KIS REST API에서 1순위로 가져옵니다.
+ * - inquire-price: hts_avls 우선
+ * - search-stock-info: hts_avls/lstg_stqt 보조
+ * - 실패 시 shares × currentPrice fallback, 단 비정상 범위는 null 처리
  */
+
+let KIS_TOKEN_CACHE = null;
 
 function getYahooTicker(ticker, market) {
   if (market === "KQ") return `${ticker}.KQ`;
   return `${ticker}.KS`;
 }
 
+function toNumber(v) {
+  const n = Number(String(v ?? "").replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeMarketCapWon(value) {
+  const n = toNumber(value);
+  if (!n || n <= 0) return null;
+
+  // KIS hts_avls는 보통 억원 단위입니다. 이미 원 단위로 온 경우도 방어합니다.
+  const won = n > 10_000_000_000 ? n : n * 100_000_000;
+
+  // 한국 상장사 현실 범위 방어: 0.01조 미만 또는 1,500조 초과는 비정상으로 간주.
+  if (won < 10_000_000_000 || won > 1_500 * 1_000_000_000_000) return null;
+  return Math.round(won);
+}
+
+function normalizeShares(value) {
+  const n = toNumber(value);
+  if (!n || n <= 0) return null;
+  // 보통 발행주식수는 수백만~수십억 주. 100억주 초과면 단위 오류 가능성.
+  if (n < 100_000 || n > 10_000_000_000) return null;
+  return Math.round(n);
+}
 
 async function fetchKISAccessToken() {
   const appKey = process.env.KIS_APP_KEY || process.env.KIS_APPKEY || process.env.KOREA_INVESTMENT_APP_KEY;
   const appSecret = process.env.KIS_APP_SECRET || process.env.KIS_APPSECRET || process.env.KOREA_INVESTMENT_APP_SECRET;
   if (!appKey || !appSecret) return null;
+
+  if (KIS_TOKEN_CACHE?.accessToken && KIS_TOKEN_CACHE.expiresAt > Date.now() + 60_000) {
+    return { accessToken: KIS_TOKEN_CACHE.accessToken, appKey, appSecret };
+  }
 
   const tokenRes = await fetch("https://openapi.koreainvestment.com:9443/oauth2/tokenP", {
     method: "POST",
@@ -25,42 +60,97 @@ async function fetchKISAccessToken() {
       appsecret: appSecret,
     }),
   });
+
   if (!tokenRes.ok) throw new Error(`KIS token ${tokenRes.status}`);
   const tokenJson = await tokenRes.json();
   if (!tokenJson?.access_token) throw new Error("KIS access_token 없음");
+
+  const expiresIn = Number(tokenJson.expires_in || 86400);
+  KIS_TOKEN_CACHE = {
+    accessToken: tokenJson.access_token,
+    expiresAt: Date.now() + Math.max(60, expiresIn - 120) * 1000,
+  };
+
   return { accessToken: tokenJson.access_token, appKey, appSecret };
 }
 
-async function fetchKISMarketCap(ticker) {
+async function kisGet(url, trId) {
   const auth = await fetchKISAccessToken();
   if (!auth) return null;
 
-  const url = `https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/search-stock-info?PRDT_TYPE_CD=300&PDNO=${ticker}`;
   const r = await fetch(url, {
     headers: {
-      "authorization": `Bearer ${auth.accessToken}`,
-      "appkey": auth.appKey,
-      "appsecret": auth.appSecret,
-      "tr_id": "CTPF1002R",
-      "custtype": "P",
+      authorization: `Bearer ${auth.accessToken}`,
+      appkey: auth.appKey,
+      appsecret: auth.appSecret,
+      tr_id: trId,
+      custtype: "P",
     },
   });
-  if (!r.ok) throw new Error(`KIS marketCap ${r.status}`);
+
+  if (!r.ok) throw new Error(`KIS ${trId} ${r.status}`);
   const json = await r.json();
-  const out = json?.output || {};
+  return json?.output || null;
+}
 
-  const shares = Number(String(out.lstg_stqt || out.lstg_st_cnt || "0").replace(/,/g, ""));
-  const htsAvls = Number(String(out.hts_avls || "0").replace(/,/g, ""));
-
-  // KIS hts_avls는 보통 억원 단위 시가총액입니다.
-  const marketCapWon = htsAvls > 0 ? htsAvls * 100000000 : 0;
-
-  return {
-    shares: Number.isFinite(shares) && shares > 0 ? shares : null,
-    marketCapWon: Number.isFinite(marketCapWon) && marketCapWon > 0 ? marketCapWon : null,
-    marketCap: Number.isFinite(marketCapWon) && marketCapWon > 0 ? marketCapWon : null,
-    kisRaw: out,
+async function fetchKISMarketCap(ticker, currentPrice) {
+  const result = {
+    shares: null,
+    marketCapWon: null,
+    marketCap: null,
+    kisSource: null,
   };
+
+  // 1순위: 국내주식 현재가 조회. hts_avls가 시가총액으로 가장 안정적입니다.
+  try {
+    const out = await kisGet(
+      `https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/inquire-price?FID_COND_MRKT_DIV_CODE=J&FID_INPUT_ISCD=${ticker}`,
+      "FHKST01010100"
+    );
+    const cap = normalizeMarketCapWon(out?.hts_avls || out?.stck_avls || out?.mktcap);
+    const shares = normalizeShares(out?.lstn_stcn || out?.lstg_stqt || out?.stck_sdpr);
+    if (cap) {
+      result.marketCapWon = cap;
+      result.marketCap = cap;
+      result.shares = shares;
+      result.kisSource = "inquire-price";
+      return result;
+    }
+    if (shares) result.shares = shares;
+  } catch (e) {
+    console.warn("[api/price] KIS inquire-price fallback:", e?.message || e);
+  }
+
+  // 2순위: 상품기본정보. 일부 계정/환경에서는 이쪽에 hts_avls 또는 상장주식수가 들어옵니다.
+  try {
+    const out = await kisGet(
+      `https://openapi.koreainvestment.com:9443/uapi/domestic-stock/v1/quotations/search-stock-info?PRDT_TYPE_CD=300&PDNO=${ticker}`,
+      "CTPF1002R"
+    );
+    const cap = normalizeMarketCapWon(out?.hts_avls || out?.stck_avls || out?.mktcap);
+    const shares = normalizeShares(out?.lstg_stqt || out?.lstg_st_cnt || out?.lstn_stcn);
+    if (shares) result.shares = shares;
+    if (cap) {
+      result.marketCapWon = cap;
+      result.marketCap = cap;
+      result.kisSource = "search-stock-info";
+      return result;
+    }
+  } catch (e) {
+    console.warn("[api/price] KIS search-stock-info fallback:", e?.message || e);
+  }
+
+  // 3순위: KIS 상장주식수 × 현재가. 삼성전기 5100조 같은 오류를 막기 위해 sanity check를 강하게 적용합니다.
+  if (result.shares && currentPrice > 0) {
+    const fallbackCap = result.shares * currentPrice;
+    if (fallbackCap >= 10_000_000_000 && fallbackCap <= 1_500 * 1_000_000_000_000) {
+      result.marketCapWon = Math.round(fallbackCap);
+      result.marketCap = result.marketCapWon;
+      result.kisSource = "shares*price-fallback";
+    }
+  }
+
+  return result.marketCapWon ? result : null;
 }
 
 async function fetchYahoo(yahooTicker) {
@@ -80,17 +170,14 @@ async function fetchYahoo(yahooTicker) {
 
   if (!res.ok) throw new Error(`Yahoo ${yahooTicker} ${res.status}`);
   const data = await res.json();
-
   const result = data?.chart?.result?.[0];
   if (!result) throw new Error(`No data for ${yahooTicker}`);
-
   return result;
 }
 
 function buildMonthly(result) {
   const timestamps = result.timestamps || result.timestamp || [];
   const quotes     = result.indicators?.quote?.[0] || {};
-  // adjclose: 액면분할·배당 소급 보정된 수정주가 — 분할 종목 차트 연속성 보장
   const adjCloses  = result.indicators?.adjclose?.[0]?.adjclose || [];
   const closes     = quotes.close  || [];
   const opens      = quotes.open   || [];
@@ -98,14 +185,12 @@ function buildMonthly(result) {
   const lows       = quotes.low    || [];
   const vols       = quotes.volume || [];
 
-  // 분할 비율 계산용: adjclose / close 비율로 open/high/low도 보정
   const monthly = [];
   for (let i = 0; i < timestamps.length; i++) {
     const rawClose = closes[i];
     const adjClose = adjCloses[i] || rawClose;
     if (!adjClose || isNaN(adjClose)) continue;
 
-    // open/high/low도 같은 비율로 보정
     const ratio = (rawClose && rawClose > 0) ? adjClose / rawClose : 1;
     const adjOpen  = Math.round((opens[i]  || rawClose) * ratio);
     const adjHigh  = Math.round((highs[i]  || rawClose) * ratio);
@@ -152,7 +237,6 @@ module.exports = async function handler(req, res) {
       usedTicker = `${ticker}.KS`;
       result = await fetchYahoo(usedTicker);
     } else {
-      // 자동 판별: KS 먼저, 실패 시 KQ
       try {
         usedTicker = `${ticker}.KS`;
         result = await fetchYahoo(usedTicker);
@@ -167,7 +251,6 @@ module.exports = async function handler(req, res) {
       return res.status(404).json({ error: "주가 데이터 없음" });
     }
 
-    // 현재가는 실제 시장가 (adjclose 아님 — 분할 후 실제 호가 기준)
     const meta         = result.meta || {};
     const currentPrice = Math.round(meta.regularMarketPrice || monthly[monthly.length - 1].price);
     const prevClose    = Math.round(meta.previousClose || meta.chartPreviousClose || 0);
@@ -177,7 +260,6 @@ module.exports = async function handler(req, res) {
     const now = new Date();
     const priceDateStr = `${now.getFullYear()}.${String(now.getMonth()+1).padStart(2,"0")}.${String(now.getDate()).padStart(2,"0")} 기준`;
 
-    // 장중(9~16시 KST) 1분, 그 외 1시간 캐시
     const kstHour = (now.getUTCHours() + 9) % 24;
     res.setHeader("Cache-Control",
       (kstHour >= 9 && kstHour < 16)
@@ -185,7 +267,7 @@ module.exports = async function handler(req, res) {
         : "s-maxage=3600, stale-while-revalidate=300"
     );
 
-    const kisMarket = await fetchKISMarketCap(ticker).catch((e) => {
+    const kisMarket = await fetchKISMarketCap(ticker, currentPrice).catch((e) => {
       console.warn("[api/price] KIS market cap fallback:", e?.message || e);
       return null;
     });
@@ -202,6 +284,7 @@ module.exports = async function handler(req, res) {
       marketCapWon: kisMarket?.marketCapWon || null,
       marketCap: kisMarket?.marketCapWon || null,
       shares: kisMarket?.shares || null,
+      kisSource: kisMarket?.kisSource || null,
     });
 
   } catch (err) {
