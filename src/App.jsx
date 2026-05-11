@@ -123,13 +123,14 @@ const TrajectoryTip=({active,payload,label})=>{
       {[
         ["80% 상단",d.upper80,C.muted],
         ["50% 상단",d.upper50,C.muted],
-        ["기대 경로",d.expected,C.blue],
+        ["시장 예상 경로",d.expected,C.blue],
         ["50% 하단",d.lower50,C.muted],
         ["80% 하단",d.lower80,C.muted],
-        ["내재가치 중력원",d.fairValue,C.gold],
+        ["기업가치 중심축",d.dynamicIV??d.fairValue,C.gold],
+        ...(d.dcfAnchor!=null?[["DCF 기준점",d.dcfAnchor,C.muted]]:[]),
       ].map(([name,value,color])=>(
         <div key={name} style={{display:"flex",justifyContent:"space-between",gap:14,marginBottom:4,alignItems:"center"}}>
-          <span style={{color:C.muted,fontWeight:name==="기대 경로"?800:600}}>{name}</span>
+          <span style={{color:C.muted,fontWeight:name==="시장 예상 경로"?800:600}}>{name}</span>
           <span style={{color,fontFamily:"monospace",fontWeight:900}}>{fmt(value)}</span>
         </div>
       ))}
@@ -2159,7 +2160,7 @@ else {
                             <div>
                               <div style={{color:C.green,fontSize:12,fontWeight:900,letterSpacing:"0.04em"}}>🌲 SEQUOIA Formula Lab™ — 가치 동역학 공식</div>
                               <div style={{color:C.muted,fontSize:8,lineHeight:1.7,marginTop:4}}>
-                                EPS 성장궤적 × Dynamic Multiple × QMA 평균회귀 중력장 × 확률분포 밴드
+                                기업가치 중심축(EPS×멀티플)과 시장 예상 경로(QMA 중력 반영)를 함께 표시합니다.
                               </div>
                             </div>
                             <div style={{background:`${C.gold}12`,border:`1px solid ${C.gold}44`,borderRadius:9,padding:"7px 10px",fontFamily:"monospace",fontSize:10,color:C.gold,fontWeight:900}}>
@@ -2170,8 +2171,8 @@ else {
                           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:8,marginBottom:12}}>
                             {[
                               ["EPS 성장궤적", fmtPct(formula.meta.blendedGrowth), C.green, formula.meta.trajectoryLabel],
-                              ["Dynamic Multiple", fmtMul(formula.meta.dynamicMultiple), C.blue, formula.meta.multipleLabel],
-                              ["역사 PER 보정", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`${formula.meta.historicalMultipleStats.count}개월 · 가중 ${(Number(formula.meta.historicalWeight||0)*100).toFixed(0)}%`:"이론 중심"],
+                              ["시장 성장 프리미엄", fmtMul(formula.meta.dynamicMultiple), C.blue, `고성장·고ROE 기반 미래 기대 멀티플 · ${formula.meta.multipleLabel}`],
+                              ["과거 시장 평균 PER", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`최근 ${formula.meta.historicalMultipleStats.count}개월 시장 평균 평가 · 현실 보정 ${(Number(formula.meta.historicalWeight||0)*100).toFixed(0)}%`:"이론 중심"],
                               ["ROE 품질", `${Number(formula.meta.roeLatest||0).toFixed(1)}%`, C.teal, `3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`],
                               ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, `${Math.round(formula.meta.qmaGap||0)}% 이격 · 유효 ${Math.round(formula.meta.effectiveQmaGap||formula.meta.qmaGap||0)}%`],
                               ["확률밴드 σ", `${Number(formula.meta.sigmaBase*100).toFixed(1)}%`, C.gold, "변동성·ROE·이격 반영"],
@@ -2235,11 +2236,15 @@ else {
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.blue,fontSize:8,fontWeight:900,marginBottom:5}}>② M(t) 동적 멀티플</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>DCF Anchor, 현재 PER, 종목별 역사 PER 밴드를 함께 반영합니다. 성장률과 ROE가 높을수록 멀티플이 확장됩니다.</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>시장 성장 프리미엄은 성장률·ROE가 만드는 미래 기대 멀티플입니다. 과거 시장 평균 PER은 이론값이 과도해지지 않도록 보조 보정으로만 반영됩니다.</div>
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.orange,fontSize:8,fontWeight:900,marginBottom:5}}>③ Gqma(t) QMA 중력장</div>
                               <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>QMA 이격도는 잠재에너지입니다. 플러스 이격은 하방 중력, 마이너스 이격은 상방 중력이며 gap²로 비선형 증폭되되 극단 이격은 포화 처리됩니다.</div>
+                            </div>
+                            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
+                              <div style={{color:C.gold,fontSize:8,fontWeight:900,marginBottom:5}}>④ 차트 읽는 법</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>노란선은 기업가치 중심축, 파란선은 QMA 중력까지 반영한 시장 예상 경로입니다. 과열 이격이 크면 파란선이 노란선보다 눌리고, 저평가 이격이면 위로 당겨집니다.</div>
                             </div>
                           </div>
                         </div>
