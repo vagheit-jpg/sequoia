@@ -2171,9 +2171,9 @@ else {
                             {[
                               ["EPS 성장궤적", fmtPct(formula.meta.blendedGrowth), C.green, formula.meta.trajectoryLabel],
                               ["Dynamic Multiple", fmtMul(formula.meta.dynamicMultiple), C.blue, formula.meta.multipleLabel],
-                              ["역사 PER 보정", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`${formula.meta.historicalMultipleStats.count}개월`:"이론 중심"],
+                              ["역사 PER 보정", formula.meta.historicalMultiple?fmtMul(formula.meta.historicalMultiple):"데이터 부족", C.purple, formula.meta.historicalMultipleStats?.count?`${formula.meta.historicalMultipleStats.count}개월 · 가중 ${(Number(formula.meta.historicalWeight||0)*100).toFixed(0)}%`:"이론 중심"],
                               ["ROE 품질", `${Number(formula.meta.roeLatest||0).toFixed(1)}%`, C.teal, `3년 평균 ${Number(formula.meta.roeAvg3||0).toFixed(1)}%`],
-                              ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, `${Math.round(formula.meta.qmaGap||0)}% 이격`],
+                              ["QMA 중력장", formula.meta.gravityLabel, formula.meta.qmaGap>=0?C.orange:C.green, `${Math.round(formula.meta.qmaGap||0)}% 이격 · 유효 ${Math.round(formula.meta.effectiveQmaGap||formula.meta.qmaGap||0)}%`],
                               ["확률밴드 σ", `${Number(formula.meta.sigmaBase*100).toFixed(1)}%`, C.gold, "변동성·ROE·이격 반영"],
                             ].map(([k,v,col,sub])=>(
                               <div key={k} style={{background:C.card2,border:`1px solid ${col}33`,borderRadius:9,padding:"8px 10px"}}>
@@ -2208,6 +2208,7 @@ else {
                               <ReferenceLine y={price} stroke={C.red} strokeDasharray="4 3" label={{value:"현재가",fill:C.red,fontSize:9}}/>
                             </ComposedChart>
                           </CW>
+                          <div style={{display:"flex",justifyContent:"flex-end",color:C.muted,fontSize:8,fontFamily:"monospace",marginTop:-4,marginRight:12}}>X축: Month(개월)</div>
 
                           {p12&&(
                             <div style={{marginTop:9,background:C.card2,borderRadius:9,padding:"9px 10px",border:`1px solid ${C.border}`}}>
@@ -2238,7 +2239,7 @@ else {
                             </div>
                             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:9,padding:"9px 10px"}}>
                               <div style={{color:C.orange,fontSize:8,fontWeight:900,marginBottom:5}}>③ Gqma(t) QMA 중력장</div>
-                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>QMA 이격도는 잠재에너지입니다. 플러스 이격은 하방 중력, 마이너스 이격은 상방 중력이며 gap²로 비선형 증폭됩니다.</div>
+                              <div style={{color:C.text,fontSize:8,lineHeight:1.7}}>QMA 이격도는 잠재에너지입니다. 플러스 이격은 하방 중력, 마이너스 이격은 상방 중력이며 gap²로 비선형 증폭되되 극단 이격은 포화 처리됩니다.</div>
                             </div>
                           </div>
                         </div>
