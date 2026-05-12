@@ -110,12 +110,11 @@ async function makeKoreaSnapshot() {
   const base = getBaseUrl();
 
   // ── PRIMARY + FALLBACK 구조
-  const [dPrimary, dFallback] = await Promise.all([
-    safeFetch(`${base}/api/macro`, {}, 2, 9000),
-    safeFetch("http://localhost:3000/api/macro", {}, 1, 9000)
-  ]);
+const d = await safeFetch(`${base}/api/macro`, {}, 2, 9000);
 
-  const d = dPrimary || dFallback;
+if (!d) {
+  throw new Error("KOREA DATA FETCH FAILED");
+}
 
   if (!d) {
     throw new Error("KOREA DATA FETCH FAILED (both primary & fallback)");
