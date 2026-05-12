@@ -56,6 +56,16 @@ function getBaseUrl() {
   return "http://localhost:3000";
 }
 
+const makeMetric = (value, fallback = 0, confidence = 1.0) => {
+  const isMissing = value == null || Number.isNaN(Number(value));
+
+  return {
+    value: isMissing ? fallback : Number(value),
+    imputed: isMissing,
+    confidence: isMissing ? confidence : 1.0
+  };
+};
+
 // ════════════════════════════════════════
 // KOREA 스냅샷 (수신율 강화 버전)
 // ════════════════════════════════════════
@@ -120,62 +130,83 @@ async function makeKoreaSnapshot() {
   const interp = intel?.interpretation || {};
   const strat  = intel?.strategy       || {};
 
-  const key_indicators = {
-    sefcon_score:     safeNum(dc?.totalScore),
-    sefcon_level:     safeNum(dc?.defcon),
+const key_indicators = {
+  sefcon_score: makeMetric(dc?.totalScore),
+  sefcon_level: makeMetric(dc?.defcon),
 
-    krw_usd:          safeNum(last(d?.fx)),
-    kr_rate:          safeNum(last(d?.rate)),
-    kr_bond10y:       safeNum(last(d?.bond10Y)),
-    kr_bond3y:        safeNum(last(d?.bond3Y)),
-    cd_spread:        safeNum(last(d?.cdSpread)),
+  krw_usd:      makeMetric(last(d?.fx)),
+  kr_rate:      makeMetric(last(d?.rate)),
+  kr_bond10y:   makeMetric(last(d?.bond10Y)),
+  kr_bond3y:    makeMetric(last(d?.bond3Y)),
+  cd_spread:    makeMetric(last(d?.cdSpread)),
 
-    fred_vix:         safeNum(last(d?.fredVIX)),
-    fred_baa:         safeNum(last(d?.fredHY)),
-    fred_hy:          safeNum(last(d?.fredBAML)),
-    fred_t10y2y:      safeNum(last(d?.fredT10Y2Y)),
-    fred_sloos:       safeNum(last(d?.fredSLOOS)),
-    fred_lei:         safeNum(last(d?.fredLEI)),
-    dxy:              safeNum(last(d?.yahooDXY)),
-    us_m2_yoy:        safeNum(lastYoy(d?.usM2YoY)),
+  fred_vix:     makeMetric(last(d?.fredVIX)),
+  fred_baa:     makeMetric(last(d?.fredHY)),
+  fred_hy:      makeMetric(last(d?.fredBAML)),
+  fred_t10y2y:  makeMetric(last(d?.fredT10Y2Y)),
+  fred_sloos:   makeMetric(last(d?.fredSLOOS)),
+  fred_lei:     makeMetric(last(d?.fredLEI)),
+  dxy:          makeMetric(last(d?.yahooDXY)),
 
-    kr_m2_yoy:        safeNum(lastYoy(d?.krM2YoY)),
-    kr_cpi:           safeNum(last(d?.cpi)),
-    kr_ppi:           safeNum(last(d?.ppi)),
-    kr_export_yoy:    safeNum(lastYoy(d?.exportYoY)),
-    kr_gdp:           safeNum(last(d?.gdp)),
-    foreign_net:      safeNum(last(d?.foreignNet)),
-    hh_debt_gdp:      safeNum(last(d?.hhDebtGDP)),
+  us_m2_yoy:    makeMetric(lastYoy(d?.usM2YoY)),
+  kr_m2_yoy:    makeMetric(lastYoy(d?.krM2YoY)),
 
-    kospi_last:       safeNum(d?.kospiMonthly?.slice(-1)[0]?.close),
-    kosdaq_last:      safeNum(d?.kosdaqMonthly?.slice(-1)[0]?.close),
+  kr_cpi:       makeMetric(last(d?.cpi)),
+  kr_ppi:       makeMetric(last(d?.ppi)),
+  kr_export_yoy:makeMetric(lastYoy(d?.exportYoY)),
+  kr_gdp:       makeMetric(last(d?.gdp)),
 
-    cat_credit:       safeNum((dc?.catScores||[]).find(c => c.cat === "신용위험")?.score),
-    cat_liquidity:    safeNum((dc?.catScores||[]).find(c => c.cat === "유동성")?.score),
-    cat_fear:         safeNum((dc?.catScores||[]).find(c => c.cat === "시장공포")?.score),
-    cat_real:         safeNum((dc?.catScores||[]).find(c => c.cat === "실물경기")?.score),
-    cat_inflation:    safeNum((dc?.catScores||[]).find(c => c.cat === "물가")?.score),
+  foreign_net:  makeMetric(last(d?.foreignNet)),
+  hh_debt_gdp:  makeMetric(last(d?.hhDebtGDP)),
 
-    crisis_proximity: safeNum(d?.crisisAnalysis?.navigation?.proximityScore),
-    crisis_top:       d?.crisisAnalysis?.navigation?.topCrisis?.label ?? null,
+  kospi_last:   makeMetric(d?.kospiMonthly?.slice(-1)[0]?.close),
+  kosdaq_last:  makeMetric(d?.kosdaqMonthly?.slice(-1)[0]?.close),
 
-    liquidity_pressure:  safeNum(phys?.liquidityPressure),
-    valuation_gravity:   safeNum(phys?.valuationGravity),
-    credit_stress:       safeNum(phys?.creditStress),
-    volatility_energy:   safeNum(phys?.volatilityEnergy),
-    bubble_energy:       safeNum(phys?.bubbleEnergy),
-    dominant_force:      phys?.dominantForce ?? null,
+  cat_credit:   makeMetric((dc?.catScores||[]).find(c=>c.cat==="신용위험")?.score),
+  cat_liquidity:makeMetric((dc?.catScores||[]).find(c=>c.cat==="유동성")?.score),
+  cat_fear:     makeMetric((dc?.catScores||[]).find(c=>c.cat==="시장공포")?.score),
+  cat_real:     makeMetric((dc?.catScores||[]).find(c=>c.cat==="실물경기")?.score),
+  cat_inflation:makeMetric((dc?.catScores||[]).find(c=>c.cat==="물가")?.score),
 
-    risk_acceleration:    safeNum(temp?.riskAcceleration),
-    liquidity_trend:      safeNum(temp?.liquidityTrend),
-    credit_acceleration:  safeNum(temp?.creditAcceleration),
-    vol_compression:      safeNum(temp?.volatilityCompression),
-    speculation_momentum: safeNum(temp?.speculationMomentum),
+  crisis_proximity: makeMetric(d?.crisisAnalysis?.navigation?.proximityScore),
 
-    regime_label:      regime?.primaryLabel ?? null,
-    regime_direction:  regime?.direction ?? null,
-    transition_path:   regime?.transitionPath ?? null,
-  };
+  crisis_top: {
+    value: d?.crisisAnalysis?.navigation?.topCrisis?.label ?? "UNKNOWN",
+    imputed: !d?.crisisAnalysis?.navigation?.topCrisis,
+    confidence: d?.crisisAnalysis?.navigation?.topCrisis ? 1 : 0.3
+  },
+
+  liquidity_pressure: makeMetric(phys?.liquidityPressure),
+  valuation_gravity:  makeMetric(phys?.valuationGravity),
+  credit_stress:      makeMetric(phys?.creditStress),
+  volatility_energy:  makeMetric(phys?.volatilityEnergy),
+  bubble_energy:      makeMetric(phys?.bubbleEnergy),
+
+  dominant_force: {
+    value: phys?.dominantForce ?? "UNKNOWN",
+    imputed: !phys?.dominantForce,
+    confidence: phys?.dominantForce ? 1 : 0.3
+  },
+
+  risk_acceleration:    makeMetric(temp?.riskAcceleration),
+  liquidity_trend:      makeMetric(temp?.liquidityTrend),
+  credit_acceleration:  makeMetric(temp?.creditAcceleration),
+  vol_compression:      makeMetric(temp?.volatilityCompression),
+  speculation_momentum: makeMetric(temp?.speculationMomentum),
+
+  regime_label: {
+    value: regime?.primaryLabel ?? "UNKNOWN",
+    imputed: !regime?.primaryLabel,
+    confidence: regime?.primaryLabel ? 1 : 0.3
+  },
+
+  regime_direction: makeMetric(regime?.direction),
+  transition_path: {
+    value: regime?.transitionPath ?? null,
+    imputed: !regime?.transitionPath,
+    confidence: regime?.transitionPath ? 1 : 0.4
+  }
+};
 
   return {
     snapshot_date:  todayStr(),
