@@ -2413,19 +2413,6 @@ else {
                 </span>
               </div>
             </div>
-
-            {isTop&&(
-              <span style={{
-                color:C.green,
-                fontSize:7,
-                fontWeight:900,
-                flexShrink:0,
-                minWidth:34 // ← 모바일 찌그러짐 방지
-              }}>
-                ★ 최고
-              </span>
-            )}
-
           </div>
         </div>
         );
