@@ -1447,41 +1447,109 @@ export default function App(){
                   {/* EPS · FCF · 주가 동행 */}
                   {epsPriceData.length>=2&&(
                     <>
-                      <ST accent={C.purple}>EPS · 주가 동행 추이</ST>
-                      <div style={{background:`${C.purple}0d`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:"7px 10px",marginBottom:6}}>
-                        <div style={{color:`${C.muted}cc`,fontSize:7,lineHeight:1.8}}>
-                          <span style={{color:"#F97316",fontWeight:700}}>EPS(주당순이익)</span>가 장기적으로 <span style={{color:"#38BDF8",fontWeight:700}}>주가</span>를 이끄는지 확인합니다.
-                          EPS가 우상향하는데 주가가 뒤처지면 <span style={{color:C.green,fontWeight:700}}>저평가</span> 가능성,
-                          주가가 EPS를 크게 앞서면 <span style={{color:C.red,fontWeight:700}}>밸류에이션 부담</span> 신호입니다.
-                          두 선이 함께 우상향하는 기업이 장기 투자에 가장 이상적입니다.
-                        </div>
-                      </div>
-                      <CW h={240}>
-                        <ComposedChart data={epsPriceData} margin={{top:8,right:8,left:0,bottom:8}}>
-                          <CartesianGrid strokeDasharray="3 3" stroke={C.grid} vertical={false}/>
-                          <XAxis dataKey="period" tick={<FinTick/>} tickLine={false} axisLine={{stroke:C.border}} interval={0} height={24}/>
-                          <YAxis yAxisId="eps" orientation="left"
-                            tick={{fill:"#F97316",fontSize:10}} width={48}
-                            tickFormatter={v=>v.toLocaleString()}
-                            stroke="#F97316" tickCount={5}
-                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||100;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
-                          <YAxis yAxisId="price" orientation="right"
-                            tick={{fill:"#38BDF8",fontSize:10}} width={48}
-                            tickFormatter={v=>v<0?"":v.toLocaleString()}
-                            stroke="#38BDF8" tickCount={5}
-                            domain={([min,max])=>{const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;return[Math.floor(min-pad),Math.ceil(max+pad)];}}/>
-                          <Tooltip content={<MTip/>} cursor={false}/>
-                          <Legend wrapperStyle={{fontSize:10,paddingTop:4}}/>
-                          <Line yAxisId="eps" dataKey="eps" name="EPS(원)"
-                            stroke="#F97316" strokeWidth={2} strokeDasharray="6 3"
-                            dot={{r:4,fill:"#F97316",strokeWidth:0}}
-                            activeDot={{r:6}}/>
-                          <Line yAxisId="price" dataKey="price" name="주가(원)"
-                            stroke="#38BDF8" strokeWidth={2.5}
-                            dot={{r:4,fill:"#38BDF8",strokeWidth:0}}
-                            activeDot={{r:6}}/>
-                        </ComposedChart>
-                      </CW>
+<ST accent={C.purple}>EPS · 주가 동행 추이</ST>
+
+<div style={{
+  background:`${C.purple}0d`,
+  border:`1px solid ${C.purple}22`,
+  borderRadius:8,
+  padding:"7px 10px",
+  marginBottom:6
+}}>
+  <div style={{
+    color:`${C.muted}cc`,
+    fontSize:7,
+    lineHeight:1.8
+  }}>
+    <span style={{color:"#F97316",fontWeight:700}}>EPS(주당순이익)</span>가 장기적으로 <span style={{color:"#38BDF8",fontWeight:700}}>주가</span>를 이끄는지 확인합니다.
+    EPS가 우상향하는데 주가가 뒤처지면 <span style={{color:C.green,fontWeight:700}}>저평가</span> 가능성,
+    주가가 EPS를 크게 앞서면 <span style={{color:C.red,fontWeight:700}}>밸류에이션 부담</span> 신호입니다.
+    두 선이 함께 우상향하는 기업이 장기 투자에 가장 이상적입니다.
+  </div>
+</div>
+
+<CW h={240}>
+  <ComposedChart
+    data={epsPriceData}
+    margin={{top:8,right:8,left:0,bottom:8}}
+  >
+
+    <CartesianGrid
+      strokeDasharray="3 3"
+      stroke={C.grid}
+      vertical={false}
+    />
+
+    <XAxis
+      dataKey="period"
+      tick={<FinTick/>}
+      tickLine={false}
+      axisLine={{stroke:C.border}}
+      interval={0}
+      height={24}
+    />
+
+    {/* EPS 축 */}
+    <YAxis
+      yAxisId="eps"
+      orientation="left"
+      tick={{fill:"#F97316",fontSize:10}}
+      width={48}
+      tickFormatter={v=>v<=0?"":v.toLocaleString()}
+      stroke="#F97316"
+      tickCount={5}
+
+      // 핵심 수정
+      domain={[0,"auto"]}
+    />
+
+    {/* 주가 축 */}
+    <YAxis
+      yAxisId="price"
+      orientation="right"
+      tick={{fill:"#38BDF8",fontSize:10}}
+      width={48}
+      tickFormatter={v=>v<0?"":v.toLocaleString()}
+      stroke="#38BDF8"
+      tickCount={5}
+      domain={([min,max])=>{
+        const pad=(max-min)*0.4||Math.abs(max)*0.3||1000;
+        return[Math.floor(min-pad),Math.ceil(max+pad)];
+      }}
+    />
+
+    <Tooltip
+      content={<MTip/>}
+      cursor={false}
+    />
+
+    <Legend
+      wrapperStyle={{fontSize:10,paddingTop:4}}
+    />
+
+    <Line
+      yAxisId="eps"
+      dataKey="eps"
+      name="EPS(원)"
+      stroke="#F97316"
+      strokeWidth={2}
+      strokeDasharray="6 3"
+      dot={{r:4,fill:"#F97316",strokeWidth:0}}
+      activeDot={{r:6}}
+    />
+
+    <Line
+      yAxisId="price"
+      dataKey="price"
+      name="주가(원)"
+      stroke="#38BDF8"
+      strokeWidth={2.5}
+      dot={{r:4,fill:"#38BDF8",strokeWidth:0}}
+      activeDot={{r:6}}
+    />
+
+  </ComposedChart>
+</CW>
                     </>
                   )}
                 </>
@@ -2284,44 +2352,97 @@ else {
                             <span style={{color:C.muted,fontSize:7.5,marginLeft:"auto"}}>X축: 개월(Month)</span>
                           </div>
 
-                          {/* ── 12개월 확률 분포 — 히스토그램 형태 */}
-                          {p12&&(
-                            <div style={{marginBottom:12,background:C.card2,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}`}}>
-                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-                                <div style={{color:C.gold,fontSize:10,fontWeight:800}}>📊 12개월 후 확률 분포</div>
-                                {topBand&&(
-                                  <div style={{color:C.gold,fontSize:8,fontWeight:700,background:`${C.gold}14`,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"2px 8px"}}>
-                                    최고 확률구간: {topBand.label} · {topBand.probability}%
-                                  </div>
-                                )}
-                              </div>
-                              <div style={{display:"flex",flexDirection:"column",gap:5}}>
-                                {p12.bands.map((b,i)=>{
-                                  const maxProb = Math.max(...p12.bands.map(x=>x.probability));
-                                  const barWidth = `${(b.probability/maxProb*100).toFixed(0)}%`;
-                                  const isTop = b===topBand;
-                                  const col = isTop ? C.green : b.probability>=18 ? C.gold : C.muted;
-                                  return(
-                                  <div key={i}>
-                                    <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                                      <div style={{color:C.muted,fontSize:8,minWidth:110,flexShrink:0}}>{b.label}</div>
-                                      <div style={{flex:1,height:18,background:C.bg,borderRadius:4,overflow:"hidden"}}>
-                                        <div style={{width:barWidth,height:"100%",background:`linear-gradient(90deg,${col},${col}88)`,borderRadius:4,
-                                          transition:"width 0.5s",display:"flex",alignItems:"center",justifyContent:"flex-end",paddingRight:6}}>
-                                          <span style={{color:"#fff",fontSize:7.5,fontWeight:900}}>{b.probability}%</span>
-                                        </div>
-                                      </div>
-                                      {isTop&&<span style={{color:C.green,fontSize:7,fontWeight:900,flexShrink:0}}>★ 최고</span>}
-                                    </div>
-                                  </div>
-                                  );
-                                })}
-                              </div>
-                              <div style={{color:`${C.muted}88`,fontSize:7.5,marginTop:8,lineHeight:1.6,fontStyle:"italic"}}>
-                                ※ 확률 분포는 EPS 성장 궤적, QMA 중력장, 변동성 밴드를 몬테카를로 방식으로 시뮬레이션한 참고값입니다.
-                              </div>
-                            </div>
-                          )}
+{/* ── 12개월 확률 분포 — 히스토그램 형태 */}
+{p12&&(
+  <div style={{marginBottom:12,background:C.card2,borderRadius:10,padding:"10px 12px",border:`1px solid ${C.border}`}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+      <div style={{color:C.gold,fontSize:10,fontWeight:800}}>📊 12개월 후 확률 분포</div>
+      {topBand&&(
+        <div style={{color:C.gold,fontSize:8,fontWeight:700,background:`${C.gold}14`,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"2px 8px"}}>
+          최고 확률구간: {topBand.label} · {topBand.probability}%
+        </div>
+      )}
+    </div>
+
+    <div style={{display:"flex",flexDirection:"column",gap:5}}>
+      {p12.bands.map((b,i)=>{
+        const maxProb = Math.max(...p12.bands.map(x=>x.probability));
+        const barWidth = `${(b.probability/maxProb*88).toFixed(0)}%`; // ← 기존 100 → 88 수정
+        const isTop = b===topBand;
+        const col = isTop ? C.green : b.probability>=18 ? C.gold : C.muted;
+
+        return(
+        <div key={i}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+            
+            <div style={{
+              color:C.muted,
+              fontSize:8,
+              minWidth:110,
+              flexShrink:0
+            }}>
+              {b.label}
+            </div>
+
+            {/* 막대 영역 */}
+            <div style={{
+              flex:1,
+              height:18,
+              background:C.bg,
+              borderRadius:4,
+              overflow:"hidden",
+              marginRight:18 // ← 우측 안전영역 추가
+            }}>
+              <div style={{
+                width:barWidth,
+                height:"100%",
+                background:`linear-gradient(90deg,${col},${col}88)`,
+                borderRadius:4,
+                transition:"width 0.5s",
+                display:"flex",
+                alignItems:"center",
+                justifyContent:"flex-end",
+                paddingRight:6
+              }}>
+                <span style={{
+                  color:"#fff",
+                  fontSize:7.5,
+                  fontWeight:900
+                }}>
+                  {b.probability}%
+                </span>
+              </div>
+            </div>
+
+            {isTop&&(
+              <span style={{
+                color:C.green,
+                fontSize:7,
+                fontWeight:900,
+                flexShrink:0,
+                minWidth:34 // ← 모바일 찌그러짐 방지
+              }}>
+                ★ 최고
+              </span>
+            )}
+
+          </div>
+        </div>
+        );
+      })}
+    </div>
+
+    <div style={{
+      color:`${C.muted}88`,
+      fontSize:7.5,
+      marginTop:8,
+      lineHeight:1.6,
+      fontStyle:"italic"
+    }}>
+      ※ 확률 분포는 EPS 성장 궤적, QMA 중력장, 변동성 밴드를 몬테카를로 방식으로 시뮬레이션한 참고값입니다.
+    </div>
+  </div>
+)}
 
                           {/* ── 공식 설명 4개 박스 */}
                           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(170px,1fr))",gap:8,marginBottom:10}}>
