@@ -66,17 +66,12 @@ const makeMetric = (value, options = {}) => {
 
   const missing = value == null || Number.isNaN(Number(value));
 
-  // base confidence
   let confidence = 1.0;
 
-  // 1. missing penalty
   if (missing) confidence *= 0.6;
   if (isImputed || missing) confidence *= 0.7;
 
-  // 2. freshness weight
   confidence *= freshness;
-
-  // 3. volatility penalty
   confidence *= (1 - volatility);
 
   return {
