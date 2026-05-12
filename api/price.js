@@ -361,17 +361,10 @@ module.exports = async function handler(req, res) {
         : "s-maxage=3600, stale-while-revalidate=300"
     );
 
-    const kisMarket = await fetchKISMarketCap(ticker, currentPrice).catch((e) => {
-      console.warn("[api/price] KIS market cap fallback:", e?.message || e);
-      return null;
-    });
-
-    const naverMarket = kisMarket?.marketCapWon ? null : await fetchNaverMarketCap(ticker).catch((e) => {
-      console.warn("[api/price] Naver market cap fallback:", e?.message || e);
-      return null;
-    });
-
-    const marketInfo = kisMarket?.marketCapWon ? kisMarket : naverMarket;
+   const marketInfo = await fetchNaverMarketCap(ticker).catch((e) => {
+  console.warn("[api/price] Naver market cap fallback:", e?.message || e);
+  return null;
+});
 
     return res.status(200).json({
       monthly,
