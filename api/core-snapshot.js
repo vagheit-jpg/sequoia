@@ -57,14 +57,59 @@ function getBaseUrl() {
 }
 
 // ════════════════════════════════════════
-// KOREA 스냅샷
+// KOREA 스냅샷 (수신율 강화 버전)
 // ════════════════════════════════════════
+
+// fetch 안정화 유틸
+async function safeFetch(url, options = {}, retry = 2, timeoutMs = 8000) {
+  for (let i = 0; i <= retry; i++) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+    try {
+      const res = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+        headers: {
+          "User-Agent": "sequoia-cron/1.0",
+          "Cache-Control": "no-cache",
+          ...(options.headers || {})
+        }
+      });
+
+      clearTimeout(timeout);
+
+      if (res.ok) return await res.json();
+
+      console.warn(`[safeFetch] fail ${url} status=${res.status}`);
+
+    } catch (e) {
+      console.warn(`[safeFetch] error ${url}`, e.message);
+    } finally {
+      clearTimeout(timeout);
+    }
+
+    // retry backoff
+    await new Promise(r => setTimeout(r, 300 * (i + 1)));
+  }
+
+  return null; // 완전 실패 시에도 시스템 유지
+}
+
 async function makeKoreaSnapshot() {
-  const r = await fetch(`${getBaseUrl()}/api/macro`, {
-    headers: { "User-Agent": "sequoia-cron/1.0" }
-  });
-  if (!r.ok) throw new Error(`/api/macro ${r.status}`);
-  const d = await r.json();
+  const base = getBaseUrl();
+
+  // ── PRIMARY + FALLBACK 구조
+  const [dPrimary, dFallback] = await Promise.all([
+    safeFetch(`${base}/api/macro`, {}, 2, 9000),
+    safeFetch("http://localhost:3000/api/macro", {}, 1, 9000)
+  ]);
+
+  const d = dPrimary || dFallback;
+
+  if (!d) {
+    throw new Error("KOREA DATA FETCH FAILED (both primary & fallback)");
+  }
 
   const dc     = d?.defconData         || {};
   const intel  = d?.coreIntel          || {};
@@ -75,27 +120,25 @@ async function makeKoreaSnapshot() {
   const interp = intel?.interpretation || {};
   const strat  = intel?.strategy       || {};
 
-  // ── 자비스 AI용 핵심 원시 지표
   const key_indicators = {
-    // SEFCON
     sefcon_score:     safeNum(dc?.totalScore),
     sefcon_level:     safeNum(dc?.defcon),
-    // 한국 환율·금리
+
     krw_usd:          safeNum(last(d?.fx)),
     kr_rate:          safeNum(last(d?.rate)),
     kr_bond10y:       safeNum(last(d?.bond10Y)),
     kr_bond3y:        safeNum(last(d?.bond3Y)),
     cd_spread:        safeNum(last(d?.cdSpread)),
-    // 미국 지표 (macroData 내 포함)
+
     fred_vix:         safeNum(last(d?.fredVIX)),
-    fred_baa:         safeNum(last(d?.fredHY)),    // Baa 스프레드
-    fred_hy:          safeNum(last(d?.fredBAML)),  // ICE BofA HY
+    fred_baa:         safeNum(last(d?.fredHY)),
+    fred_hy:          safeNum(last(d?.fredBAML)),
     fred_t10y2y:      safeNum(last(d?.fredT10Y2Y)),
     fred_sloos:       safeNum(last(d?.fredSLOOS)),
     fred_lei:         safeNum(last(d?.fredLEI)),
     dxy:              safeNum(last(d?.yahooDXY)),
     us_m2_yoy:        safeNum(lastYoy(d?.usM2YoY)),
-    // 한국 경제
+
     kr_m2_yoy:        safeNum(lastYoy(d?.krM2YoY)),
     kr_cpi:           safeNum(last(d?.cpi)),
     kr_ppi:           safeNum(last(d?.ppi)),
@@ -103,34 +146,34 @@ async function makeKoreaSnapshot() {
     kr_gdp:           safeNum(last(d?.gdp)),
     foreign_net:      safeNum(last(d?.foreignNet)),
     hh_debt_gdp:      safeNum(last(d?.hhDebtGDP)),
-    // KOSPI/KOSDAQ
+
     kospi_last:       safeNum(d?.kospiMonthly?.slice(-1)[0]?.close),
     kosdaq_last:      safeNum(d?.kosdaqMonthly?.slice(-1)[0]?.close),
-    // SEFCON 카테고리 점수
+
     cat_credit:       safeNum((dc?.catScores||[]).find(c => c.cat === "신용위험")?.score),
     cat_liquidity:    safeNum((dc?.catScores||[]).find(c => c.cat === "유동성")?.score),
     cat_fear:         safeNum((dc?.catScores||[]).find(c => c.cat === "시장공포")?.score),
     cat_real:         safeNum((dc?.catScores||[]).find(c => c.cat === "실물경기")?.score),
     cat_inflation:    safeNum((dc?.catScores||[]).find(c => c.cat === "물가")?.score),
-    // Crisis Navigation
+
     crisis_proximity: safeNum(d?.crisisAnalysis?.navigation?.proximityScore),
     crisis_top:       d?.crisisAnalysis?.navigation?.topCrisis?.label ?? null,
-    // Physics
+
     liquidity_pressure:  safeNum(phys?.liquidityPressure),
     valuation_gravity:   safeNum(phys?.valuationGravity),
     credit_stress:       safeNum(phys?.creditStress),
     volatility_energy:   safeNum(phys?.volatilityEnergy),
     bubble_energy:       safeNum(phys?.bubbleEnergy),
     dominant_force:      phys?.dominantForce ?? null,
-    // Temporal
+
     risk_acceleration:    safeNum(temp?.riskAcceleration),
     liquidity_trend:      safeNum(temp?.liquidityTrend),
     credit_acceleration:  safeNum(temp?.creditAcceleration),
     vol_compression:      safeNum(temp?.volatilityCompression),
     speculation_momentum: safeNum(temp?.speculationMomentum),
-    // Regime
-    regime_label:      regime?.primaryLabel   ?? null,
-    regime_direction:  regime?.direction      ?? null,
+
+    regime_label:      regime?.primaryLabel ?? null,
+    regime_direction:  regime?.direction ?? null,
     transition_path:   regime?.transitionPath ?? null,
   };
 
@@ -138,7 +181,7 @@ async function makeKoreaSnapshot() {
     snapshot_date:  todayStr(),
     market:         "KOREA",
     sefcon_score:   dc?.totalScore ?? null,
-    sefcon_level:   dc?.defcon    ?? null,
+    sefcon_level:   dc?.defcon ?? null,
     state_json:     Object.keys(state).length ? state : { sefconScore: dc?.totalScore, sefconLevel: dc?.defcon },
     temporal_json:  temp,
     physics_json:   phys,
