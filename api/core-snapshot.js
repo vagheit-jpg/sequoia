@@ -56,8 +56,35 @@ function getBaseUrl() {
   return "http://localhost:3000";
 }
 
-const makeMetric = (value, fallback = 0, confidence = 1.0) => {
-  const isMissing = value == null || Number.isNaN(Number(value));
+const makeMetric = (value, options = {}) => {
+  const {
+    fallback = 0,
+    isImputed = false,
+    freshness = 1.0,
+    volatility = 0.0
+  } = options;
+
+  const missing = value == null || Number.isNaN(Number(value));
+
+  // base confidence
+  let confidence = 1.0;
+
+  // 1. missing penalty
+  if (missing) confidence *= 0.6;
+  if (isImputed || missing) confidence *= 0.7;
+
+  // 2. freshness weight
+  confidence *= freshness;
+
+  // 3. volatility penalty
+  confidence *= (1 - volatility);
+
+  return {
+    value: missing ? fallback : Number(value),
+    imputed: missing || isImputed,
+    confidence: Math.max(0.1, Math.min(1.0, confidence))
+  };
+};
 
   return {
     value: isMissing ? fallback : Number(value),
