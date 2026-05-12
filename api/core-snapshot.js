@@ -81,13 +81,6 @@ const makeMetric = (value, options = {}) => {
   };
 };
 
-  return {
-    value: isMissing ? fallback : Number(value),
-    imputed: isMissing,
-    confidence: isMissing ? confidence : 1.0
-  };
-};
-
 // ════════════════════════════════════════
 // KOREA 스냅샷 (수신율 강화 버전)
 // ════════════════════════════════════════
