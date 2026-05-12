@@ -17,6 +17,7 @@
  */
 
 let KIS_TOKEN_CACHE = null;
+let KIS_TOKEN_DATE = null;
 
 function getYahooTicker(ticker, market) {
   if (market === "KQ") return `${ticker}.KQ`;
@@ -57,7 +58,13 @@ async function fetchKISAccessToken() {
   const appSecret = process.env.KIS_APP_SECRET || process.env.KIS_APPSECRET || process.env.KOREA_INVESTMENT_APP_SECRET;
   if (!appKey || !appSecret) return null;
 
-  if (KIS_TOKEN_CACHE?.accessToken && KIS_TOKEN_CACHE.expiresAt > Date.now() + 60_000) {
+  const today = new Date().toISOString().slice(0, 10);
+
+if (
+  KIS_TOKEN_CACHE?.accessToken &&
+  KIS_TOKEN_DATE === today &&
+  KIS_TOKEN_CACHE.expiresAt > Date.now() + 60_000
+) {
     return { accessToken: KIS_TOKEN_CACHE.accessToken, appKey, appSecret };
   }
 
@@ -76,10 +83,14 @@ async function fetchKISAccessToken() {
   if (!tokenJson?.access_token) throw new Error("KIS access_token 없음");
 
   const expiresIn = Number(tokenJson.expires_in || 86400);
-  KIS_TOKEN_CACHE = {
-    accessToken: tokenJson.access_token,
-    expiresAt: Date.now() + Math.max(60, expiresIn - 120) * 1000,
-  };
+ KIS_TOKEN_CACHE = {
+  accessToken: tokenJson.access_token,
+  expiresAt:
+    Date.now() +
+    Math.max(60, expiresIn - 120) * 1000,
+};
+
+KIS_TOKEN_DATE = today;
 
   return { accessToken: tokenJson.access_token, appKey, appSecret };
 }
