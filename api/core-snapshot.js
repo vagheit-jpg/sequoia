@@ -681,7 +681,8 @@ async function makeUSSnapshot() {
   const lei    = safeNum(last(usData?.lei),    100);
   const unrate = safeNum(last(usData?.unrate), 4);
   const m2yoy  = safeNum(lastYoy(usData?.m2YoY), 0);
-  const dxy    = safeNum(last(usData?.dxy),    25);
+  const dxy    = safeNum(last(usData?.dxyFred) || last(usData?.dxy), 100); // 실제 DXY 우선, 없으면 UUP fallback
+  const dxy_uup = safeNum(last(usData?.dxy), 25); // UUP ETF (점수계산용, 내부 참고)
   const tnx    = safeNum(last(usData?.tnx),    4);
   const sp500  = safeNum(last(usData?.sp500),  null);
 
@@ -774,7 +775,7 @@ async function makeGlobalSnapshot() {
   const lei    = safeNum(last(kr?.fredLEI),    100);
   const unrate = safeNum(last(us?.unrate ? us.unrate : kr?.fredUNRATE), 4);
   const m2yoy  = safeNum(lastYoy(kr?.usM2YoY), 0);
-  const dxy    = safeNum(last(kr?.yahooDXY),   100);
+  const dxy    = safeNum(last(us?.dxyFred) || last(kr?.yahooDXY), 100); // 실제 DXY 우선
 
   const usScore = Math.round(Math.max(0, Math.min(100,
     50
