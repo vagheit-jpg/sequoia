@@ -99,7 +99,8 @@ export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Cache-Control", "no-store");
 
-  if (Date.now() - cache.ts < CACHE_TTL && cache.data) {
+  const forceRefresh = req.query?.nocache === "1";
+  if (!forceRefresh && Date.now() - cache.ts < CACHE_TTL && cache.data) {
     return res.status(200).json(cache.data);
   }
 
@@ -195,12 +196,7 @@ export default async function handler(req, res) {
     const baml   = dailyToMonthly(bamlRaw);  // ICE BofA HY 스프레드
 
     // M2 YoY
-    const m2 = m2Raw
-      .map(r => ({
-        date: r.date ? r.date.slice(0, 6).replace(/^(\d{4})(\d{2})$/, "$1.$2") : null,
-        value: r.value,
-      }))
-      .filter(r => r.date && r.value != null && !Number.isNaN(r.value));
+    const m2    = dailyToMonthly(m2Raw);
     const m2YoY = calcMonthlyYoY(m2);
 
     // 연준 대차대조표 YoY
