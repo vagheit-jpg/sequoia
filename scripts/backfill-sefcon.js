@@ -71,6 +71,17 @@ function getValueAt(series, yyyymm) {
   return filtered.length ? filtered[filtered.length - 1].value : null;
 }
 
+// Yahoo KRW=X는 값이 역수로 올 수 있음 (USD/KRW) → 확인 후 변환
+function getKrwAt(series, yyyymm) {
+  const v = getValueAt(series, yyyymm);
+  if (v == null) return null;
+  // Yahoo KRW=X는 원/달러 직접 값 (예: 1350.5) — 1보다 크면 정상
+  if (v > 100) return +v.toFixed(1);
+  // 혹시 역수로 왔으면 변환
+  if (v > 0 && v < 1) return +(1/v).toFixed(1);
+  return null;
+}
+
 function prevNm(yyyymm, n) {
   const [y, m] = yyyymm.split("-").map(Number);
   const pm = m - n;
@@ -310,7 +321,8 @@ async function main() {
     ]);
 
   await sleep(600);
-  const krwS  = await fetchFRED("DEXKOUS",        "1999-01-01"); console.log(`  KRW/USD  : ${krwS.length}건`);
+  // FRED DEXKOUS 대신 Yahoo Finance KRW=X 사용 (FRED 간헐적 500 에러 회피)
+  const krwS  = await fetchYahooMonthly("KRW=X", 2000); console.log(`  KRW/USD  : ${krwS.length}건`);
   await sleep(400);
   const krRS  = await fetchFRED("INTDSRKRM193N",  "1999-01-01"); console.log(`  한국금리 : ${krRS.length}건`);
 
@@ -335,13 +347,13 @@ async function main() {
         dxy:        getValueAt(dxyS,    ym),
         tnx:        getValueAt(tnxS,    ym),
         umcs:       getValueAt(umcsS,   ym),
-        krw_usd:    getValueAt(krwS,    ym),
+        krw_usd:    getKrwAt(krwS,      ym),
         kr_rate:    getValueAt(krRS,    ym),
         sp_trend3m: (() => { const n=getValueAt(sp500S,ym); const p=getValueAt(sp500S,prevNm(ym,3)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
         nq_trend12m:(() => { const n=getValueAt(nasdaqS,ym); const p=getValueAt(nasdaqS,prevNm(ym,12)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
         kospi_trend:  (() => { const n=getValueAt(kospiS,ym); const p=getValueAt(kospiS,prevNm(ym,12)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
         kospi_trend3m:(() => { const n=getValueAt(kospiS,ym); const p=getValueAt(kospiS,prevNm(ym,3));  return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
-        krw_trend3m:  (() => { const n=getValueAt(krwS,ym);   const p=getValueAt(krwS,prevNm(ym,3));    return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
+        krw_trend3m:  (() => { const n=getKrwAt(krwS,ym);   const p=getKrwAt(krwS,prevNm(ym,3));    return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
         sp500_last:   getValueAt(sp500S, ym),
         kospi_last:   getValueAt(kospiS, ym),
       };
