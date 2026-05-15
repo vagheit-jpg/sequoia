@@ -770,8 +770,8 @@ export default async function handler(req, res) {
         fetchIndexMonthly("^KS11"),                                      // 코스피 월봉
         fetchIndexMonthly("^KQ11"),                                      // 코스닥 월봉
         fetchECOS("151Y001", "1000000", startDateQ, `${endY}Q4`, "Q"),  // 가계신용 잔액(분기, 십억원)
-        fetchECOS("721Y001", "5050000", startDate,  endDate,     "MM"),  // 국고채 10Y 수익률
-        fetchECOS("721Y001", "5020000", startDate,  endDate,     "MM"),  // 국고채 3Y 수익률
+        fetchECOS("817Y002", "5070000", startDate, endDate, "MM"),  // 국고채 10Y 수익률
+        fetchECOS("817Y002", "5020000", startDate, endDate, "MM"),  // 국고채 3Y 수익률
         fetchFRED("T10Y2Y",           `${endY - 3}-01-01`),             // 미국 장단기 금리차
         fetchFRED("DBAA",             `${endY - 3}-01-01`),             // 무디스 Baa 회사채
         fetchFRED("DGS10",            `${endY - 3}-01-01`),             // 미국 10년 국채 수익률
