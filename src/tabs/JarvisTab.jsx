@@ -40,18 +40,44 @@ async function sbFetch(path) {
 //  4. fred_t10y2y, fred_vix, dxy — 글로벌 공포/달러 강도
 //  5. crisis_proximity — 위기 근접도 (실시간만 존재)
 // ─────────────────────────────────────────────
-const MATCH_SPEC = [
-  // key                  weight  비고
-  { key: 'sefcon_score',       weight: 3.0 },  // top-level 컬럼
-  { key: 'kospi_last',         weight: 2.5 },  // 가격 위치 — 핵심 추가
-  { key: 'liquidity_pressure', weight: 1.5 },  // ki 안
-  { key: 'credit_stress',      weight: 1.5 },  // ki 안
-  { key: 'fred_t10y2y',        weight: 1.2 },  // ki 안 (소급: fred_t10y2y, 실시간도 동일)
-  { key: 'fred_vix',           weight: 1.0 },  // ki 안
-  { key: 'dxy',                weight: 0.8 },  // ki 안
-  { key: 'crisis_proximity',   weight: 1.0 },  // ki 안 (실시간만, 소급은 null → 무시됨)
-  { key: 'krw_usd',            weight: 0.6 },  // ki 안 — 환율 위기 여부
-];
+// ─────────────────────────────────────────────
+//  매칭 변수 — 지역별로 소급 데이터에 실제 저장된 키만 사용
+//
+//  KOREA:  sefcon_score, kospi_last, fred_t10y2y, fred_vix, dxy, krw_usd, kr_rate
+//  US:     sefcon_score, sp500_last, fred_t10y2y, fred_vix, dxy, liquidity_pressure, credit_stress
+//  GLOBAL: sefcon_score, kospi_last, sp500_last, fred_t10y2y, fred_vix, dxy, krw_usd, liquidity_pressure, credit_stress
+// ─────────────────────────────────────────────
+const MATCH_SPEC = {
+  KOREA: [
+    { key: 'sefcon_score', weight: 3.0 },  // 거시 국면 압력
+    { key: 'kospi_last',   weight: 2.5 },  // 가격 위치 (핵심 — 900 vs 7600 구분)
+    { key: 'fred_t10y2y',  weight: 1.5 },  // 미국 장단기 금리차
+    { key: 'fred_vix',     weight: 1.2 },  // 공포 지수
+    { key: 'dxy',          weight: 1.0 },  // 달러 강도
+    { key: 'krw_usd',      weight: 0.8 },  // 원달러 환율
+    { key: 'kr_rate',      weight: 0.6 },  // 한국 기준금리
+  ],
+  US: [
+    { key: 'sefcon_score',       weight: 3.0 },
+    { key: 'sp500_last',         weight: 2.5 },
+    { key: 'fred_t10y2y',        weight: 1.5 },
+    { key: 'fred_vix',           weight: 1.2 },
+    { key: 'dxy',                weight: 1.0 },
+    { key: 'liquidity_pressure', weight: 1.0 },
+    { key: 'credit_stress',      weight: 1.0 },
+  ],
+  GLOBAL: [
+    { key: 'sefcon_score',       weight: 3.0 },
+    { key: 'kospi_last',         weight: 1.5 },
+    { key: 'sp500_last',         weight: 1.5 },
+    { key: 'fred_t10y2y',        weight: 1.5 },
+    { key: 'fred_vix',           weight: 1.2 },
+    { key: 'dxy',                weight: 1.0 },
+    { key: 'krw_usd',            weight: 0.8 },
+    { key: 'liquidity_pressure', weight: 1.0 },
+    { key: 'credit_stress',      weight: 1.0 },
+  ],
+};
 
 // key_indicators에서 숫자값 추출 (makeMetric 객체 or 단순 숫자 모두 처리)
 function kiNum(ki, key) {
@@ -65,12 +91,12 @@ function kiNum(ki, key) {
   return isNaN(n) ? null : n;
 }
 
-function extractVec(row) {
+function extractVec(row, spec) {
   let ki = row.key_indicators || {};
   if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } }
 
-  return MATCH_SPEC.map(({ key, weight }) => {
-    // sefcon_score는 top-level 컬럼에도 있고 ki 안에도 있음 — 둘 다 시도
+  return spec.map(({ key, weight }) => {
+    // sefcon_score는 top-level에도 있고 ki 안에도 있음 — 둘 다 시도
     let value = kiNum(ki, key);
     if (value === null && key === 'sefcon_score') {
       value = parseFloat(row.sefcon_score);
@@ -80,12 +106,12 @@ function extractVec(row) {
   });
 }
 
-function computeRanges(rows) {
-  const dims = MATCH_SPEC.length;
+function computeRanges(rows, spec) {
+  const dims = spec.length;
   const mins = new Array(dims).fill(Infinity);
   const maxs = new Array(dims).fill(-Infinity);
   for (const row of rows) {
-    extractVec(row).forEach(({ value }, i) => {
+    extractVec(row, spec).forEach(({ value }, i) => {
       if (value !== null && isFinite(value)) {
         if (value < mins[i]) mins[i] = value;
         if (value > maxs[i]) maxs[i] = value;
@@ -143,12 +169,13 @@ function runMatch(allRows, region, topN, fwdDays, overrideToday) {
     return ms / 86400000 > fwdDays + 5;
   });
 
-  const { mins, maxs } = computeRanges(sorted);
-  const todayVec = extractVec(todayRow);
+  const spec = MATCH_SPEC[region] || MATCH_SPEC.KOREA;
+  const { mins, maxs } = computeRanges(sorted, spec);
+  const todayVec = extractVec(todayRow, spec);
 
   const scored = history.map(row => ({
     row,
-    dist: wEuclidean(todayVec, extractVec(row), mins, maxs),
+    dist: wEuclidean(todayVec, extractVec(row, spec), mins, maxs),
   })).sort((a, b) => a.dist - b.dist).slice(0, topN);
 
   const matches = scored.map(({ row, dist }) => {
