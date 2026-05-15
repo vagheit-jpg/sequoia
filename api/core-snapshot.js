@@ -598,7 +598,7 @@ function calcSefconUS(usData) {
       score: (() => { const v = lastYoy(usData.m2YoY); if (v==null) return 0; if (v<-2) return -2; if (v<0) return -1; if (v<=5) return 0; if (v<=10) return 1; return 0; })() },
     { cat:"유동성", key:"DXY",    label:"달러인덱스(DXY)", freshness: 1.0,
       val: last(usData.dxyFred) || last(usData.dxy), unit:"",
-      score: scoreV(last(usData.dxyFred) || last(usData.dxy), [108, 104, 98, 94], 1) },
+      score: scoreV(last(usData.dxyFred) || last(usData.dxy), [128, 122, 115, 108], 1) },
     { cat:"유동성", key:"TNX",    label:"미국 10년물 국채금리", freshness: 1.0,
       val: last(usData.tnx), unit:"%",
       score: scoreV(last(usData.tnx), [5.0, 4.5, 3.0, 2.0], 1) },
