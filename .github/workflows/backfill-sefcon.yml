@@ -1,0 +1,65 @@
+name: SEFCON 과거 소급 (Backfill)
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: '마켓 선택'
+        required: true
+        default: 'ALL'
+        type: choice
+        options:
+          - ALL
+          - US
+          - KOREA
+          - GLOBAL
+      start:
+        description: '시작 월 (YYYY-MM)'
+        required: true
+        default: '2006-01'
+      end:
+        description: '종료 월 (YYYY-MM)'
+        required: true
+        default: '2024-12'
+      dry_run:
+        description: '드라이런 (저장 안 함, 계산만 확인)'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Run Backfill Script
+        env:
+          FRED_API_KEY:         ${{ secrets.FRED_API_KEY }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          echo "🌲 세콰이어 SEFCON 소급 시작"
+          echo "  마켓: ${{ github.event.inputs.market }}"
+          echo "  기간: ${{ github.event.inputs.start }} ~ ${{ github.event.inputs.end }}"
+          echo "  드라이런: ${{ github.event.inputs.dry_run }}"
+
+          DRY_FLAG=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            DRY_FLAG="--dry-run"
+          fi
+
+          node scripts/backfill-sefcon.js \
+            --market ${{ github.event.inputs.market }} \
+            --start  ${{ github.event.inputs.start }} \
+            --end    ${{ github.event.inputs.end }} \
+            --delay  200 \
+            $DRY_FLAG
