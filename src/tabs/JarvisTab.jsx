@@ -67,7 +67,7 @@ function extractVec(row) {
 }
 
 function computeRanges(rows) {
-  const dims = MATCH_FIELDS.length + KI_FIELDS.length;
+  const dims = TOP_FIELDS.length + KI_FIELDS.length;
   const mins = new Array(dims).fill(Infinity);
   const maxs = new Array(dims).fill(-Infinity);
   for (const row of rows) {
