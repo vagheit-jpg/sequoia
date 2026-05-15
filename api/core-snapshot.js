@@ -389,7 +389,7 @@ function buildPhysicsUS(usData, catScores) {
   const lastVIX   = safeNum(last(usData?.vix),   20);
   const lastHY    = safeNum(last(usData?.hy),    1.8);
   const lastBAML  = safeNum(last(usData?.baml),  3.5);
-  const lastDXY   = safeNum(last(usData?.dxy),   25);
+  const lastDXY   = safeNum(last(usData?.dxyFred) || last(usData?.dxy), 100); // 실제 DXY 우선
   const lastTNX   = safeNum(last(usData?.tnx),    4);
   const lastSLOOS = safeNum(last(usData?.sloos),  0);
   const lastLEI   = safeNum(last(usData?.lei),   100);
@@ -597,8 +597,8 @@ function calcSefconUS(usData) {
       val: lastYoy(usData.m2YoY), unit:"%",
       score: (() => { const v = lastYoy(usData.m2YoY); if (v==null) return 0; if (v<-2) return -2; if (v<0) return -1; if (v<=5) return 0; if (v<=10) return 1; return 0; })() },
     { cat:"유동성", key:"DXY",    label:"달러인덱스(DXY)", freshness: 1.0,
-      val: last(usData.dxy), unit:"",
-      score: scoreV(last(usData.dxy), [108, 104, 98, 94], 1) },
+      val: last(usData.dxyFred) || last(usData.dxy), unit:"",
+      score: scoreV(last(usData.dxyFred) || last(usData.dxy), [108, 104, 98, 94], 1) },
     { cat:"유동성", key:"TNX",    label:"미국 10년물 국채금리", freshness: 1.0,
       val: last(usData.tnx), unit:"%",
       score: scoreV(last(usData.tnx), [5.0, 4.5, 3.0, 2.0], 1) },
