@@ -214,7 +214,7 @@ function SimBar({ value }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <div style={{
-        width: 80, height: 8, background: border, borderRadius: 4, overflow: 'hidden'
+        width: 80, height: 8, background: '#1e293b', borderRadius: 4, overflow: 'hidden'
       }}>
         <div style={{
           width: `${value}%`, height: '100%',
