@@ -767,26 +767,11 @@ async function makeGlobalSnapshot() {
 
   const krScore = safeNum(dc?.totalScore, 50);
 
-  // US 간이 계산
-  const vix    = safeNum(last(kr?.fredVIX),    20);
-  const baml   = safeNum(last(kr?.fredBAML),   3.5);
-  const t10y2y = safeNum(last(kr?.fredT10Y2Y), 0);
-  const sloos  = safeNum(last(kr?.fredSLOOS),  0);
-  const lei    = safeNum(last(kr?.fredLEI),    100);
-  const unrate = safeNum(last(us?.unrate ? us.unrate : kr?.fredUNRATE), 4);
-  const m2yoy  = safeNum(lastYoy(kr?.usM2YoY), 0);
-  const dxy    = safeNum(last(us?.dxyFred) || last(kr?.yahooDXY), 100); // 실제 DXY 우선
-
-  const usScore = Math.round(Math.max(0, Math.min(100,
-    50
-    + (t10y2y >= 0 ? 10 : t10y2y >= -0.5 ? 0 : -10)
-    + (baml   <= 3 ? 10 : baml <= 4 ? 0 : -10)
-    + (vix    <= 18 ? 10 : vix <= 25 ? 0 : -10)
-    + (sloos  <= 10 ? 5 : sloos <= 30 ? -5 : -10)
-    + (lei    >= 100.5 ? 5 : lei >= 99 ? 0 : -5)
-    + (unrate <= 4 ? 5 : unrate <= 5 ? 0 : -5)
-    + (m2yoy  >= 2 ? 5 : m2yoy >= 0 ? 0 : -5)
-  )));
+  // US 실제 SEFCON 계산 — calcSefconUS 사용 (간이 계산 대체)
+  const usResult = us ? calcSefconUS(us) : null;
+  const usDefcon = usResult?.defconData;
+  const usScore  = safeNum(usDefcon?.totalScore, 50);
+  const dxy      = safeNum(last(us?.dxyFred) || last(kr?.yahooDXY), 100);
 
   // GLOBAL: KOREA 60% + US 40%
   const globalScore = Math.round(krScore * 0.6 + usScore * 0.4);
@@ -798,6 +783,15 @@ async function makeGlobalSnapshot() {
   const valG   = safeNum(phys?.valuationGravity, 0.5);
 
   const dominantRegime = regime?.primaryLabel || "혼합/불확실형";
+
+  // US 지표 직접 참조 (us-macro.js)
+  const vix    = safeNum(last(us?.vix),     20);
+  const baml   = safeNum(last(us?.baml),   3.5);
+  const t10y2y = safeNum(last(us?.t10y2y),   0);
+  const sloos  = safeNum(last(us?.sloos),    0);
+  const lei    = safeNum(last(us?.lei),    100);
+  const unrate = safeNum(last(us?.unrate),   4);
+  const m2yoy  = safeNum(lastYoy(us?.m2YoY), 0);
 
   const key_indicators = {
     // 종합 SEFCON
