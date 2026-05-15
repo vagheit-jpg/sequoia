@@ -22,8 +22,8 @@ const getArg  = (flag, def) => { const i = args.indexOf(flag); return i >= 0 ? a
 const hasFlag = (flag) => args.includes(flag);
 
 const MARKET   = getArg("--market", "ALL").toUpperCase();
-const START_YM = getArg("--start",  "2006-01");
-const END_YM   = getArg("--end",    "2024-12");
+const START_YM = getArg("--start",  "2000-01");
+const END_YM   = getArg("--end",    "2026-04");
 const DRY_RUN  = hasFlag("--dry-run");
 const DELAY_MS = parseInt(getArg("--delay", "200"), 10);
 
@@ -243,7 +243,31 @@ function calcKoreaScore(s) {
   if(sig.vix&&sig.hy)penalty+=7; if(sig.dxy&&sig.krw)penalty+=6;
   const final = Math.max(0, Math.min(100, raw - Math.min(35,penalty)));
   const {defcon,label} = labelFromScore(final);
-  return { sefcon_score:final, sefcon_level:defcon, sefcon_label:label, catScores };
+
+  // Physics 계산 (한국 기준)
+  const clamp01 = v => Math.max(0, Math.min(1, v));
+  const safeN = (v, d) => (v == null || isNaN(Number(v))) ? d : Number(v);
+  const lp = clamp01(
+    clamp01((safeN(s.dxy,100) - 100) / 30) * 0.40 +
+    clamp01((safeN(s.krw_usd,1200) - 1100) / 400) * 0.35 +
+    clamp01(Math.max(0, -safeN(s.m2yoy,3)) / 5) * 0.25
+  );
+  const cs = clamp01(
+    clamp01((safeN(s.baml,3.5) - 2.5) / 8) * 0.55 +
+    clamp01(Math.max(0, -safeN(s.t10y2y,0)) / 2) * 0.45
+  );
+  const vg = clamp01(
+    clamp01(safeN(s.kr_rate,2) / 5) * 0.50 +
+    clamp01((safeN(s.baml,3.5) - 0.8) / 4.2) * 0.30 +
+    clamp01(Math.max(0, safeN(s.nq_trend12m,0)) / 50) * 0.20
+  );
+  const physics = {
+    liquidityPressure: +lp.toFixed(3),
+    creditStress:      +cs.toFixed(3),
+    valuationGravity:  +vg.toFixed(3),
+  };
+
+  return { sefcon_score:final, sefcon_level:defcon, sefcon_label:label, catScores, physics };
 }
 
 // ════════════════════════════════════════
@@ -269,26 +293,26 @@ async function main() {
 
   const [t10y2yS,baamlS,vixS,leiS,sloosS,m2S,unreateS,icsaS,dxyS,tnxS,umcsS,sp500S,nasdaqS,kospiS] =
     await Promise.all([
-      fetchFRED("T10Y2Y",           "2005-01-01").then(d=>{console.log(`  T10Y2Y   : ${d.length}건`);return d;}),
-      fetchFRED("BAMLH0A0HYM2",    "2005-01-01").then(d=>{console.log(`  BAML(HY) : ${d.length}건`);return d;}),
-      fetchFRED("VIXCLS",           "2005-01-01").then(d=>{console.log(`  VIX      : ${d.length}건`);return d;}),
-      fetchFRED("USALOLITONOSTSAM", "2005-01-01").then(d=>{console.log(`  LEI      : ${d.length}건`);return d;}),
-      fetchFRED("DRTSCILM",         "2005-01-01").then(d=>{console.log(`  SLOOS    : ${d.length}건`);return d;}),
-      fetchFRED("M2SL",             "2005-01-01").then(d=>{console.log(`  M2       : ${d.length}건`);return d;}),
-      fetchFRED("UNRATE",           "2005-01-01").then(d=>{console.log(`  UNRATE   : ${d.length}건`);return d;}),
-      fetchFRED("ICSA",             "2005-01-01").then(d=>{console.log(`  ICSA     : ${d.length}건`);return d;}),
-      fetchFRED("DTWEXBGS",         "2005-01-01").then(d=>{console.log(`  DXY      : ${d.length}건`);return d;}),
-      fetchFRED("DGS10",            "2005-01-01").then(d=>{console.log(`  TNX(10Y) : ${d.length}건`);return d;}),
-      fetchFRED("UMCSENT",          "2005-01-01").then(d=>{console.log(`  UMCS     : ${d.length}건`);return d;}),
-      fetchYahooMonthly("^GSPC",  2005).then(d=>{console.log(`  S&P500   : ${d.length}건`);return d;}),
-      fetchYahooMonthly("^IXIC",  2005).then(d=>{console.log(`  NASDAQ   : ${d.length}건`);return d;}),
-      fetchYahooMonthly("^KS11",  2005).then(d=>{console.log(`  KOSPI    : ${d.length}건`);return d;}),
+      fetchFRED("T10Y2Y",           "1999-01-01").then(d=>{console.log(`  T10Y2Y   : ${d.length}건`);return d;}),
+      fetchFRED("BAMLH0A0HYM2",    "1999-01-01").then(d=>{console.log(`  BAML(HY) : ${d.length}건`);return d;}),
+      fetchFRED("VIXCLS",           "1999-01-01").then(d=>{console.log(`  VIX      : ${d.length}건`);return d;}),
+      fetchFRED("USALOLITONOSTSAM", "1999-01-01").then(d=>{console.log(`  LEI      : ${d.length}건`);return d;}),
+      fetchFRED("DRTSCILM",         "1999-01-01").then(d=>{console.log(`  SLOOS    : ${d.length}건`);return d;}),
+      fetchFRED("M2SL",             "1999-01-01").then(d=>{console.log(`  M2       : ${d.length}건`);return d;}),
+      fetchFRED("UNRATE",           "1999-01-01").then(d=>{console.log(`  UNRATE   : ${d.length}건`);return d;}),
+      fetchFRED("ICSA",             "1999-01-01").then(d=>{console.log(`  ICSA     : ${d.length}건`);return d;}),
+      fetchFRED("DTWEXBGS",         "1999-01-01").then(d=>{console.log(`  DXY      : ${d.length}건`);return d;}),
+      fetchFRED("DGS10",            "1999-01-01").then(d=>{console.log(`  TNX(10Y) : ${d.length}건`);return d;}),
+      fetchFRED("UMCSENT",          "1999-01-01").then(d=>{console.log(`  UMCS     : ${d.length}건`);return d;}),
+      fetchYahooMonthly("^GSPC",  2000).then(d=>{console.log(`  S&P500   : ${d.length}건`);return d;}),
+      fetchYahooMonthly("^IXIC",  2000).then(d=>{console.log(`  NASDAQ   : ${d.length}건`);return d;}),
+      fetchYahooMonthly("^KS11",  2000).then(d=>{console.log(`  KOSPI    : ${d.length}건`);return d;}),
     ]);
 
   await sleep(600);
-  const krwS  = await fetchFRED("DEXKOUS",        "2005-01-01"); console.log(`  KRW/USD  : ${krwS.length}건`);
+  const krwS  = await fetchFRED("DEXKOUS",        "1999-01-01"); console.log(`  KRW/USD  : ${krwS.length}건`);
   await sleep(400);
-  const krRS  = await fetchFRED("INTDSRKRM193N",  "2005-01-01"); console.log(`  한국금리 : ${krRS.length}건`);
+  const krRS  = await fetchFRED("INTDSRKRM193N",  "1999-01-01"); console.log(`  한국금리 : ${krRS.length}건`);
 
   console.log("\n수집 완료. 월별 스냅샷 생성 시작...\n");
 
@@ -315,9 +339,11 @@ async function main() {
         kr_rate:    getValueAt(krRS,    ym),
         sp_trend3m: (() => { const n=getValueAt(sp500S,ym); const p=getValueAt(sp500S,prevNm(ym,3)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
         nq_trend12m:(() => { const n=getValueAt(nasdaqS,ym); const p=getValueAt(nasdaqS,prevNm(ym,12)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
-        kospi_trend:(() => { const n=getValueAt(kospiS,ym); const p=getValueAt(kospiS,prevNm(ym,12)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
-        sp500_last:  getValueAt(sp500S, ym),
-        kospi_last:  getValueAt(kospiS, ym),
+        kospi_trend:  (() => { const n=getValueAt(kospiS,ym); const p=getValueAt(kospiS,prevNm(ym,12)); return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
+        kospi_trend3m:(() => { const n=getValueAt(kospiS,ym); const p=getValueAt(kospiS,prevNm(ym,3));  return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
+        krw_trend3m:  (() => { const n=getValueAt(krwS,ym);   const p=getValueAt(krwS,prevNm(ym,3));    return n&&p?+((n/p-1)*100).toFixed(1):null; })(),
+        sp500_last:   getValueAt(sp500S, ym),
+        kospi_last:   getValueAt(kospiS, ym),
       };
 
       const snapshotDate = `${ym}-01`;
@@ -357,10 +383,40 @@ async function main() {
           regime_json:   { primaryLabel:kr.sefcon_label, direction:"소급", backfill:true },
           interpretation:`[소급] 한국 SEFCON ${kr.sefcon_level}단계 (${kr.sefcon_score}점) — ${ym}`,
           strategy_json: { cashBias:kr.sefcon_level<=2?60:kr.sefcon_level===3?35:15, backfill:true },
-          key_indicators:{ sefcon_score:kr.sefcon_score, sefcon_level:kr.sefcon_level,
-            fred_t10y2y:s.t10y2y, fred_vix:s.vix, fred_hy:s.baml,
-            dxy:s.dxy, krw_usd:s.krw_usd, kr_rate:s.kr_rate,
-            kospi_last:s.kospi_last, kospi_trend:s.kospi_trend },
+          key_indicators:{
+            // SEFCON
+            sefcon_score:    kr.sefcon_score,
+            sefcon_level:    kr.sefcon_level,
+            // 글로벌 금리/신용
+            fred_t10y2y:     s.t10y2y,       // 미국 장단기 금리차
+            fred_vix:        s.vix,           // 공포지수
+            fred_hy:         s.baml,          // 하이일드 스프레드
+            fred_lei:        s.lei,           // 미국 경기선행지수
+            fred_sloos:      s.sloos,         // 미국 은행 대출태도
+            fred_unrate:     s.unrate,        // 미국 실업률
+            fred_umcs:       s.umcs,          // 미시간 소비자심리
+            us_m2_yoy:       s.m2yoy,         // 미국 M2 YoY
+            // 달러/환율
+            dxy:             s.dxy,           // 달러인덱스
+            krw_usd:         s.krw_usd,       // 원달러 환율
+            krw_trend3m:     s.krw_trend3m,   // 원달러 3개월 변화율
+            // 한국
+            kr_rate:         s.kr_rate,       // 한국 기준금리
+            // 코스피
+            kospi_last:      s.kospi_last,    // 코스피 절대값
+            kospi_trend:     s.kospi_trend,   // 코스피 12개월 추세
+            kospi_trend3m:   s.kospi_trend3m, // 코스피 3개월 추세
+            // 글로벌 주식
+            sp500_last:      s.sp500_last,    // S&P500
+            sp_trend3m:      s.sp_trend3m,    // S&P500 3개월 추세
+            nq_trend12m:     s.nq_trend12m,   // 나스닥 12개월 추세
+            // 한국 SEFCON 카테고리별 점수
+            kr_cat_scores:   kr.catScores,
+            // 물리 지표 (한국 계산값)
+            liquidity_pressure: kr.physics?.liquidityPressure ?? null,
+            credit_stress:      kr.physics?.creditStress      ?? null,
+            valuation_gravity:  kr.physics?.valuationGravity  ?? null,
+          },
           updated_at: now,
         });
         saved++;
