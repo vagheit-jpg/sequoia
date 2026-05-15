@@ -307,7 +307,7 @@ async function main() {
     await Promise.all([
       // 일별→월별 집계(avg)로 요청 → 건수 줄여서 rate limit 회피
       fetchFRED("T10Y2Y",           "1999-01-01", 3, "m").then(d=>{console.log(`  T10Y2Y   : ${d.length}건`);return d;}),
-      fetchFRED("BAMLH0A0HYM2",    "1999-01-01", 3, "m").then(d=>{console.log(`  BAML(HY) : ${d.length}건`);return d;}),
+      fetchFRED("BAMLH0A0HYM2",    "1997-01-01", 3).then(d=>{console.log(`  BAML(HY) : ${d.length}건`);return d;}),
       fetchFRED("VIXCLS",           "1999-01-01", 3, "m").then(d=>{console.log(`  VIX      : ${d.length}건`);return d;}),
       fetchFRED("USALOLITONOSTSAM", "1999-01-01", 3, "m").then(d=>{console.log(`  LEI      : ${d.length}건`);return d;}),
       fetchFRED("DRTSCILM",         "1999-01-01", 3, "q").then(d=>{console.log(`  SLOOS    : ${d.length}건`);return d;}),
