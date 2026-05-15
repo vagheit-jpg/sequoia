@@ -46,6 +46,7 @@ import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
 import MoatTab from "./tabs/MoatTab";
 import BuffettTab from "./tabs/BuffettTab";
+import JarvisTab from "./tabs/JarvisTab";
 import Tag from "./components/common/Tag";
 import Box from "./components/common/Box";
 import ST from "./components/common/SectionTitle";
@@ -786,6 +787,7 @@ export default function App(){
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
     {id:"buffett",label:"📚 투자거장의 말"},
+    {id:"jarvis",label:"🤖 자비스"},
   ];
 
   if(dbLoading)return(
@@ -2926,6 +2928,11 @@ else {
 
           return <BuffettTab C={C} Q={Q} todayQ={todayQ} CATS={CATS} CAT_COLOR={CAT_COLOR} CAT_ICON={CAT_ICON}/>;
         })()}
+
+        {/* ════ 자비스 탭 ════ */}
+        {tab==="jarvis"&&(
+          <JarvisTab C={C} />
+        )}
 
         {/* ════ 시장 탭 ════ */}
         {tab==="market"&&(()=>{
