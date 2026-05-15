@@ -100,10 +100,11 @@ function getYoY(series, yyyymm) {
 // ════════════════════════════════════════
 // 데이터 수집
 // ════════════════════════════════════════
-async function fetchFRED(seriesId, startDate, retries = 3) {
+async function fetchFRED(seriesId, startDate, retries = 3, freq = null) {
+  const freqParam = freq ? `&frequency=${freq}&aggregation_method=avg` : "";
   const url = `https://api.stlouisfed.org/fred/series/observations` +
     `?series_id=${seriesId}&api_key=${FRED_KEY}&file_type=json` +
-    `&observation_start=${startDate}&sort_order=asc`;
+    `&observation_start=${startDate}&sort_order=asc${freqParam}`;
   for (let i = 0; i < retries; i++) {
     try {
       const res  = await fetch(url);
@@ -304,17 +305,18 @@ async function main() {
 
   const [t10y2yS,baamlS,vixS,leiS,sloosS,m2S,unreateS,icsaS,dxyS,tnxS,umcsS,sp500S,nasdaqS,kospiS] =
     await Promise.all([
-      fetchFRED("T10Y2Y",           "1999-01-01").then(d=>{console.log(`  T10Y2Y   : ${d.length}건`);return d;}),
-      fetchFRED("BAMLH0A0HYM2",    "1999-01-01").then(d=>{console.log(`  BAML(HY) : ${d.length}건`);return d;}),
-      fetchFRED("VIXCLS",           "1999-01-01").then(d=>{console.log(`  VIX      : ${d.length}건`);return d;}),
-      fetchFRED("USALOLITONOSTSAM", "1999-01-01").then(d=>{console.log(`  LEI      : ${d.length}건`);return d;}),
-      fetchFRED("DRTSCILM",         "1999-01-01").then(d=>{console.log(`  SLOOS    : ${d.length}건`);return d;}),
-      fetchFRED("M2SL",             "1999-01-01").then(d=>{console.log(`  M2       : ${d.length}건`);return d;}),
-      fetchFRED("UNRATE",           "1999-01-01").then(d=>{console.log(`  UNRATE   : ${d.length}건`);return d;}),
-      fetchFRED("ICSA",             "1999-01-01").then(d=>{console.log(`  ICSA     : ${d.length}건`);return d;}),
-      fetchFRED("DTWEXBGS",         "1999-01-01").then(d=>{console.log(`  DXY      : ${d.length}건`);return d;}),
-      fetchFRED("DGS10",            "1999-01-01").then(d=>{console.log(`  TNX(10Y) : ${d.length}건`);return d;}),
-      fetchFRED("UMCSENT",          "1999-01-01").then(d=>{console.log(`  UMCS     : ${d.length}건`);return d;}),
+      // 일별→월별 집계(avg)로 요청 → 건수 줄여서 rate limit 회피
+      fetchFRED("T10Y2Y",           "1999-01-01", 3, "m").then(d=>{console.log(`  T10Y2Y   : ${d.length}건`);return d;}),
+      fetchFRED("BAMLH0A0HYM2",    "1999-01-01", 3, "m").then(d=>{console.log(`  BAML(HY) : ${d.length}건`);return d;}),
+      fetchFRED("VIXCLS",           "1999-01-01", 3, "m").then(d=>{console.log(`  VIX      : ${d.length}건`);return d;}),
+      fetchFRED("USALOLITONOSTSAM", "1999-01-01", 3, "m").then(d=>{console.log(`  LEI      : ${d.length}건`);return d;}),
+      fetchFRED("DRTSCILM",         "1999-01-01", 3, "m").then(d=>{console.log(`  SLOOS    : ${d.length}건`);return d;}),
+      fetchFRED("M2SL",             "1999-01-01", 3, "m").then(d=>{console.log(`  M2       : ${d.length}건`);return d;}),
+      fetchFRED("UNRATE",           "1999-01-01", 3, "m").then(d=>{console.log(`  UNRATE   : ${d.length}건`);return d;}),
+      fetchFRED("ICSA",             "1999-01-01", 3, "m").then(d=>{console.log(`  ICSA     : ${d.length}건`);return d;}),
+      fetchFRED("DTWEXBGS",         "1999-01-01", 3, "m").then(d=>{console.log(`  DXY      : ${d.length}건`);return d;}),
+      fetchFRED("DGS10",            "1999-01-01", 3, "m").then(d=>{console.log(`  TNX(10Y) : ${d.length}건`);return d;}),
+      fetchFRED("UMCSENT",          "1999-01-01", 3, "m").then(d=>{console.log(`  UMCS     : ${d.length}건`);return d;}),
       fetchYahooMonthly("^GSPC",  2000).then(d=>{console.log(`  S&P500   : ${d.length}건`);return d;}),
       fetchYahooMonthly("^IXIC",  2000).then(d=>{console.log(`  NASDAQ   : ${d.length}건`);return d;}),
       fetchYahooMonthly("^KS11",  2000).then(d=>{console.log(`  KOSPI    : ${d.length}건`);return d;}),
@@ -324,7 +326,7 @@ async function main() {
   // FRED DEXKOUS 대신 Yahoo Finance KRW=X 사용 (FRED 간헐적 500 에러 회피)
   const krwS  = await fetchYahooMonthly("KRW=X", 2000); console.log(`  KRW/USD  : ${krwS.length}건`);
   await sleep(400);
-  const krRS  = await fetchFRED("INTDSRKRM193N",  "1999-01-01"); console.log(`  한국금리 : ${krRS.length}건`);
+  const krRS  = await fetchFRED("INTDSRKRM193N",  "1999-01-01", 3, "m"); console.log(`  한국금리 : ${krRS.length}건`);
 
   console.log("\n수집 완료. 월별 스냅샷 생성 시작...\n");
 
