@@ -120,15 +120,14 @@ export default async function handler(req, res) {
       m2R, fedBalR,                              // FRED 신규
       ism_mfgR,                                  // FRED ISM 제조업
       umcsR,                                     // FRED 소비자신뢰
-      dxyFredR, tnxFredR,                        // FRED DXY + TNX (Yahoo 공백 보완)
     ] = await Promise.allSettled([
       // Yahoo Finance
       fetchYahooMonthly("^GSPC",    8),   // S&P500
       fetchYahooMonthly("^IXIC",    8),   // 나스닥
       fetchYahooMonthly("^VIX",     5),   // VIX (Yahoo)
-      fetchYahooMonthly("^TNX",     5),   // 미국 10년물 (Yahoo)
+      fetchYahooMonthly("^TNX",     5),   // 미국 10년물
       fetchYahooMonthly("GLD",      5),   // 금 ETF
-      fetchYahooMonthly("UUP",      5),   // 달러인덱스 ETF (UUP)
+      fetchYahooMonthly("UUP",      5),   // 달러인덱스 ETF
 
       // FRED — 기존 macro.js에서 이미 검증된 시리즈
       fetchFRED("T10Y2Y",           startFRED),      // 장단기 금리차
@@ -136,19 +135,15 @@ export default async function handler(req, res) {
       fetchFRED("DGS10",            startFRED),      // 미국 10Y 국채
       fetchFRED("UNRATE",           startFRED8Y),    // 실업률
       fetchFRED("DRTSCILM",         startFRED8Y),    // SLOOS 대출기준
-      fetchFRED("OEUSKLITOTNOSTSAM",startFRED8Y),    // LEI — OECD US CLI (USALOLITONOSTSAM 대체)
+      fetchFRED("USALOLITONOSTSAM", startFRED8Y),    // LEI 선행지수
       fetchFRED("IC4WSA",           startFRED),      // 실업청구 4주평균
       fetchFRED("BAMLH0A0HYM2",     startFRED8Y),    // HY 스프레드
 
       // FRED — 신규 추가
       fetchFRED("M2SL",             startFRED8Y),    // 미국 M2
       fetchFRED("WALCL",            startFRED8Y),    // 연준 대차대조표
-      fetchFRED("INDPRO",           startFRED8Y),    // 산업생산지수
+      fetchFRED("INDPRO",           startFRED8Y),    // 산업생산지수 (ISM 대체 — FRED 안정 시리즈)
       fetchFRED("UMCSENT",          startFRED8Y),    // 소비자신뢰지수
-
-      // FRED — DXY 실제값 + TNX 공백 보완
-      fetchFRED("DTWEXBGS",         startFRED),      // 실제 DXY (무역가중 달러인덱스)
-      fetchFRED("DGS10",            startFRED),      // 10년물 FRED (Yahoo TNX 공백 보완용)
     ]);
 
     const ok = r => r.status === "fulfilled" ? r.value : [];
@@ -173,28 +168,14 @@ export default async function handler(req, res) {
     const fedBalRaw = ok(fedBalR);
     const ismRaw    = ok(ism_mfgR);
     const umcsRaw   = ok(umcsR);
-    const dxyFredRaw = ok(dxyFredR);
-    const tnxFredRaw = ok(tnxFredR);
 
     // ── 가공
-    const sp500     = spRaw;
+    const sp500     = spRaw;     // 이미 월봉
     const nasdaq    = nasdaqRaw;
-    const vix       = vixRaw;
+    const vix       = vixRaw;    // Yahoo 월봉
+    const tnx       = dailyToMonthly(tnxRaw);  // 일별→월별
     const gld       = gldRaw;
-    const dxy       = uupRaw;    // UUP ETF (점수 계산용, 기존 유지)
-
-    // 실제 DXY — FRED DTWEXBGS (무역가중 달러인덱스, 저장용)
-    const dxyFred   = dailyToMonthly(dxyFredRaw);
-
-    // TNX — Yahoo 공백 구간을 FRED DGS10으로 보완
-    const tnxYahoo  = dailyToMonthly(tnxRaw);
-    const tnxFredM  = dailyToMonthly(tnxFredRaw);
-    const tnxFredMap = {};
-    tnxFredM.forEach(r => { tnxFredMap[r.date] = r.value; });
-    // Yahoo 데이터 우선, 없는 달만 FRED로 채움
-    const tnxDates = new Set(tnxYahoo.map(r => r.date));
-    const tnxFill  = tnxFredM.filter(r => !tnxDates.has(r.date));
-    const tnx      = [...tnxYahoo, ...tnxFill].sort((a, b) => a.date > b.date ? 1 : -1);
+    const dxy       = uupRaw;    // UUP = 달러인덱스 ETF
 
     // Baa 스프레드 = DBAA - DGS10 (기준금리 영향 제거)
     const dgs10M   = dailyToMonthly(dgs10Raw);
@@ -228,7 +209,7 @@ export default async function handler(req, res) {
 
     const data = {
       // 지수
-      sp500, nasdaq, vix, tnx, gld, dxy, dxyFred,
+      sp500, nasdaq, vix, tnx, gld, dxy,
       // 금리·신용
       t10y2y, hy, baml, sloos, lei, icsa, unrate,
       // 유동성
@@ -245,8 +226,6 @@ export default async function handler(req, res) {
         sloos: sloosRaw.length, lei: leiRaw.length,
         m2: m2Raw.length, fedBal: fedBalRaw.length,
         ism: ismRaw.length, umcs: umcsRaw.length,
-        dxyFred: dxyFredRaw.length, tnxFred: tnxFredRaw.length,
-        tnx_merged: tnx.length,
       },
     };
 
