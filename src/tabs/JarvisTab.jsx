@@ -26,53 +26,67 @@ async function sbFetch(path) {
 // ─────────────────────────────────────────────
 //  패턴 매칭 로직 (jarvis.js 인라인)
 // ─────────────────────────────────────────────
-// top-level 컬럼 (sefcon_score만 직접, 나머지는 key_indicators 안에 있음)
-const TOP_FIELDS = [
-  { key: 'sefcon_score', weight: 3.0 },
-];
-// key_indicators JSON 안의 필드
-const KI_FIELDS = [
-  { key: 'liquidity_pressure', weight: 1.5 },
-  { key: 'credit_stress',      weight: 1.5 },
-  { key: 'valuation_gravity',  weight: 1.0 },
-  { key: 'volatility_energy',  weight: 1.0 },
-  { key: 'crisis_proximity',   weight: 1.2 },
-  { key: 't10y2y',             weight: 1.2 },
-  { key: 'baml',               weight: 1.0 },
-  { key: 'vix',                weight: 0.8 },
-  { key: 'dxy',                weight: 0.6 },
+// ─────────────────────────────────────────────
+//  매칭 변수 정의 (실제 DB key_indicators 키 기준)
+//
+//  key_indicators 값은 두 가지 형태로 저장됨:
+//  - 실시간 데이터: makeMetric() → { value: N, imputed: bool, confidence: N }
+//  - 소급 데이터:   단순 숫자 또는 null
+//
+//  설계 원칙:
+//  1. sefcon_score — 거시 국면 압력 (핵심 앵커)
+//  2. kospi_last   — 시장 가격 위치 (2008년 900 vs 2026년 7600 구분)
+//  3. liquidity_pressure, credit_stress — 실물 위기 강도
+//  4. fred_t10y2y, fred_vix, dxy — 글로벌 공포/달러 강도
+//  5. crisis_proximity — 위기 근접도 (실시간만 존재)
+// ─────────────────────────────────────────────
+const MATCH_SPEC = [
+  // key                  weight  비고
+  { key: 'sefcon_score',       weight: 3.0 },  // top-level 컬럼
+  { key: 'kospi_last',         weight: 2.5 },  // 가격 위치 — 핵심 추가
+  { key: 'liquidity_pressure', weight: 1.5 },  // ki 안
+  { key: 'credit_stress',      weight: 1.5 },  // ki 안
+  { key: 'fred_t10y2y',        weight: 1.2 },  // ki 안 (소급: fred_t10y2y, 실시간도 동일)
+  { key: 'fred_vix',           weight: 1.0 },  // ki 안
+  { key: 'dxy',                weight: 0.8 },  // ki 안
+  { key: 'crisis_proximity',   weight: 1.0 },  // ki 안 (실시간만, 소급은 null → 무시됨)
+  { key: 'krw_usd',            weight: 0.6 },  // ki 안 — 환율 위기 여부
 ];
 
+// key_indicators에서 숫자값 추출 (makeMetric 객체 or 단순 숫자 모두 처리)
+function kiNum(ki, key) {
+  const v = ki[key];
+  if (v === null || v === undefined) return null;
+  if (typeof v === 'object') {
+    const n = parseFloat(v.value ?? v.val);
+    return isNaN(n) ? null : n;
+  }
+  const n = parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
 function extractVec(row) {
-  // key_indicators는 객체 또는 JSON 문자열일 수 있음
   let ki = row.key_indicators || {};
   if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } }
-  // key_indicators 안의 값은 { value, ... } 객체이거나 숫자일 수 있음
-  const kiVal = (k) => {
-    const v = ki[k];
-    if (v === null || v === undefined) return null;
-    if (typeof v === 'object') return parseFloat(v.value ?? v.val ?? null);
-    return parseFloat(v);
-  };
-  return [
-    ...TOP_FIELDS.map(({ key, weight }) => ({
-      value: parseFloat(row[key]) || null,
-      weight,
-    })),
-    ...KI_FIELDS.map(({ key, weight }) => ({
-      value: kiVal(key),
-      weight,
-    })),
-  ];
+
+  return MATCH_SPEC.map(({ key, weight }) => {
+    // sefcon_score는 top-level 컬럼에도 있고 ki 안에도 있음 — 둘 다 시도
+    let value = kiNum(ki, key);
+    if (value === null && key === 'sefcon_score') {
+      value = parseFloat(row.sefcon_score);
+      if (isNaN(value)) value = null;
+    }
+    return { value, weight };
+  });
 }
 
 function computeRanges(rows) {
-  const dims = TOP_FIELDS.length + KI_FIELDS.length;
+  const dims = MATCH_SPEC.length;
   const mins = new Array(dims).fill(Infinity);
   const maxs = new Array(dims).fill(-Infinity);
   for (const row of rows) {
     extractVec(row).forEach(({ value }, i) => {
-      if (value !== null) {
+      if (value !== null && isFinite(value)) {
         if (value < mins[i]) mins[i] = value;
         if (value > maxs[i]) maxs[i] = value;
       }
