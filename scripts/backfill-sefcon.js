@@ -249,34 +249,15 @@ function calcKoreaScore(s) {
 // ════════════════════════════════════════
 // Supabase upsert
 // ════════════════════════════════════════
-
-// 첫 번째 upsert 시 연결 정보 1회 출력
-let _sbTested = false;
 async function upsertSnapshot(snap) {
   if (DRY_RUN) return true;
-
-  if (!_sbTested) {
-    _sbTested = true;
-    console.log(`\n[SUPABASE 연결 정보]`);
-    console.log(`  SB_URL  = ${SB_URL || "(비어있음)"}`);
-    console.log(`  SB_KEY  앞15자 = ${SB_KEY ? SB_KEY.slice(0,15)+"..." : "(비어있음)"}`);
-  }
-
   const res = await fetch(
     `${SB_URL}/rest/v1/core_intelligence_snapshots?on_conflict=snapshot_date,market`,
     { method:"POST",
       headers:{ apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, "Content-Type":"application/json", "Prefer":"resolution=merge-duplicates,return=minimal" },
       body: JSON.stringify(snap) }
   );
-
-  if (!res.ok) {
-    const body = await res.text().catch(() => "(body 읽기 실패)");
-    console.error(`\n[SUPABASE ERROR] status=${res.status}`);
-    console.error(`  응답 body = ${body}`);
-    console.error(`  snapshot_date=${snap.snapshot_date}, market=${snap.market}`);
-    throw new Error(`Supabase ${res.status}: ${body}`);
-  }
-
+  if (!res.ok) throw new Error(`Supabase ${res.status}: ${await res.text().catch(()=>"")}`);
   return true;
 }
 
