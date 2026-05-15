@@ -26,30 +26,41 @@ async function sbFetch(path) {
 // ─────────────────────────────────────────────
 //  패턴 매칭 로직 (jarvis.js 인라인)
 // ─────────────────────────────────────────────
-const MATCH_FIELDS = [
-  { key: 'sefcon_score',       weight: 3.0 },
+// top-level 컬럼 (sefcon_score만 직접, 나머지는 key_indicators 안에 있음)
+const TOP_FIELDS = [
+  { key: 'sefcon_score', weight: 3.0 },
+];
+// key_indicators JSON 안의 필드
+const KI_FIELDS = [
   { key: 'liquidity_pressure', weight: 1.5 },
   { key: 'credit_stress',      weight: 1.5 },
   { key: 'valuation_gravity',  weight: 1.0 },
   { key: 'volatility_energy',  weight: 1.0 },
   { key: 'crisis_proximity',   weight: 1.2 },
-];
-const KI_FIELDS = [
-  { key: 't10y2y', weight: 1.2 },
-  { key: 'baml',   weight: 1.0 },
-  { key: 'vix',    weight: 0.8 },
-  { key: 'dxy',    weight: 0.6 },
+  { key: 't10y2y',             weight: 1.2 },
+  { key: 'baml',               weight: 1.0 },
+  { key: 'vix',                weight: 0.8 },
+  { key: 'dxy',                weight: 0.6 },
 ];
 
 function extractVec(row) {
-  const ki = row.key_indicators || {};
+  // key_indicators는 객체 또는 JSON 문자열일 수 있음
+  let ki = row.key_indicators || {};
+  if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } }
+  // key_indicators 안의 값은 { value, ... } 객체이거나 숫자일 수 있음
+  const kiVal = (k) => {
+    const v = ki[k];
+    if (v === null || v === undefined) return null;
+    if (typeof v === 'object') return parseFloat(v.value ?? v.val ?? null);
+    return parseFloat(v);
+  };
   return [
-    ...MATCH_FIELDS.map(({ key, weight }) => ({
+    ...TOP_FIELDS.map(({ key, weight }) => ({
       value: parseFloat(row[key]) || null,
       weight,
     })),
     ...KI_FIELDS.map(({ key, weight }) => ({
-      value: parseFloat(ki[key]) || null,
+      value: kiVal(key),
       weight,
     })),
   ];
@@ -89,22 +100,32 @@ function distToSim(d) {
   return Math.round((1 - Math.min(d, 0.8) / 0.8) * 100);
 }
 
+function getKospi(row) {
+  // kospi_last는 key_indicators 안에 있음 ({ value: ... } 형태)
+  let ki = row.key_indicators || {};
+  if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } }
+  const v = ki['kospi_last'];
+  if (v === null || v === undefined) return null;
+  const n = typeof v === 'object' ? parseFloat(v.value ?? v.val) : parseFloat(v);
+  return isNaN(n) ? null : n;
+}
+
 function fwdReturn(sorted, date, n) {
-  const idx = sorted.findIndex(r => r.date === date);
+  const idx = sorted.findIndex(r => r.snapshot_date === date);
   if (idx < 0 || idx + n >= sorted.length) return null;
-  const base = parseFloat(sorted[idx].kospi_last);
-  const fut  = parseFloat(sorted[idx + n].kospi_last);
+  const base = getKospi(sorted[idx]);
+  const fut  = getKospi(sorted[idx + n]);
   if (!base || !fut) return null;
   return +((fut - base) / base * 100).toFixed(2);
 }
 
 function runMatch(allRows, region, topN, fwdDays, overrideToday) {
-  const sorted = [...allRows].sort((a, b) => a.date.localeCompare(b.date));
+  const sorted = [...allRows].sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
   const todayRow = overrideToday || sorted[sorted.length - 1];
-  const todayDate = todayRow.date;
+  const todayDate = todayRow.snapshot_date;
 
   const history = sorted.filter(r => {
-    const ms = Math.abs(new Date(r.date) - new Date(todayDate));
+    const ms = Math.abs(new Date(r.snapshot_date) - new Date(todayDate));
     return ms / 86400000 > fwdDays + 5;
   });
 
@@ -116,15 +137,20 @@ function runMatch(allRows, region, topN, fwdDays, overrideToday) {
     dist: wEuclidean(todayVec, extractVec(row), mins, maxs),
   })).sort((a, b) => a.dist - b.dist).slice(0, topN);
 
-  const matches = scored.map(({ row, dist }) => ({
-    date:       row.date,
-    similarity: distToSim(dist),
-    score:      row.sefcon_score,
-    regime:     row.regime_label || '',
-    fwd5:       fwdReturn(sorted, row.date, 5),
-    fwd22:      fwdReturn(sorted, row.date, fwdDays),
-    fwd60:      fwdReturn(sorted, row.date, fwdDays * 3),
-  }));
+  const matches = scored.map(({ row, dist }) => {
+    let ki = row.key_indicators || {};
+    if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } }
+    const kiStr = (k) => { const v = ki[k]; if (!v) return ''; return typeof v === 'object' ? (v.value ?? '') : String(v); };
+    return {
+      date:       row.snapshot_date,
+      similarity: distToSim(dist),
+      score:      row.sefcon_score,
+      regime:     kiStr('regime_label') || row.regime_label || '',
+      fwd5:       fwdReturn(sorted, row.snapshot_date, 5),
+      fwd22:      fwdReturn(sorted, row.snapshot_date, fwdDays),
+      fwd60:      fwdReturn(sorted, row.snapshot_date, fwdDays * 3),
+    };
+  });
 
   const valid = matches.filter(m => m.fwd22 !== null);
   const avg22 = valid.length ? valid.reduce((s, m) => s + m.fwd22, 0) / valid.length : null;
@@ -137,7 +163,7 @@ function runMatch(allRows, region, topN, fwdDays, overrideToday) {
 
   return {
     todayDate, todayScore: todayRow.sefcon_score,
-    todayRegime: todayRow.regime_label,
+    todayRegime: (() => { let ki = todayRow.key_indicators || {}; if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } } const v = ki['regime_label']; return (typeof v === 'object' ? v.value : v) || todayRow.regime_label || ''; })(),
     matches, avg22: avg22 !== null ? +avg22.toFixed(2) : null,
     signal, sigColor, bulls, bears, histCount: history.length,
   };
@@ -223,7 +249,7 @@ export default function JarvisTab({
 
     try {
       const rows = await sbFetch(
-        `core_intelligence_snapshots?select=*&region=eq.${region}&order=date.asc&limit=2000`
+        `core_intelligence_snapshots?select=*&market=eq.${region}&order=snapshot_date.asc&limit=2000`
       );
 
       if (!rows || rows.length < 10) throw new Error(`데이터 부족: ${rows?.length || 0}건`);
