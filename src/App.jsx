@@ -12,6 +12,7 @@ import {
   calcMFI,
   calcMA60,
   calcSignalPoints,
+  calcSmaSignalPoints,
   calcPositionBands,
   calc3LineSignal,
   buildBandsFromQtr,
@@ -46,8 +47,9 @@ import OverviewTab from "./tabs/OverviewTab";
 import OutsiderTab from "./tabs/OutsiderTab";
 import MoatTab from "./tabs/MoatTab";
 import BuffettTab from "./tabs/BuffettTab";
-import JarvisTab from "./tabs/JarvisTab";
+
 import Tag from "./components/common/Tag";
+import JarvisComment from "./components/common/JarvisComment";
 import Box from "./components/common/Box";
 import ST from "./components/common/SectionTitle";
 import CW from "./components/common/ChartWrapper";
@@ -448,6 +450,25 @@ export default function App(){
     const firstLabel=displayMonthly[0]?.label;
     return allPts.filter(pt=>pt.label>=firstLabel);
   },[withMA60Full,displayMonthly]);
+
+  // SMA 수급 시그널 (smart_money_daily에서 로드)
+  const [smaHistory, setSmaHistory] = useState([]);
+  useEffect(()=>{
+    if(!co?.ticker) return;
+    const SB_URL = import.meta.env.VITE_SUPABASE_URL || '';
+    const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+    fetch(`${SB_URL}/rest/v1/smart_money_daily?ticker=eq.${co.ticker}&order=trade_date.asc&select=trade_date,sma_signal,sma_score,sma_sync,foreign_net_value,institution_net_value`,{
+      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}
+    }).then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setSmaHistory(data); }).catch(()=>{});
+  },[co?.ticker]);
+
+  const smaSignalPts = useMemo(()=>{
+    if(!smaHistory.length) return [];
+    const pts = calcSmaSignalPoints(smaHistory);
+    if(!displayMonthly.length) return pts;
+    const firstLabel = displayMonthly[0]?.label;
+    return pts.filter(pt => pt.label >= firstLabel);
+  },[smaHistory, displayMonthly]);
   // threeLineSignal은 readingEngine 이후에 계산 (fin 파라미터 필요)
   // lastGap: 전체 monthly 기반 MA60 사용 (displayMonthly 슬라이스 문제 방지)
   // 60개 미만이면 가능한 최장 MA로 fallback
@@ -787,7 +808,7 @@ export default function App(){
     {id:"technical",label:"🧮 기술분석"},{id:"valuation",label:"💎 가치평가"},
     {id:"stability",label:"🛡 안정성"},{id:"dividend",label:"💸 배당"},
     {id:"buffett",label:"📚 투자거장의 말"},
-    {id:"jarvis",label:"🤖 자비스"},
+    
   ];
 
   if(dbLoading)return(
@@ -1559,6 +1580,7 @@ export default function App(){
             })():(
               <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 엑셀 업로드 후 표시됩니다.</div></Box>
             )}
+          <JarvisComment C={C} tabType="financial" ticker={co?.ticker || null} />
           </div>
         )}
 
@@ -1633,6 +1655,19 @@ export default function App(){
                   <ReferenceDot key={i} x={pt.label} y={pt.price} r={0}
                     label={{value:pt.arrow,position:pt.pos==="bottom"?"bottom":"top",fill:pt.color,fontSize:16,fontWeight:900}}/>
                 ))}
+                {/* SMA 수급 시그널 마커 */}
+                {smaSignalPts.map((pt,i)=>{
+                  const chartData=withPositionBands;
+                  const row=chartData.find(d=>d.label===pt.label);
+                  if(!row) return null;
+                  const y=pt.pos==='bottom'?(row.bFloor||row.price||0)*0.97:(row.bPeak||row.price||0)*1.03;
+                  return(
+                    <ReferenceDot key={`sma-${i}`} x={pt.label} y={y} r={5}
+                      fill={pt.color} fillOpacity={0.25} stroke={pt.color} strokeWidth={1.5}
+                      label={{value:pt.type,position:pt.pos==="bottom"?"insideBottom":"insideTop",
+                        fill:pt.color,fontSize:8,fontWeight:700,fontFamily:'monospace'}}/>
+                  );
+                })}
               </ComposedChart>
             </CW>
 
@@ -1982,6 +2017,7 @@ else {
                 <Area dataKey="mfi" name="MFI(%)" stroke={C.pink} strokeWidth={2} fill={`${C.pink}18`} dot={false}/>
               </ComposedChart>
             </CW>
+          <JarvisComment C={C} tabType="technical" ticker={co?.ticker || null} />
           </div>
         )}
 
@@ -2501,6 +2537,7 @@ else {
                 <div style={{color:C.muted,textAlign:"center",padding:20,fontSize:12}}>📂 엑셀 업로드 후 DCF 계산이 표시됩니다.</div>
               )}
             </Box>
+          <JarvisComment C={C} tabType="valuation" ticker={co?.ticker || null} />
           </div>
         )}
 
@@ -2929,10 +2966,7 @@ else {
           return <BuffettTab C={C} Q={Q} todayQ={todayQ} CATS={CATS} CAT_COLOR={CAT_COLOR} CAT_ICON={CAT_ICON}/>;
         })()}
 
-        {/* ════ 자비스 탭 ════ */}
-        {tab==="jarvis"&&(
-          <JarvisTab C={C} />
-        )}
+
 
         {/* ════ 시장 탭 ════ */}
         {tab==="market"&&(()=>{
@@ -5125,6 +5159,7 @@ else {
 })()}
 
 
+            <JarvisComment C={C} tabType="sefcon" region="KOREA" />
             </> /* AEGIS 탭 끝 */}
 
             {marketSub==="defcon"&&<>
@@ -6692,6 +6727,7 @@ else {
             </>
             )}
             </> /* KOREA 탭 끝 */}
+          <JarvisComment C={C} tabType="market" region="KOREA" />
           </div>
           );
         })()}
