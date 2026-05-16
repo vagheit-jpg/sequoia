@@ -9,25 +9,23 @@
 const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const ANTHROPIC_API_KEY    = process.env.ANTHROPIC_API_KEY;
-console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
-console.log('SUPABASE_SERVICE_KEY 앞 10자:', process.env.SUPABASE_SERVICE_KEY?.slice(0,10));
-console.log('ANTHROPIC_API_KEY 앞 10자:', process.env.ANTHROPIC_API_KEY?.slice(0,10));
+
+console.log('SUPABASE_URL:', SUPABASE_URL);
+console.log('SUPABASE_SERVICE_KEY 앞 10자:', SUPABASE_SERVICE_KEY?.slice(0, 10));
+console.log('ANTHROPIC_API_KEY 앞 10자:', ANTHROPIC_API_KEY?.slice(0, 10));
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !ANTHROPIC_API_KEY) {
   console.error('❌ 환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY 확인');
   process.exit(1);
 }
 
-async function sbFetch(path, opts = {}) {
-  const url = `${SUPABASE_URL}/rest/v1/${path}`;
-  console.log('요청 URL:', url.slice(0, 60)); // 앞 60자만
-  const res = await fetch(url, {
-
 // ─────────────────────────────────────────────
 //  Supabase fetch 헬퍼
 // ─────────────────────────────────────────────
 async function sbFetch(path, opts = {}) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const fullUrl = `${SUPABASE_URL}/rest/v1/${path}`;
+  console.log('요청 URL 앞 70자:', fullUrl.slice(0, 70));
+  const res = await fetch(fullUrl, {
     headers: {
       apikey:        SUPABASE_SERVICE_KEY,
       Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
