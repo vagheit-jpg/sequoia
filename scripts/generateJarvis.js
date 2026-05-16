@@ -35,7 +35,9 @@ async function sbFetch(path, opts = {}) {
     },
   });
   if (!res.ok) throw new Error(`Supabase error: ${res.status} ${await res.text()}`);
-  return res.json();
+  const text = await res.text();
+  if (!text || text.trim() === '') return null;
+  return JSON.parse(text);
 }
 
 // ─────────────────────────────────────────────
@@ -184,7 +186,8 @@ async function runMatch(region = 'KOREA') {
     `core_intelligence_snapshots?select=snapshot_date,sefcon_score,sefcon_level,key_indicators&market=eq.${region}&order=snapshot_date.asc&limit=2000`,
     { headers: { 'Range-Unit': 'items', 'Range': '0-1999' } }
   );
-  if (!allRows || allRows.length < 10) throw new Error(`데이터 부족: ${region} ${allRows?.length}건`);
+  if (!allRows || !Array.isArray(allRows) || allRows.length < 10) 
+    throw new Error(`데이터 부족: ${region} ${allRows?.length ?? 0}건`);
 
   const todayRow = [...allRows].sort((a, b) =>
     b.snapshot_date.localeCompare(a.snapshot_date)
@@ -329,8 +332,17 @@ async function saveCache({ cacheKey, tabType, market, interpretation, similarPer
 //  메인 실행
 // ─────────────────────────────────────────────
 async function main() {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
   console.log(`\n🤖 자비스 생성 시작 — ${today}\n`);
+
+  let matchData;
+  try {
+    matchData = await runMatch('KOREA');
+    console.log(`✅ 패턴 매칭 완료 — ${matchData.matches.length}개 유사 국면`);
+  } catch (err) {
+    console.error('❌ 패턴 매칭 실패:', err.message);
+    process.exit(1);
+  }
 
   const tabs = ['sefcon', 'market'];
 
@@ -339,16 +351,25 @@ async function main() {
     console.log(`▶ ${tabType} 처리 중...`);
 
     try {
-      const matchData = await runMatch('KOREA');
-      const prompt    = buildPrompt(tabType, matchData);
+      const prompt = buildPrompt(tabType, matchData);
       const interpretation = await callClaude(prompt);
+
+      const safePeriods = matchData.matches.map(m => ({
+        date:         m.date,
+        similarity:   m.similarity,
+        sefcon_score: m.sefcon_score,
+        sefcon_level: m.sefcon_level,
+        fwd_3m:       m.fwd_3m !== null ? +m.fwd_3m.toFixed(2) : null,
+        fwd_6m:       m.fwd_6m !== null ? +m.fwd_6m.toFixed(2) : null,
+        fwd_12m:      m.fwd_12m !== null ? +m.fwd_12m.toFixed(2) : null,
+      }));
 
       await saveCache({
         cacheKey,
         tabType,
-        market:        'KOREA',
+        market:         'KOREA',
         interpretation,
-        similarPeriods: matchData.matches,
+        similarPeriods: safePeriods,
       });
 
       console.log(`✅ ${tabType} 완료 — 캐시 키: ${cacheKey}`);
