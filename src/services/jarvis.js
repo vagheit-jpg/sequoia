@@ -161,7 +161,7 @@ async function getIsActive(ticker) {
 // ─────────────────────────────────────────────
 //  주가 탭 프롬프트 생성
 // ─────────────────────────────────────────────
-function buildStockPrompt({ latest, getKi, snapshotDate }, smaData, ticker) {
+function buildStockPrompt({ latest, getKi, snapshotDate }, smaData, ticker, stockName) {
   const base = `[거시 참고 - ${snapshotDate}]
 SEFCON: ${getKi('sefcon_score')}/100 (레벨 ${getKi('sefcon_level')} 위기)
 코스피: ${getKi('kospi_last')} / 환율: ${getKi('krw_usd')}원
@@ -177,14 +177,14 @@ VIX: ${getKi('fred_vix')} / 금리차: ${getKi('fred_t10y2y')}
 가속도: ${smaData.sma_acceleration}` : '';
 
   const instruction = smaData
-    ? `위 데이터를 바탕으로 ${ticker} 종목을 해석해주세요.
+    ? `위 데이터를 바탕으로 ${stockName}(${ticker}) 종목을 해석해주세요.
 거시 환경은 참고용으로만 활용하고, 핵심은 이 종목의 수급 흐름입니다.
 ① 수급 시그널이 말하는 것 — 외인/기관 동향과 의미
 ② 현재 거시 환경과 이 종목의 연관성 (관련 있으면 언급, 없으면 생략)
 ③ 단기 모멘텀 판단
 ④ 주의할 리스크 1개
 마크다운 기호 절대 사용 금지. 400자 이내.`
-    : `위 거시 데이터를 참고해서 ${ticker} 종목을 해석해주세요.
+    : `위 거시 데이터를 참고해서 ${stockName}(${ticker}) 종목을 해석해주세요.
 스마트머니 수급 데이터가 없어 거시 환경 중심으로 분석합니다.
 ① 현재 거시 환경과 이 종목 섹터의 연관성
 ② 지금 이 종목에 유리하거나 불리한 거시 조건
@@ -209,6 +209,7 @@ export async function jarvisInterpret({
   tabType  = 'sefcon',
   region   = 'KOREA',
   ticker   = null,
+  name     = null,
   useCache = true,
 } = {}) {
 
@@ -246,7 +247,8 @@ export async function jarvisInterpret({
     const snapshotData = await getLatestSnapshot(region);
     const isActive     = await getIsActive(ticker);
     const smaData      = isActive ? await getSmaData(ticker) : null;
-    const prompt       = buildStockPrompt(snapshotData, smaData, ticker);
+    const stockName    = name || ticker;
+    const prompt       = buildStockPrompt(snapshotData, smaData, ticker, stockName);
     const interpretation = await callClaudeAPI(prompt);
 
     await saveCache(cacheKey, 'stock', ticker, region, interpretation, 120);
