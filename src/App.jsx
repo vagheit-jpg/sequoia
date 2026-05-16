@@ -1182,7 +1182,7 @@ export default function App(){
         {tab==="price60"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
             {/* J.A.R.V.I.S. INSIGHT */}
-            <JarvisComment C={C} tabType="stock" ticker={co?.ticker||null} region="KOREA" />
+            <JarvisComment C={C} tabType="stock" ticker={co?.ticker||null} name={co?.name||null} region="KOREA" />
 
             {/* 스마트머니 버튼 */}
             {co?.ticker&&(
@@ -1678,6 +1678,68 @@ export default function App(){
                 ))}
               </div>
             </div>
+
+            {/* 화살표 범례 */}
+            <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
+              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📍 차트 화살표 범례</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {[
+                  {arrow:"▲",label:"적극매수",color:"#00C878"},
+                  {arrow:"▲",label:"매수",color:"#10A898"},
+                  {arrow:"▼",label:"매도",color:"#FF7830"},
+                  {arrow:"▼",label:"적극매도",color:"#FF3D5A"},
+                  {arrow:"▼",label:"극단매도",color:"#8855FF"},
+                ].map(b=>(
+                  <div key={b.label} style={{display:"flex",alignItems:"center",gap:3,
+                    background:`${b.color}15`,borderRadius:6,padding:"3px 8px",
+                    border:`1px solid ${b.color}44`}}>
+                    <span style={{color:b.color,fontSize:10,fontWeight:900}}>{b.arrow}</span>
+                    <span style={{color:b.color,fontSize:9,fontWeight:700}}>{b.label}</span>
+                  </div>
+                ))}
+                {smaActive&&[
+                  {arrow:"⬆",label:"스마트머니 유입 폭증",color:"#FF6B35"},
+                  {arrow:"△",label:"스마트머니 매집",color:"#00C896"},
+                  {arrow:"▽",label:"스마트머니 이탈",color:"#FF4757"},
+                ].map(b=>(
+                  <div key={b.label} style={{display:"flex",alignItems:"center",gap:3,
+                    background:`${b.color}15`,borderRadius:6,padding:"3px 8px",
+                    border:`1px solid ${b.color}44`}}>
+                    <span style={{color:b.color,fontSize:10,fontWeight:900}}>{b.arrow}</span>
+                    <span style={{color:b.color,fontSize:9,fontWeight:700}}>{b.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 스마트머니 수급 요약 한 줄 */}
+            {smaActive&&smaHistory.length>0&&(()=>{
+              const last=smaHistory[smaHistory.length-1];
+              if(!last) return null;
+              const syncLabel=last.sma_sync===2?'쌍끌이 매수 🔥':last.sma_sync===-2?'쌍매도 ⚠️':'혼조';
+              const sigLabel=last.sma_signal==='SUPERNOVA'?'스마트머니 유입 폭증'
+                :last.sma_signal==='ACCUMULATION'?'스마트머니 매집'
+                :last.sma_signal==='ESCAPE'?'스마트머니 이탈':'노이즈';
+              const sigColor=last.sma_signal==='SUPERNOVA'?'#FF6B35'
+                :last.sma_signal==='ACCUMULATION'?'#00C896'
+                :last.sma_signal==='ESCAPE'?'#FF4757':C.muted;
+              const fnet=(last.foreign_net_value/1e8).toFixed(1);
+              const inet=(last.institution_net_value/1e8).toFixed(1);
+              return(
+                <div style={{background:`${sigColor}12`,border:`1px solid ${sigColor}33`,
+                  borderRadius:8,padding:"7px 12px",marginBottom:10,
+                  display:"flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:9,color:C.muted,fontFamily:"monospace"}}>📡 수급 최근 ({last.trade_date?.slice(0,7)})</span>
+                  <span style={{fontSize:11,fontWeight:700,color:sigColor}}>{sigLabel}</span>
+                  <span style={{fontSize:10,color:C.muted}}>
+                    외인 <span style={{color:Number(fnet)>0?C.green:C.red,fontWeight:700}}>{Number(fnet)>0?'+':''}{fnet}억</span>
+                    {' / '}
+                    기관 <span style={{color:Number(inet)>0?C.green:C.red,fontWeight:700}}>{Number(inet)>0?'+':''}{inet}억</span>
+                  </span>
+                  <span style={{fontSize:10,color:C.muted}}>동기화: <span style={{fontWeight:700,color:last.sma_sync===2?C.green:last.sma_sync===-2?C.red:C.muted}}>{syncLabel}</span></span>
+                </div>
+              );
+            })()}
 
             <ST accent={C.gold} right="QMA 배수 기준 위치 밴드">가격 위치 밴드</ST>
             <CW h={310}>
