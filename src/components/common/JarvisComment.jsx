@@ -132,7 +132,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     fontFamily: 'monospace',
     flexShrink: 0,
     lineHeight: 1,
-    paddingTop: 2,
+    paddingTop: 4,
   };
 
   const summaryStyle = {
