@@ -24,7 +24,7 @@ export default async function handler(req, res) {
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1000,
         system: system || '당신은 자비스입니다. 오건영 스타일로 쉽게 설명합니다.',
         messages: [{ role: 'user', content: prompt }],
