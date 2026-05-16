@@ -36,6 +36,7 @@ const JarvisIcon = ({ dark, spinning = false }) => {
           animation: spinning ? 'jarvis-spin 1.5s linear infinite' : 'none',
           transformOrigin: 'center',
           display: 'block',
+          marginTop: 2,  // ← 이 줄 추가, 숫자 올려가며 조정
         }}
       >
       {/* 외부 링 두툼 */}
