@@ -24,15 +24,15 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !ANTHROPIC_API_KEY) {
 // ─────────────────────────────────────────────
 async function sbFetch(path, opts = {}) {
   const fullUrl = `${SUPABASE_URL}/rest/v1/${path}`;
-  console.log('요청 URL 앞 70자:', fullUrl.slice(0, 70));
+  const { headers: extraHeaders, ...restOpts } = opts;
   const res = await fetch(fullUrl, {
+    ...restOpts,
     headers: {
-      apikey:        SUPABASE_SERVICE_KEY,
-      Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`,
+      apikey:         SUPABASE_SERVICE_KEY,
+      Authorization:  `Bearer ${SUPABASE_SERVICE_KEY}`,
       'Content-Type': 'application/json',
-      ...opts.headers,
+      ...(extraHeaders || {}),
     },
-    ...opts,
   });
   if (!res.ok) throw new Error(`Supabase error: ${res.status} ${await res.text()}`);
   return res.json();
