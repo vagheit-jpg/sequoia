@@ -10,10 +10,6 @@ const SUPABASE_URL         = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_KEY = process.env.SUPABASE_SERVICE_KEY;
 const ANTHROPIC_API_KEY    = process.env.ANTHROPIC_API_KEY;
 
-console.log('SUPABASE_URL:', SUPABASE_URL);
-console.log('SUPABASE_SERVICE_KEY 앞 10자:', SUPABASE_SERVICE_KEY?.slice(0, 10));
-console.log('ANTHROPIC_API_KEY 앞 10자:', ANTHROPIC_API_KEY?.slice(0, 10));
-
 if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !ANTHROPIC_API_KEY) {
   console.error('❌ 환경변수 누락: SUPABASE_URL, SUPABASE_SERVICE_KEY, ANTHROPIC_API_KEY 확인');
   process.exit(1);
