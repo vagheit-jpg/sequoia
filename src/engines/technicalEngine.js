@@ -522,3 +522,67 @@ export const buildBandsFromQtr=(monthly,qtrData,annData,bandCfg)=>{
     _adaptive,
   }));
 };
+
+// ─────────────────────────────────────────────
+//  SMA 수급 시그널 → 차트 마커용
+//  월봉 기준 SUPERNOVA / ACCUMULATION / ESCAPE만 표시
+//  smart_money_daily 데이터 배열을 받아서 처리
+// ─────────────────────────────────────────────
+export const calcSmaSignalPoints = (smaHistory = []) => {
+  const pts = [];
+
+  smaHistory.forEach((d, i) => {
+    const signal = d.sma_signal;
+    const prev   = i > 0 ? smaHistory[i - 1] : null;
+
+    // 이전 달과 시그널이 바뀐 경우만 마커 표시 (중복 방지)
+    if (!prev || prev.sma_signal === signal) return;
+
+    if (signal === 'SUPERNOVA') {
+      pts.push({
+        label:  d.trade_date?.slice(0, 7),  // YYYY-MM
+        price:  null,                         // 차트에서 y값은 별도 처리
+        type:   '수급▲▲',
+        color:  '#FF6B35',
+        arrow:  '⬆',
+        pos:    'bottom',
+        signal,
+        foreign_net_value:     d.foreign_net_value,
+        institution_net_value: d.institution_net_value,
+        sma_score:             d.sma_score,
+        sma_sync:              d.sma_sync,
+      });
+    } else if (signal === 'ACCUMULATION') {
+      pts.push({
+        label:  d.trade_date?.slice(0, 7),
+        price:  null,
+        type:   '수급▲',
+        color:  '#00C896',
+        arrow:  '△',
+        pos:    'bottom',
+        signal,
+        foreign_net_value:     d.foreign_net_value,
+        institution_net_value: d.institution_net_value,
+        sma_score:             d.sma_score,
+        sma_sync:              d.sma_sync,
+      });
+    } else if (signal === 'ESCAPE') {
+      pts.push({
+        label:  d.trade_date?.slice(0, 7),
+        price:  null,
+        type:   '수급▼',
+        color:  '#FF4757',
+        arrow:  '▽',
+        pos:    'top',
+        signal,
+        foreign_net_value:     d.foreign_net_value,
+        institution_net_value: d.institution_net_value,
+        sma_score:             d.sma_score,
+        sma_sync:              d.sma_sync,
+      });
+    }
+    // NOISE는 표시 안 함
+  });
+
+  return pts;
+};
