@@ -181,7 +181,7 @@ function computeForwardReturn(rows, targetDate, horizonMonths) {
 // ─────────────────────────────────────────────
 async function runMatch(region = 'KOREA') {
   const allRows = await sbFetch(
-    `core_intelligence_snapshots?select=snapshot_date,sefcon_score,sefcon_level,regime_label,crisis_proximity,key_indicators&market=eq.${region}&order=snapshot_date.asc&limit=2000`,
+    `core_intelligence_snapshots?select=snapshot_date,sefcon_score,sefcon_level,key_indicators&market=eq.${region}&order=snapshot_date.asc&limit=2000`,
     { headers: { 'Range-Unit': 'items', 'Range': '0-1999' } }
   );
   if (!allRows || allRows.length < 10) throw new Error(`데이터 부족: ${region} ${allRows?.length}건`);
@@ -234,7 +234,7 @@ async function runMatch(region = 'KOREA') {
   return {
     todayDate,
     todayScore:  todayRow.sefcon_score,
-    todayRegime: todayRow.regime_label || '—',
+    todayRegime: todayRow.sefcon_level || '—',
     matches,
     summary: {
       avgFwd3m:        avgFwd3m !== null ? +avgFwd3m.toFixed(2) : null,
