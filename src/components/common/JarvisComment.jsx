@@ -35,6 +35,7 @@ const JarvisIcon = ({ dark, spinning = false }) => {
           filter: dark ? 'drop-shadow(0 0 3px #00d4ff88)' : 'none',
           animation: spinning ? 'jarvis-spin 1.5s linear infinite' : 'none',
           transformOrigin: 'center',
+          display: 'block',
         }}
       >
       {/* 외부 링 두툼 */}
@@ -108,6 +109,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     borderRadius: 10,
     border: `1px solid ${C.border}`,
     background: C.card2 || C.card,
+    overflow: 'hidden',
   };
 
   const row = {
@@ -129,6 +131,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     color: labelColor,
     fontFamily: 'monospace',
     flexShrink: 0,
+    lineHeight: 1,
   };
 
   const summaryStyle = {
@@ -153,6 +156,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
   const body = {
     padding: '0 12px 12px',
     borderTop: `1px solid ${C.border}`,
+    overflow: 'visible',
   };
 
   const textStyle = {
