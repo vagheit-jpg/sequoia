@@ -1686,7 +1686,7 @@ export default function App(){
 
             {/* 화살표 범례 */}
             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
-              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📍 차트 화살표 범례</div>
+              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📍 차트 시그널 가이드</div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {[
                   {arrow:"▲",label:"적극매수",color:"#00C878"},
