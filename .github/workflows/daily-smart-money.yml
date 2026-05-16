@@ -24,7 +24,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
 
       - name: 패키지 설치
         run: |
@@ -36,9 +35,9 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
-            python sequoia_step2_collect_smart_money.py ${{ github.event.inputs.target_date }}
+            python scripts/collectSmartMoney.py ${{ github.event.inputs.target_date }}
           else
-            python sequoia_step2_collect_smart_money.py
+            python scripts/collectSmartMoney.py
           fi
 
       - name: 수집 결과 알림 (선택)
