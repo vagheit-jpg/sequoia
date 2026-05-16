@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { jarvisInterpret } from '../services/jarvis';
+import { jarvisInterpret } from '../../services/jarvis';
 
 export default function JarvisComment({ C, tabType, ticker = null, region = 'KOREA' }) {
   const [data, setData]       = useState(null);
