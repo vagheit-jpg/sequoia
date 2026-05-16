@@ -125,9 +125,6 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     color: labelColor,
     fontFamily: 'monospace',
     flexShrink: 0,
-    lineHeight: '22px',
-    display: 'inline-block',
-    verticalAlign: 'middle',
   };
 
   const summaryStyle = {
@@ -138,8 +135,6 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
-    lineHeight: '22px',
-    verticalAlign: 'middle',
   };
 
   const chevronStyle = {
@@ -149,7 +144,6 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     flexShrink: 0,
     transition: 'transform 0.2s',
     transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-    lineHeight: '22px',
   };
 
   const body = {
