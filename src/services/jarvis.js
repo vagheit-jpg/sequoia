@@ -15,16 +15,15 @@
  */
 
 // ─────────────────────────────────────────────
-//  Supabase 설정
+//  Supabase 설정 (기존 constants/supabase.js 방식)
 // ─────────────────────────────────────────────
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+import { SB_URL, SB_KEY } from '../constants/supabase';
 
 const sbFetch = async (path, opts = {}) => {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
     headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      apikey: SB_KEY,
+      Authorization: `Bearer ${SB_KEY}`,
       'Content-Type': 'application/json',
       ...opts.headers,
     },
