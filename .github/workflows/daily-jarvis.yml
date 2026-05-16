@@ -1,0 +1,26 @@
+name: Daily Jarvis Generation
+
+on:
+  schedule:
+    - cron: '0 21 * * *'  # 매일 UTC 21:00 = KST 06:00
+  workflow_dispatch:       # 수동 실행 가능
+
+jobs:
+  generate-jarvis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Jarvis Generator
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          ANTHROPIC_API_KEY:    ${{ secrets.ANTHROPIC_API_KEY }}
+        run: node scripts/generateJarvis.js
