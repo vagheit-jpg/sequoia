@@ -75,8 +75,9 @@ export default function JarvisComment({ C, tabType, ticker = null, region = 'KOR
     setExpanded(v => !v);
   };
 
-  const iconColor = C.gold || '#ffaa00';
-  const labelColor = C.gold || '#ffaa00';
+  const isDark = C.bg === '#040710';
+  const iconColor = '#00d4ff';
+  const labelColor = isDark ? '#00d4ff' : '#0077aa';
 
   const wrap = {
     margin: '10px 0',
@@ -102,6 +103,9 @@ export default function JarvisComment({ C, tabType, ticker = null, region = 'KOR
     color: labelColor,
     fontFamily: 'monospace',
     flexShrink: 0,
+    lineHeight: 1,
+    display: 'inline-flex',
+    alignItems: 'center',
   };
 
   const summaryStyle = {
