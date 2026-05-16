@@ -96,6 +96,8 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     setLoading(false);
   }, [ticker]);
 
+  const [hovered, setHovered] = useState(false);
+
   const handleClick = () => {
     if (!isSefcon && !triggered) setTriggered(true);
     setExpanded(v => !v);
@@ -116,6 +118,8 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     cursor: 'pointer',
     userSelect: 'none',
     minHeight: 38,
+    background: hovered ? (C.dim || `${C.border}`) : 'transparent',
+    transition: 'background 0.15s',
   };
 
   const labelStyle = {
@@ -212,7 +216,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
 
   return (
     <div style={wrap}>
-      <div style={row} onClick={handleClick}>
+      <div style={row} onClick={handleClick} onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}>
         {rowContent()}
       </div>
 
