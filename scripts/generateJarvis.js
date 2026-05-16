@@ -68,7 +68,7 @@ const JARVIS_SYSTEM = `당신은 J.A.R.V.I.S. INSIGHT입니다. 세콰이어 투
 - 줄바꿈은 문단 구분할 때만 1회, 연속 빈 줄 금지
 - 섹션 제목 없이 자연스러운 문장 흐름으로 연결
 - 간결하고 밀도있게, 불필요한 여백 없이
-- 전체 500자 이내
+- 전체 600자 이내, 반드시 완성된 문장으로 마무리
 
 원칙:
 - 특정 종목 매수/매도 추천 절대 금지
@@ -86,7 +86,7 @@ async function callClaude(prompt) {
     },
     body: JSON.stringify({
       model:      'claude-sonnet-4-6',
-      max_tokens: 1000,
+      max_tokens: 1500,
       system:     JARVIS_SYSTEM,
       tools: [{ type: 'web_search_20250305', name: 'web_search' }],
       messages: [{ role: 'user', content: prompt }],
@@ -147,7 +147,7 @@ VIX: ${vix} / DXY: ${dxy} / 한국금리: ${krRate}%
 ④ 지금 가장 중요한 변수 1개와 그 이유
 ⑤ 3개월 시나리오 — 낙관/중립/비관 각 1문장
 
-마크다운 기호 절대 사용 금지. 500자 이내로 자연스럽게.`;
+마크다운 기호 절대 사용 금지. 600자 이내로 자연스럽게 작성하고 반드시 완성된 문장으로 마무리하세요.`;
 }
 
 async function saveCache({ cacheKey, interpretation }) {
