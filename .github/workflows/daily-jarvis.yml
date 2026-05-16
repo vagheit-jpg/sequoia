@@ -3,7 +3,7 @@ name: Daily Jarvis Generation
 on:
   schedule:
     - cron: '0 21 * * *'  # 매일 UTC 21:00 = KST 06:00
-  workflow_dispatch:       # 수동 실행 가능
+  workflow_dispatch:
 
 jobs:
   generate-jarvis:
