@@ -1,17 +1,15 @@
 /**
- * 자비스 (J.A.R.V.I.S.) INSIGHT — 세콰이어 AI 해석 엔진 v4
+ * 자비스 (J.A.R.V.I.S.) INSIGHT — 세콰이어 AI 해석 엔진 v5
  *
- * v4 변경사항:
- * - SEFCON 탭: GitHub Actions 미리 생성 캐시 즉시 반환 (25시간 TTL)
- * - 주가 탭: 패널 클릭 시 호출, SEFCON + 수급 해석, 2시간 캐시
- * - 유사국면 매칭 완전 제거
+ * v5 변경사항:
+ * - TTL 24시간으로 통일
+ * - 비활성화 종목: 웹서치 + DART 공시 포함
+ * - 활성화 종목: GitHub Actions 미리 생성 캐시 즉시 반환
+ * - SEFCON 탭: GitHub Actions 미리 생성 캐시 즉시 반환
  */
 
 import { SB_URL, SB_KEY } from '../constants/supabase';
 
-// ─────────────────────────────────────────────
-//  Supabase fetch 헬퍼
-// ─────────────────────────────────────────────
 const sbFetch = async (path, opts = {}) => {
   const { headers: extraHeaders, ...restOpts } = opts;
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
@@ -29,9 +27,6 @@ const sbFetch = async (path, opts = {}) => {
   return JSON.parse(text);
 };
 
-// ─────────────────────────────────────────────
-//  캐시 조회
-// ─────────────────────────────────────────────
 async function getCached(cacheKey) {
   try {
     const rows = await sbFetch(
@@ -46,12 +41,10 @@ async function getCached(cacheKey) {
   }
 }
 
-// ─────────────────────────────────────────────
-//  캐시 저장
-// ─────────────────────────────────────────────
-async function saveCache(cacheKey, tabType, ticker, market, interpretation, ttlMinutes) {
+async function saveCache(cacheKey, tabType, ticker, market, interpretation) {
   try {
-    const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
+    // 24시간 TTL
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
     await sbFetch('jarvis_cache?on_conflict=cache_key', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates' },
@@ -70,9 +63,6 @@ async function saveCache(cacheKey, tabType, ticker, market, interpretation, ttlM
   }
 }
 
-// ─────────────────────────────────────────────
-//  Claude API 호출 (Vercel API Route 경유)
-// ─────────────────────────────────────────────
 const JARVIS_SYSTEM = `당신은 J.A.R.V.I.S. INSIGHT입니다. 세콰이어 투자 앱의 AI 해석 엔진입니다.
 
 말투와 스타일:
@@ -88,7 +78,7 @@ const JARVIS_SYSTEM = `당신은 J.A.R.V.I.S. INSIGHT입니다. 세콰이어 투
 - 줄바꿈은 문단 구분할 때만 1회, 연속 빈 줄 금지
 - 섹션 제목 없이 자연스러운 문장 흐름으로 연결
 - 간결하고 밀도있게, 불필요한 여백 없이
-- 전체 400자 이내
+- 전체 500자 이내, 반드시 완성된 문장으로 마무리
 
 원칙:
 - 특정 종목 매수/매도 추천 절대 금지
@@ -96,20 +86,17 @@ const JARVIS_SYSTEM = `당신은 J.A.R.V.I.S. INSIGHT입니다. 세콰이어 투
 - 어려운 금융 용어 남발 금지
 - 항상 리스크도 함께 언급`;
 
-async function callClaudeAPI(userPrompt) {
+async function callClaudeAPI(userPrompt, useWebSearch = false) {
   const res = await fetch('/api/jarvis', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ system: JARVIS_SYSTEM, prompt: userPrompt }),
+    body: JSON.stringify({ system: JARVIS_SYSTEM, prompt: userPrompt, useWebSearch }),
   });
   if (!res.ok) throw new Error(`자비스 API 오류: ${res.status}`);
   const data = await res.json();
   return data.interpretation;
 }
 
-// ─────────────────────────────────────────────
-//  최신 SEFCON 스냅샷 조회
-// ─────────────────────────────────────────────
 async function getLatestSnapshot(region = 'KOREA') {
   const rows = await sbFetch(
     `core_intelligence_snapshots?select=snapshot_date,sefcon_score,sefcon_level,key_indicators&market=eq.${region}&key_indicators=not.is.null&order=snapshot_date.desc&limit=1`
@@ -128,9 +115,6 @@ async function getLatestSnapshot(region = 'KOREA') {
   return { latest, getKi, snapshotDate: latest.snapshot_date || '—' };
 }
 
-// ─────────────────────────────────────────────
-//  SMA 수급 데이터 조회
-// ─────────────────────────────────────────────
 async function getSmaData(ticker) {
   try {
     const rows = await sbFetch(
@@ -143,9 +127,6 @@ async function getSmaData(ticker) {
   }
 }
 
-// ─────────────────────────────────────────────
-//  스마트머니 활성화 여부 확인
-// ─────────────────────────────────────────────
 async function getIsActive(ticker) {
   try {
     const rows = await sbFetch(
@@ -158,10 +139,7 @@ async function getIsActive(ticker) {
   }
 }
 
-// ─────────────────────────────────────────────
-//  주가 탭 프롬프트 생성
-// ─────────────────────────────────────────────
-function buildStockPrompt({ latest, getKi, snapshotDate }, smaData, ticker, stockName) {
+function buildStockPrompt({ getKi, snapshotDate }, smaData, ticker, stockName, dartText = '') {
   const base = `[거시 참고 - ${snapshotDate}]
 SEFCON: ${getKi('sefcon_score')}/100 (레벨 ${getKi('sefcon_level')} 위기)
 코스피: ${getKi('kospi_last')} / 환율: ${getKi('krw_usd')}원
@@ -176,35 +154,30 @@ VIX: ${getKi('fred_vix')} / 금리차: ${getKi('fred_t10y2y')}
 동기화: ${smaData.sma_sync === 2 ? '쌍끌이 매수 🔥' : smaData.sma_sync === -2 ? '쌍매도 ⚠️' : '혼조'}
 가속도: ${smaData.sma_acceleration}` : '';
 
+  const dartSection = dartText ? `\n${dartText}` : '';
+
+  const webSearchInstruction = !smaData
+    ? `웹서치로 ${stockName} 최신 뉴스와 주요 이슈를 검색한 후 아래 분석에 반영해주세요.` : '';
+
   const instruction = smaData
     ? `위 데이터를 바탕으로 ${stockName}(${ticker}) 종목을 해석해주세요.
-거시 환경은 참고용으로만 활용하고, 핵심은 이 종목의 수급 흐름입니다.
+거시 환경은 참고용, 핵심은 수급 흐름입니다.
 ① 수급 시그널이 말하는 것 — 외인/기관 동향과 의미
-② 현재 거시 환경과 이 종목의 연관성 (관련 있으면 언급, 없으면 생략)
-③ 단기 모멘텀 판단
+② 현재 거시 환경과 이 종목의 연관성 (관련 있으면 언급)
+③ 최근 공시/뉴스가 있다면 주가에 미치는 영향
 ④ 주의할 리스크 1개
-마크다운 기호 절대 사용 금지. 400자 이내.`
-    : `위 거시 데이터를 참고해서 ${stockName}(${ticker}) 종목을 해석해주세요.
-스마트머니 수급 데이터가 없어 거시 환경 중심으로 분석합니다.
+마크다운 기호 절대 사용 금지. 500자 이내, 완성된 문장으로 마무리.`
+    : `${webSearchInstruction}
+위 거시 데이터와 최신 뉴스/공시를 종합해서 ${stockName}(${ticker}) 종목을 해석해주세요.
 ① 현재 거시 환경과 이 종목 섹터의 연관성
-② 지금 이 종목에 유리하거나 불리한 거시 조건
-③ 주의할 리스크 1개
-스마트머니 활성화 시 더 정밀한 수급 분석이 가능합니다.
-마크다운 기호 절대 사용 금지. 400자 이내.`;
+② 최신 뉴스/공시에서 주목할 내용
+③ 지금 이 종목에 유리하거나 불리한 조건
+④ 주의할 리스크 1개
+마크다운 기호 절대 사용 금지. 500자 이내, 완성된 문장으로 마무리.`;
 
-  return `${base}${smaText}\n\n${instruction}`;
+  return `${base}${smaText}${dartSection}\n\n${instruction}`;
 }
 
-// ─────────────────────────────────────────────
-//  메인 — 자비스 해석
-// ─────────────────────────────────────────────
-/**
- * @param {object} opts
- * @param {string} opts.tabType   - 'sefcon' | 'stock'
- * @param {string} opts.region    - 'KOREA'
- * @param {string} opts.ticker    - 종목코드 (주가 탭)
- * @param {boolean} opts.useCache - 캐시 사용 여부 (기본 true)
- */
 export async function jarvisInterpret({
   tabType  = 'sefcon',
   region   = 'KOREA',
@@ -213,14 +186,11 @@ export async function jarvisInterpret({
   useCache = true,
 } = {}) {
 
-  const today = new Date().toISOString().slice(0, 10);
-
-  // 캐시 키 결정
+  const today    = new Date().toISOString().slice(0, 10);
   const cacheKey = tabType === 'sefcon'
     ? `sefcon_KOREA_${today}`
-    : `stock_${ticker}_${today}_${Math.floor(Date.now() / (2 * 60 * 60 * 1000))}`; // 2시간 슬롯
+    : `stock_${ticker}_${today}`;  // 24시간 슬롯 (날짜 기준)
 
-  // 캐시 확인
   if (useCache) {
     const cached = await getCached(cacheKey);
     if (cached) {
@@ -232,7 +202,6 @@ export async function jarvisInterpret({
     }
   }
 
-  // SEFCON 탭: 캐시 미스 → GitHub Actions가 아직 안 돌았거나 오류
   if (tabType === 'sefcon') {
     console.warn('[자비스] SEFCON 캐시 없음 — GitHub Actions 확인 필요');
     return {
@@ -242,16 +211,18 @@ export async function jarvisInterpret({
     };
   }
 
-  // 주가 탭: 최신 SEFCON + 수급 조회 후 Claude API 호출
   if (tabType === 'stock' && ticker) {
     const snapshotData = await getLatestSnapshot(region);
     const isActive     = await getIsActive(ticker);
     const smaData      = isActive ? await getSmaData(ticker) : null;
     const stockName    = name || ticker;
-    const prompt       = buildStockPrompt(snapshotData, smaData, ticker, stockName);
-    const interpretation = await callClaudeAPI(prompt);
 
-    await saveCache(cacheKey, 'stock', ticker, region, interpretation, 120);
+    // 비활성화 종목: 웹서치 포함 (활성화 종목은 GitHub Actions에서 미리 생성)
+    const useWebSearch = !isActive;
+    const prompt       = buildStockPrompt(snapshotData, smaData, ticker, stockName);
+    const interpretation = await callClaudeAPI(prompt, useWebSearch);
+
+    await saveCache(cacheKey, 'stock', ticker, region, interpretation);
 
     return {
       interpretation,
