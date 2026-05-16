@@ -1331,6 +1331,7 @@ export default function App(){
         {/* ════ 재무 ════ */}
         {tab==="financial"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            <JarvisComment C={C} tabType="financial" ticker={co?.ticker || null} />
             {hasFinData?(()=>{
               const data=finView==="연간"?annTimeline:qtrTimeline;
               return(
@@ -1579,13 +1580,13 @@ export default function App(){
             })():(
               <Box><div style={{color:C.muted,textAlign:"center",padding:20}}>📂 엑셀 업로드 후 표시됩니다.</div></Box>
             )}
-          <JarvisComment C={C} tabType="financial" ticker={co?.ticker || null} />
           </div>
         )}
 
         {/* ════ 기술분석 ════ */}
         {tab==="technical"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            <JarvisComment C={C} tabType="technical" ticker={co?.ticker || null} />
 
             {/* 위치 판독 안내 뱃지 */}
             <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
@@ -2016,13 +2017,13 @@ else {
                 <Area dataKey="mfi" name="MFI(%)" stroke={C.pink} strokeWidth={2} fill={`${C.pink}18`} dot={false}/>
               </ComposedChart>
             </CW>
-          <JarvisComment C={C} tabType="technical" ticker={co?.ticker || null} />
           </div>
         )}
 
         {/* ════ 가치평가 ════ */}
         {tab==="valuation"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            <JarvisComment C={C} tabType="valuation" ticker={co?.ticker || null} />
             <Box>
               <ST accent={C.gold}>📐 DCF 파라미터 설정</ST>
               {(()=>{
@@ -2536,7 +2537,6 @@ else {
                 <div style={{color:C.muted,textAlign:"center",padding:20,fontSize:12}}>📂 엑셀 업로드 후 DCF 계산이 표시됩니다.</div>
               )}
             </Box>
-          <JarvisComment C={C} tabType="valuation" ticker={co?.ticker || null} />
           </div>
         )}
 
@@ -3516,6 +3516,8 @@ else {
 
           return(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            <JarvisComment C={C} tabType="sefcon" region="KOREA" />
+            <JarvisComment C={C} tabType="market" region="KOREA" />
             {marketLoading&&(
               <Box><div style={{color:C.muted,textAlign:"center",padding:24,fontSize:12}}>
                 🌐 거시경제 데이터 로딩중...
@@ -5158,7 +5160,6 @@ else {
 })()}
 
 
-            <JarvisComment C={C} tabType="sefcon" region="KOREA" />
             </> /* AEGIS 탭 끝 */}
 
             {marketSub==="defcon"&&<>
@@ -6726,7 +6727,6 @@ else {
             </>
             )}
             </> /* KOREA 탭 끝 */}
-          <JarvisComment C={C} tabType="market" region="KOREA" />
           </div>
           );
         })()}
