@@ -2,7 +2,6 @@ name: 세콰이어 스마트머니 일별 수집
 
 on:
   schedule:
-    # 매일 장마감 후 16:30 KST (UTC 07:30)
     - cron: '30 7 * * 1-5'
   workflow_dispatch:
     inputs:
@@ -31,8 +30,9 @@ jobs:
 
       - name: 스마트머니 수집 실행
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          DART_API_KEY:         ${{ secrets.DART_API_KEY }}
         run: |
           if [ -n "${{ github.event.inputs.target_date }}" ]; then
             python scripts/collectSmartMoney.py ${{ github.event.inputs.target_date }}
