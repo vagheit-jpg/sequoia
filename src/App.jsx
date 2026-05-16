@@ -1187,24 +1187,29 @@ export default function App(){
             {/* 스마트머니 버튼 */}
             {co?.ticker&&(
               <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
-                <button
-                  onClick={toggleSma}
-                  disabled={smaToggling}
-                  style={{
-                    background: smaActive?`${C.green}15`:C.card2,
-                    border:`1px solid ${smaActive?C.green:C.border}`,
-                    borderRadius:8,
-                    padding:"4px 11px",
-                    fontSize:10,
-                    fontWeight:700,
-                    color:smaActive?C.green:C.muted,
-                    cursor:smaToggling?"wait":"pointer",
-                    letterSpacing:"0.04em",
-                    transition:"all 0.2s",
-                  }}
-                >
-                  {smaToggling?"…":smaActive?"스마트머니 탐지 ON":"스마트머니"}
-                </button>
+                <div style={{position:"relative",display:"inline-block"}}>
+                  <button
+                    onClick={toggleSma}
+                    disabled={smaToggling}
+                    title={smaActive
+                      ? "클릭하면 수급 자동수집이 중단됩니다"
+                      : "활성화하면 이 종목의 외인/기관 수급을 매일 자동수집하고 자비스 분석에 포함됩니다"}
+                    style={{
+                      background: smaActive?`${C.green}15`:C.card2,
+                      border:`1px solid ${smaActive?C.green:C.border}`,
+                      borderRadius:8,
+                      padding:"4px 11px",
+                      fontSize:10,
+                      fontWeight:700,
+                      color:smaActive?C.green:C.muted,
+                      cursor:smaToggling?"wait":"pointer",
+                      letterSpacing:"0.04em",
+                      transition:"all 0.2s",
+                    }}
+                  >
+                    {smaToggling?"…":smaActive?"스마트머니 탐지 ON":"스마트머니"}
+                  </button>
+                </div>
               </div>
             )}
 
@@ -1681,7 +1686,7 @@ export default function App(){
 
             {/* 화살표 범례 */}
             <div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
-              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📍 차트 시그널 가이드 </div>
+              <div style={{color:C.muted,fontSize:9,marginBottom:6,letterSpacing:"0.06em"}}>📍 차트 화살표 범례</div>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {[
                   {arrow:"▲",label:"적극매수",color:"#00C878"},
