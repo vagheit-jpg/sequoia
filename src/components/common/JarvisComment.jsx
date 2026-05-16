@@ -56,7 +56,6 @@ const JarvisIcon = ({ dark, spinning = false }) => {
     </svg>
     </>
   );
-  );
 };
 
 export default function JarvisComment({ C, tabType, ticker = null, name = null, region = 'KOREA' }) {
