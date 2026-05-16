@@ -310,7 +310,7 @@ ${similarText}
 async function saveCache({ cacheKey, tabType, market, interpretation, similarPeriods }) {
   const expiresAt = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString(); // 25시간
 
-  await sbFetch('jarvis_cache', {
+  await sbFetch('jarvis_cache?on_conflict=cache_key', {
     method: 'POST',
     headers: { Prefer: 'resolution=merge-duplicates' },
     body: JSON.stringify({
