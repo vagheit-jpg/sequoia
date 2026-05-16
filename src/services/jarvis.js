@@ -485,17 +485,9 @@ export async function jarvisInterpret({
     `6개월 후 ${m.fwd_6m !== null ? (m.fwd_6m > 0 ? '+' : '') + m.fwd_6m + '%' : '데이터없음'}`
   ).join('\n');
 
-  // 탭별 지시사항
-  const tabInstructions = {
-    sefcon:     '거시 국면 전체를 해석하고 3개월 시나리오를 제시하세요.',
-    market:     '지수 방향성과 수급 흐름을 중심으로 해석하세요.',
-    stock:      `${ticker} 종목의 스마트머니 흐름과 거시 환경을 연결해서 해석하세요.`,
-    financial:  '현재 거시 환경이 기업 실적과 재무에 미치는 영향을 해석하세요.',
-    valuation:  '현재 시장 가격 수준이 역사적으로 어느 위치인지 해석하세요.',
-    technical:  '수급과 모멘텀 관점에서 현재 시장을 해석하세요.',
-  };
-
-  const userPrompt = `
+  // ── 탭별 맞춤 프롬프트 생성
+  const buildPrompt = () => {
+    const base = `
 [현재 거시 지표 - ${todayDate}]
 SEFCON: ${todayScore} / ${todayRegime}
 VIX: ${getKi('fred_vix')} | 장단기금리차: ${getKi('fred_t10y2y')}
@@ -503,7 +495,6 @@ VIX: ${getKi('fred_vix')} | 장단기금리차: ${getKi('fred_t10y2y')}
 KRW/USD: ${getKi('krw_usd')} | 코스피: ${getKi('kospi_last')}
 한국금리: ${getKi('kr_rate')}% | DXY: ${getKi('dxy')}
 LEI: ${getKi('fred_lei')} | SLOOS: ${getKi('fred_sloos')}
-${smaText}
 
 [역사적 유사 국면 TOP5 - 26년치 ${matchResult.summary.totalHistoryRows}개 중]
 ${similarText}
@@ -512,18 +503,91 @@ ${similarText}
 상승(+5% 초과): ${summary.upProb}%
 횡보(-5%~+5%): ${summary.flatProb}%
 하락(-5% 미만): ${summary.downProb}%
-유사 국면 평균 3개월 수익률: ${summary.avgFwd3m !== null ? (summary.avgFwd3m > 0 ? '+' : '') + summary.avgFwd3m + '%' : '계산불가'}
+유사 국면 평균 3개월 수익률: ${summary.avgFwd3m !== null ? (summary.avgFwd3m > 0 ? '+' : '') + summary.avgFwd3m + '%' : '계산불가'}`;
 
-[요청 탭]: ${tabType}
-[지시사항]: ${tabInstructions[tabType] || tabInstructions.sefcon}
+    if (tabType === 'sefcon') {
+      return base + `
 
-형식:
-① 현재 국면 (오건영 스타일, 2-3문장)
-② 역사적 유사 국면 비교 (1-2개만, 구체적으로)
-③ 3개월 시나리오 (낙관 / 중립 / 비관 각 1문장)
-④ 지금 투자자가 주목할 핵심 변수 1개
+[지시사항 - SEFCON 거시 국면]
+① 현재 거시 국면을 오건영 스타일로 쉽게 설명 (2-3문장)
+② 금융위기 경보 수준 — 현재가 위기 전조인지, 회복 중인지, 확장 중인지 판단
+   과거 유사 국면(2008 금융위기, 2020 코로나, 2022 긴축 쇼크 등)과 비교해서 구체적으로
+③ 경기 전환 시점 예측 — 지금이 확장/둔화/침체/회복 중 어느 단계인지
+   전환이 임박했다면 그 신호와 예상 시점 언급
+④ 3개월 시나리오 (낙관/중립/비관 각 1문장)
+⑤ 지금 가장 주목할 핵심 변수 1개
+전체 600자 이내`;
+    }
 
-전체 500자 이내로 압축해주세요.`;
+    if (tabType === 'market') {
+      return base + `
+
+[지시사항 - 시장 탭]
+① 현재 코스피/코스닥 방향성을 거시 국면과 연결해서 해석 (2문장)
+② 역사적 유사 국면에서 지수가 어떻게 움직였는지 구체적으로
+③ 외국인/기관 수급 흐름이 지수에 미치는 영향
+④ 3개월 지수 방향 시나리오 (낙관/중립/비관)
+⑤ 지금 시장에서 가장 중요한 변수 1개
+전체 500자 이내`;
+    }
+
+    if (tabType === 'technical') {
+      return base + `
+${smaText}
+
+[지시사항 - 기술분석 + 수급]
+먼저 [수급] 섹션을 작성하세요:
+- 외인/기관 수급 현황과 최근 변화
+- SMA 시그널 해석 (SUPERNOVA/ACCUMULATION/NOISE/ESCAPE 의미 설명)
+- 외인+기관 동기화 여부 (쌍끌이 매수인지, 엇갈리는지)
+- 월봉 기준으로 의미있는 수급 변화가 있으면 매수/매도 시점으로 언급
+
+그 다음 [기술적 위치] 섹션:
+- 현재 가격의 기술적 위치 (거시 국면과 연결)
+- 매수 고려 시점 또는 매도 주의 시점 판단
+- 단기/중기 방향성
+
+전체 600자 이내`;
+    }
+
+    if (tabType === 'financial') {
+      return base + `
+
+[지시사항 - 재무 해석]
+① 현재 거시 환경(금리/환율/유동성)이 이 기업 재무에 미치는 영향
+② 매출/영업이익/현금흐름 트렌드를 서사로 풀어서
+③ 지금 거시 국면에서 이 기업 재무의 강점과 취약점
+④ 향후 실적에 영향을 줄 핵심 거시 변수 1개
+전체 500자 이내`;
+    }
+
+    if (tabType === 'valuation') {
+      return base + `
+
+[지시사항 - 가치평가]
+① 현재 가격과 내재가치 사이의 괴리 — 고평가/저평가/적정 판단
+② 역사적으로 비슷한 괴리가 있었던 시점과 그 이후 주가 흐름
+③ 괴리가 좁혀지는 시나리오와 예상 기간
+   - 낙관: 어떤 조건에서, 얼마나 빨리
+   - 중립: 기본 시나리오
+   - 비관: 괴리가 더 벌어지는 경우
+④ 지금 가격에서 매수/보유/관망 중 어떤 판단이 합리적인지
+전체 600자 이내`;
+    }
+
+    // 기본 (stock 등)
+    return base + `
+${smaText}
+
+[지시사항]
+① 현재 거시 국면과 이 종목의 연관성
+② 스마트머니 흐름 해석
+③ 3개월 시나리오
+④ 핵심 변수 1개
+전체 500자 이내`;
+  };
+
+  const userPrompt = buildPrompt();
 
   // Claude API 호출
   const interpretation = await callClaudeAPI(userPrompt);
