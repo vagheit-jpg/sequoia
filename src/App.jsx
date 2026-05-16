@@ -455,11 +455,11 @@ export default function App(){
   const [smaHistory, setSmaHistory] = useState([]);
   useEffect(()=>{
     if(!co?.ticker) return;
-    const SB_URL = import.meta.env.VITE_SUPABASE_URL || '';
-    const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
-    fetch(`${SB_URL}/rest/v1/smart_money_daily?ticker=eq.${co.ticker}&order=trade_date.asc&select=trade_date,sma_signal,sma_score,sma_sync,foreign_net_value,institution_net_value`,{
-      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}
-    }).then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setSmaHistory(data); }).catch(()=>{});
+    import('../constants/supabase').then(({SB_URL,SB_KEY})=>{
+      fetch(`${SB_URL}/rest/v1/smart_money_daily?ticker=eq.${co.ticker}&order=trade_date.asc&select=trade_date,sma_signal,sma_score,sma_sync,foreign_net_value,institution_net_value`,{
+        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}
+      }).then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setSmaHistory(data); }).catch(()=>{});
+    });
   },[co?.ticker]);
 
   const smaSignalPts = useMemo(()=>{
