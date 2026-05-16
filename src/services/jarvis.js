@@ -14,17 +14,20 @@ import { SB_URL, SB_KEY } from '../constants/supabase';
 //  Supabase fetch 헬퍼
 // ─────────────────────────────────────────────
 const sbFetch = async (path, opts = {}) => {
+  const { headers: extraHeaders, ...restOpts } = opts;
   const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    ...restOpts,
     headers: {
-      apikey:        SB_KEY,
-      Authorization: `Bearer ${SB_KEY}`,
+      apikey:         SB_KEY,
+      Authorization:  `Bearer ${SB_KEY}`,
       'Content-Type': 'application/json',
-      ...opts.headers,
+      ...(extraHeaders || {}),
     },
-    ...opts,
   });
   if (!res.ok) throw new Error(`Supabase error: ${res.status} ${await res.text()}`);
-  return res.json();
+  const text = await res.text();
+  if (!text || text.trim() === '') return null;
+  return JSON.parse(text);
 };
 
 // ─────────────────────────────────────────────
@@ -33,9 +36,9 @@ const sbFetch = async (path, opts = {}) => {
 async function getCached(cacheKey) {
   try {
     const rows = await sbFetch(
-      `jarvis_cache?cache_key=eq.${encodeURIComponent(cacheKey)}&select=*&limit=1`
+      `jarvis_cache?cache_key=eq.${encodeURIComponent(cacheKey)}&select=interpretation,similar_periods,expires_at&limit=1`
     );
-    if (!rows || rows.length === 0) return null;
+    if (!rows || !Array.isArray(rows) || rows.length === 0) return null;
     const cached = rows[0];
     if (cached.expires_at && new Date(cached.expires_at) < new Date()) return null;
     return cached;
@@ -50,7 +53,7 @@ async function getCached(cacheKey) {
 async function saveCache(cacheKey, tabType, ticker, market, interpretation, similarPeriods, ttlMinutes = 120) {
   try {
     const expiresAt = new Date(Date.now() + ttlMinutes * 60 * 1000).toISOString();
-    await sbFetch('jarvis_cache', {
+    await sbFetch('jarvis_cache?on_conflict=cache_key', {
       method: 'POST',
       headers: { Prefer: 'resolution=merge-duplicates' },
       body: JSON.stringify({
@@ -103,18 +106,18 @@ async function callClaudeAPI(userPrompt) {
 // ─────────────────────────────────────────────
 async function getLatestSnapshot(region = 'KOREA') {
   const rows = await sbFetch(
-    `core_intelligence_snapshots?select=*&market=eq.${region}&order=snapshot_date.desc&limit=1`
+    `core_intelligence_snapshots?select=snapshot_date,sefcon_score,sefcon_level,key_indicators&market=eq.${region}&order=snapshot_date.desc&limit=1`
   );
-  const latest = rows[0] || {};
+  const latest = (rows && Array.isArray(rows) && rows[0]) || {};
   let ki = latest.key_indicators || {};
   if (typeof ki === 'string') { try { ki = JSON.parse(ki); } catch(e) { ki = {}; } }
   const getKi = (key) => {
     const v = ki[key];
-    if (!v) return '—';
+    if (v === null || v === undefined) return '—';
     if (typeof v === 'object') return v.value ?? '—';
     return v;
   };
-  return { latest, getKi, snapshotDate: latest.snapshot_date };
+  return { latest, getKi, snapshotDate: latest.snapshot_date || '—' };
 }
 
 // ─────────────────────────────────────────────
@@ -123,9 +126,9 @@ async function getLatestSnapshot(region = 'KOREA') {
 async function getSmaData(ticker) {
   try {
     const rows = await sbFetch(
-      `smart_money_daily?ticker=eq.${ticker}&order=trade_date.desc&limit=1&select=*`
+      `smart_money_daily?ticker=eq.${ticker}&order=trade_date.desc&limit=1&select=sma_signal,sma_score,sma_sync,sma_acceleration,foreign_net_value,institution_net_value`
     );
-    if (!rows || rows.length === 0) return '';
+    if (!rows || !Array.isArray(rows) || rows.length === 0) return '';
     const s = rows[0];
     const syncLabel = s.sma_sync === 2 ? '쌍끌이 매수 🔥'
       : s.sma_sync === -2 ? '쌍매도 ⚠️' : '혼조';
