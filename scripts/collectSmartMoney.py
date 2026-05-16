@@ -130,14 +130,10 @@ def collect_daily(target_date: str):
     """
     log.info(f"=== 수집 시작: {target_date} ===")
 
-    # 유니버스 구성
-    kospi200 = get_kospi200_tickers(target_date)
-    kosdaq150 = get_kosdaq150_tickers(target_date)
+    # stock_universe의 is_active 종목만 수집
     custom_stocks = get_universe()
-    custom_tickers = [s["ticker"] for s in custom_stocks]
-
-    all_tickers = list(set(kospi200 + kosdaq150 + custom_tickers))
-    log.info(f"총 종목 수: {len(all_tickers)}개 (코스피200: {len(kospi200)}, 코스닥150: {len(kosdaq150)}, 커스텀: {len(custom_tickers)})")
+    all_tickers = [s["ticker"] for s in custom_stocks]
+    log.info(f"총 종목 수: {len(all_tickers)}개 (stock_universe 활성 종목)")
 
     # 20일 전 날짜 (가속도 계산용 이동평균)
     target_dt = datetime.strptime(target_date, "%Y%m%d")
