@@ -18,6 +18,11 @@ if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !ANTHROPIC_API_KEY) {
   process.exit(1);
 }
 
+async function sbFetch(path, opts = {}) {
+  const url = `${SUPABASE_URL}/rest/v1/${path}`;
+  console.log('요청 URL:', url.slice(0, 60)); // 앞 60자만
+  const res = await fetch(url, {
+
 // ─────────────────────────────────────────────
 //  Supabase fetch 헬퍼
 // ─────────────────────────────────────────────
