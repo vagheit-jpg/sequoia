@@ -454,6 +454,49 @@ export default function App(){
 
   // SMA 수급 시그널 (smart_money_daily에서 로드)
   const [smaHistory, setSmaHistory] = useState([]);
+
+  // 스마트머니 활성화 상태
+  const [smaActive, setSmaActive]   = useState(false);
+  const [smaToggling, setSmaToggling] = useState(false);
+
+  useEffect(()=>{
+    if(!co?.ticker) return;
+    setSmaActive(false);
+    fetch(`${SB_URL}/rest/v1/stock_universe?ticker=eq.${co.ticker}&select=is_active&limit=1`,{
+      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}
+    }).then(r=>r.json()).then(data=>{
+      if(Array.isArray(data)&&data.length>0) setSmaActive(!!data[0].is_active);
+    }).catch(()=>{});
+  },[co?.ticker]);
+
+  const toggleSma = async () => {
+    if(!co?.ticker||smaToggling) return;
+    setSmaToggling(true);
+    const next = !smaActive;
+    try {
+      await fetch(`${SB_URL}/rest/v1/stock_universe?on_conflict=ticker`,{
+        method:'POST',
+        headers:{
+          apikey:SB_KEY,
+          Authorization:`Bearer ${SB_KEY}`,
+          'Content-Type':'application/json',
+          Prefer:'resolution=merge-duplicates',
+        },
+        body:JSON.stringify({
+          ticker: co.ticker,
+          name: co.name || co.ticker,
+          market: co.market || 'KOSPI',
+          is_active: next,
+        }),
+      });
+      setSmaActive(next);
+    } catch(e){
+      console.warn('스마트머니 토글 실패:',e);
+    } finally {
+      setSmaToggling(false);
+    }
+  };
+
   useEffect(()=>{
     if(!co?.ticker) return;
     fetch(`${SB_URL}/rest/v1/smart_money_daily?ticker=eq.${co.ticker}&order=trade_date.asc&select=trade_date,sma_signal,sma_score,sma_sync,foreign_net_value,institution_net_value`,{
@@ -1138,6 +1181,33 @@ export default function App(){
         {/* ════ 주가·QMA ════ */}
         {tab==="price60"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
+            {/* J.A.R.V.I.S. INSIGHT */}
+            <JarvisComment C={C} tabType="stock" ticker={co?.ticker||null} region="KOREA" />
+
+            {/* 스마트머니 버튼 */}
+            {co?.ticker&&(
+              <div style={{display:"flex",justifyContent:"flex-end",marginBottom:8}}>
+                <button
+                  onClick={toggleSma}
+                  disabled={smaToggling}
+                  style={{
+                    background: smaActive?`${C.green}15`:C.card2,
+                    border:`1px solid ${smaActive?C.green:C.border}`,
+                    borderRadius:8,
+                    padding:"4px 11px",
+                    fontSize:10,
+                    fontWeight:700,
+                    color:smaActive?C.green:C.muted,
+                    cursor:smaToggling?"wait":"pointer",
+                    letterSpacing:"0.04em",
+                    transition:"all 0.2s",
+                  }}
+                >
+                  {smaToggling?"…":smaActive?"스마트머니 탐지 ON":"스마트머니"}
+                </button>
+              </div>
+            )}
+
             {lastGap!==null&&(
               <div style={{background:`${gs.color}15`,border:`1px solid ${gs.color}44`,borderRadius:9,
                 padding:"8px 13px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:6}}>
@@ -1331,7 +1401,6 @@ export default function App(){
         {/* ════ 재무 ════ */}
         {tab==="financial"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
-            <JarvisComment C={C} tabType="financial" ticker={co?.ticker || null} />
             {hasFinData?(()=>{
               const data=finView==="연간"?annTimeline:qtrTimeline;
               return(
@@ -1586,7 +1655,6 @@ export default function App(){
         {/* ════ 기술분석 ════ */}
         {tab==="technical"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
-            <JarvisComment C={C} tabType="technical" ticker={co?.ticker || null} />
 
             {/* 위치 판독 안내 뱃지 */}
             <div style={{background:`${C.card2}`,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",marginBottom:10}}>
@@ -2023,7 +2091,6 @@ else {
         {/* ════ 가치평가 ════ */}
         {tab==="valuation"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
-            <JarvisComment C={C} tabType="valuation" ticker={co?.ticker || null} />
             <Box>
               <ST accent={C.gold}>📐 DCF 파라미터 설정</ST>
               {(()=>{
@@ -3517,7 +3584,6 @@ else {
           return(
           <div style={{animation:"fadeIn 0.3s ease"}}>
             <JarvisComment C={C} tabType="sefcon" region="KOREA" />
-            <JarvisComment C={C} tabType="market" region="KOREA" />
             {marketLoading&&(
               <Box><div style={{color:C.muted,textAlign:"center",padding:24,fontSize:12}}>
                 🌐 거시경제 데이터 로딩중...
