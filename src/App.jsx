@@ -5,6 +5,7 @@ import {
   ReferenceLine, ReferenceArea, ReferenceDot,
 } from "recharts";
 import { DARK, LIGHT } from "./constants/theme";
+import { SB_URL, SB_KEY } from "./constants/supabase";
 import {
   calcMACD,
   calcRSI,
@@ -455,11 +456,9 @@ export default function App(){
   const [smaHistory, setSmaHistory] = useState([]);
   useEffect(()=>{
     if(!co?.ticker) return;
-    import('../constants/supabase').then(({SB_URL,SB_KEY})=>{
-      fetch(`${SB_URL}/rest/v1/smart_money_daily?ticker=eq.${co.ticker}&order=trade_date.asc&select=trade_date,sma_signal,sma_score,sma_sync,foreign_net_value,institution_net_value`,{
-        headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}
-      }).then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setSmaHistory(data); }).catch(()=>{});
-    });
+    fetch(`${SB_URL}/rest/v1/smart_money_daily?ticker=eq.${co.ticker}&order=trade_date.asc&select=trade_date,sma_signal,sma_score,sma_sync,foreign_net_value,institution_net_value`,{
+      headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}
+    }).then(r=>r.json()).then(data=>{ if(Array.isArray(data)) setSmaHistory(data); }).catch(()=>{});
   },[co?.ticker]);
 
   const smaSignalPts = useMemo(()=>{
