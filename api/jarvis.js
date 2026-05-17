@@ -15,7 +15,7 @@ export default async function handler(req, res) {
 
     const body = {
       model:    'claude-sonnet-4-6',
-      max_tokens: 1500,
+      max_tokens: 800,
       system:   system || '당신은 자비스입니다. 오건영 스타일로 쉽게 설명합니다.',
       messages: [{ role: 'user', content: prompt }],
     };
