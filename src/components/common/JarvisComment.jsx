@@ -109,9 +109,12 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
   const wrap = {
     margin: '10px 0',
     borderRadius: 10,
-    border: `1px solid ${C.border}`,
+    border: expanded 
+    ? `1.5px solid ${labelColor}` 
+    : `1px solid ${C.border}`,
     background: C.card2 || C.card,
     overflow: 'hidden',
+    transition: 'border 0.2s',
   };
 
   const row = {
