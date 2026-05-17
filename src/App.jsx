@@ -4187,10 +4187,6 @@ else {
 
             {/* ══ SEFCON 탭 ══ */}
             {marketSub==="defcon"&&<>
-            {/* SEFCON 풀네임 */}
-            <div style={{color:C.muted,fontSize:9,fontFamily:"monospace",letterSpacing:"0.08em",opacity:0.6,marginBottom:8}}>
-              🌲 Sequoia Economic & Financial CONdition
-            </div>
             {/* ══ SEFCON 메인 카드 ══ */}
             {dc&&(()=>{
               const catCfg=[
