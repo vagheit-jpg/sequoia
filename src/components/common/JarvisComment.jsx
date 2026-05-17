@@ -192,8 +192,8 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     if (error) return (
       <>
         <JarvisIcon dark={isDark}/>
-        <span style={{ ...labelStyle, color: C.red }}>J.A.R.V.I.S. INSIGHT</span>
-        <span style={{ ...summaryStyle, color: C.red, opacity: 0.6 }}>연결 오류</span>
+        <span style={{ ...labelStyle, color: C.muted }}>J.A.R.V.I.S. INSIGHT</span>
+        <span style={{ ...summaryStyle, color: C.muted, opacity: 0.5 }}>일시적으로 분석이 어렵습니다. 잠시 후 다시 시도해주세요.</span>
       </>
     );
     if (!isSefcon && !triggered) return (
@@ -238,7 +238,9 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
 
       {expanded && error && (
         <div style={body}>
-          <div style={{ ...textStyle, color: C.red, opacity: 0.7 }}>{error}</div>
+          <div style={{ ...textStyle, color: C.muted, opacity: 0.6 }}>
+            자비스 분석을 일시적으로 이용할 수 없습니다. 잠시 후 다시 시도해주세요.
+          </div>
         </div>
       )}
     </div>
