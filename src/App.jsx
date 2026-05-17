@@ -928,8 +928,10 @@ export default function App(){
           onClick={()=>setTab("overview")}
           title="종합 화면으로">
           <span style={{fontSize:16}}>🌲</span>
-          <span style={{color:C.gold,fontSize:13,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.12em"}}>SEQUOIA QUANTUM AEGIS</span>
-          <span style={{color:C.muted,fontSize:9,fontFamily:"monospace",letterSpacing:"0.18em"}}>system</span>
+          <div style={{display:'flex',flexDirection:'column',lineHeight:1.1}}>
+            <span style={{color:C.gold,fontSize:13,fontWeight:900,fontFamily:"monospace",letterSpacing:"0.12em"}}>SEQUOIA</span>
+            <span style={{color:C.muted,fontSize:7,fontFamily:"monospace",letterSpacing:"0.18em",opacity:0.7}}>INTELLIGENCE SYSTEM</span>
+          </div>
         </div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <div style={{width:6,height:6,borderRadius:"50%",background:C.green,boxShadow:`0 0 6px ${C.green}`}}/>
@@ -4185,6 +4187,10 @@ else {
 
             {/* ══ SEFCON 탭 ══ */}
             {marketSub==="defcon"&&<>
+            {/* SEFCON 풀네임 */}
+            <div style={{color:C.muted,fontSize:9,fontFamily:"monospace",letterSpacing:"0.08em",opacity:0.6,marginBottom:8}}>
+              🌲 Sequoia Economic & Financial CONdition
+            </div>
             {/* ══ SEFCON 메인 카드 ══ */}
             {dc&&(()=>{
               const catCfg=[
@@ -6867,8 +6873,7 @@ else {
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:10,
           padding:"8px 12px",display:"flex",justifyContent:"space-between",
           alignItems:"center",flexWrap:"wrap",gap:4,marginTop:12}}>
-          <div style={{color:C.gold,fontSize:11,fontWeight:700}}>🌲 Sequoia Economic & Financial CONdition</div>
-          <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+          <div style={{display:"flex",gap:3,flexWrap:"wrap"}}> 
             <Tag color={C.blue}   size={8}>FRED · Federal Reserve</Tag>
             <Tag color={C.teal}   size={8}>ECOS · 한국은행</Tag>
             <Tag color={C.green}  size={8}>DART · 금융감독원</Tag>
