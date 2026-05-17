@@ -186,7 +186,7 @@ export async function jarvisInterpret({
   useCache = true,
 } = {}) {
 
-  const today    = new Date().toISOString().slice(0, 10);
+  const today    = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   const cacheKey = tabType === 'sefcon'
     ? `sefcon_KOREA_${today}`
     : `stock_${ticker}_${today}`;  // 24시간 슬롯 (날짜 기준)
