@@ -103,6 +103,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
   const handleClick = () => {
     if (!isSefcon && !triggered) setTriggered(true);
     setExpanded(v => !v);
+    setHovered(false);  // ← 이 줄 추가
   };
 
   const wrap = {
