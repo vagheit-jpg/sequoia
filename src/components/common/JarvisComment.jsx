@@ -1,6 +1,6 @@
 /**
  * JarvisComment.jsx v6
- * J.A.R.V.I.S. INSIGHT
+ * J.A.R.V.I.S. 
  * 두툼한 링 + 발광 코어 아이콘 + 로딩 회전 애니메이션
  * 한 줄 요약 → 클릭 시 전체 펼침
  */
@@ -185,21 +185,21 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     if (loading) return (
       <>
         <JarvisIcon dark={isDark} spinning={true}/>
-        <span style={labelStyle}>J.A.R.V.I.S. INSIGHT</span>
+        <span style={labelStyle}>J.A.R.V.I.S. </span>
         <span style={{ ...summaryStyle, opacity: 0.35 }}>분석 중...</span>
       </>
     );
     if (error) return (
       <>
         <JarvisIcon dark={isDark}/>
-        <span style={{ ...labelStyle, color: C.muted }}>J.A.R.V.I.S. INSIGHT</span>
+        <span style={{ ...labelStyle, color: C.muted }}>J.A.R.V.I.S. </span>
         <span style={{ ...summaryStyle, color: C.muted, opacity: 0.5 }}>일시적으로 분석이 어렵습니다. 잠시 후 다시 시도해주세요.</span>
       </>
     );
     if (!isSefcon && !triggered) return (
       <>
         <JarvisIcon dark={isDark}/>
-        <span style={labelStyle}>J.A.R.V.I.S. INSIGHT</span>
+        <span style={labelStyle}>J.A.R.V.I.S. </span>
         <span style={{ ...summaryStyle, opacity: 0.4 }}>클릭하여 분석 시작</span>
         <span style={chevronStyle}>▼</span>
       </>
@@ -207,14 +207,14 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
     if (!data) return (
       <>
         <JarvisIcon dark={isDark}/>
-        <span style={labelStyle}>J.A.R.V.I.S. INSIGHT</span>
+        <span style={labelStyle}>J.A.R.V.I.S. </span>
         <span style={{ ...summaryStyle, opacity: 0.35 }}>준비 중...</span>
       </>
     );
     return (
       <>
         <JarvisIcon dark={isDark}/>
-        <span style={labelStyle}>J.A.R.V.I.S. INSIGHT</span>
+        <span style={labelStyle}>J.A.R.V.I.S. </span>
         <span style={summaryStyle}>{summaryText}</span>
         <span style={chevronStyle}>▼</span>
       </>
