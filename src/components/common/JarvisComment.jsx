@@ -223,7 +223,7 @@ export default function JarvisComment({ C, tabType, ticker = null, name = null, 
 
   return (
     <div style={wrap}>
-      <div style={row} onClick={handleClick} onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}>
+      <div style={row} onClick={handleClick} onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)} onTouchStart={()=>setHovered(true)} onTouchEnd={()=>setHovered(false)}>
         {rowContent()}
       </div>
 
