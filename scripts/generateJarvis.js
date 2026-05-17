@@ -82,7 +82,7 @@ const JARVIS_SYSTEM = `당신은 J.A.R.V.I.S. INSIGHT입니다. 세콰이어 투
 async function callClaude(prompt, useWebSearch = false) {
   const body = {
     model:      'claude-sonnet-4-6',
-    max_tokens: 800,
+    max_tokens: 1500,
     system:     JARVIS_SYSTEM,
     messages:   [{ role: 'user', content: prompt }],
   };
