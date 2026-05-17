@@ -40,19 +40,19 @@ const JarvisIcon = ({ dark, spinning = false }) => {
         }}
       >
       {/* 외부 링 두툼 */}
-      <circle cx="18" cy="18" r="16" stroke={ring} strokeWidth="3" opacity="0.95"/>
+      <circle cx="18" cy="18" r="16" stroke={ring} strokeWidth="4.5" opacity="0.95"/>
       {/* 중간 링 */}
-      <circle cx="18" cy="18" r="11.5" stroke={ring} strokeWidth="1" opacity="0.35"/>
+      <circle cx="18" cy="18" r="9" stroke={ring} strokeWidth="1.8" opacity="0.35"/>
       {/* 발광 코어 */}
       {dark && <circle cx="18" cy="18" r="6" fill={ring} opacity="0.12"/>}
       {dark && <circle cx="18" cy="18" r="3.5" fill={ring} opacity="0.3"/>}
       <circle cx="18" cy="18" r="2" fill={ring} opacity={dark ? 0.95 : 0.7}/>
       {/* 오렌지 아크 */}
-      <path d="M 4 11 A 16 16 0 0 0 11 32" stroke={dot} strokeWidth="3" fill="none" opacity="0.9"/>
+      <path d="M 4 11 A 16 16 0 0 0 11 32" stroke={dot} strokeWidth="4.5" fill="none" opacity="0.9"/>
       {/* 오렌지 도트 3개 */}
-      <circle cx="11" cy="3" r="2.2" fill={dot} opacity="0.95"/>
-      <circle cx="18" cy="2" r="2.2" fill={dot} opacity="0.95"/>
-      <circle cx="25" cy="3" r="2.2" fill={dot} opacity="0.95"/>
+      <circle cx="11" cy="3" r="3" fill={dot} opacity="0.95"/>
+      <circle cx="18" cy="2" r="3" fill={dot} opacity="0.95"/>
+      <circle cx="25" cy="3" r="3" fill={dot} opacity="0.95"/>
       {/* 갭 */}
       <line x1="29" y1="8" x2="33" y2="12" stroke={ring} strokeWidth="2.5" opacity="0.65"/>
     </svg>
