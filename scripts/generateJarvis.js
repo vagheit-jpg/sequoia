@@ -151,6 +151,7 @@ function buildSefconPrompt({ row, getKi, snapshotDate }) {
 
 [SEFCON 종합]
 점수: ${getKi('sefcon_score') ?? row.sefcon_score}/100 / 레벨: ${getKi('sefcon_level') ?? row.sefcon_level}단계 위기
+⚠️ SEFCON 해석 주의: 점수가 낮을수록 위기(0=최고위기), 높을수록 안전(100=완전안정). 현재 점수는 위험 구간입니다.
 
 [카테고리별 위험도]
 신용위험: ${getKi('cat_credit') ?? '—'} / 시장공포: ${getKi('cat_fear') ?? '—'} / 실물경기: ${getKi('cat_real') ?? '—'} / 유동성: ${getKi('cat_liquidity') ?? '—'} / 물가: ${getKi('cat_inflation') ?? '—'}
@@ -210,7 +211,7 @@ VIX: ${getKi('fred_vix')} / 금리차: ${getKi('fred_t10y2y')}
 //  메인
 // ─────────────────────────────────────────────
 async function main() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
   console.log(`\n🤖 J.A.R.V.I.S. INSIGHT 생성 시작 — ${today}\n`);
 
   // 1. SEFCON 탭
@@ -221,6 +222,8 @@ async function main() {
     const interpretation = await callClaude(prompt, true);
     await saveCache({ cacheKey: `sefcon_KOREA_${today}`, tabType: 'sefcon', ticker: null, market: 'KOREA', interpretation });
     console.log('✅ SEFCON 완료');
+    // 다음 요청 전 대기
+    await new Promise(r => setTimeout(r, 10000));
   } catch (err) {
     console.error('❌ SEFCON 실패:', err.message);
   }
@@ -260,8 +263,8 @@ async function main() {
       console.error(`    ❌ 실패: ${err.message}`);
     }
 
-    // API 과부하 방지
-    await new Promise(r => setTimeout(r, 2000));
+    // API 과부하 방지 (rate limit 방지용 10초 대기)
+    await new Promise(r => setTimeout(r, 10000));
   }
 
   // 만료 캐시 삭제
