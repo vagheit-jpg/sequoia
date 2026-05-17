@@ -1703,9 +1703,9 @@ export default function App(){
                   </div>
                 ))}
                 {smaActive&&[
-                  {arrow:"⬆",label:"스마트머니 유입 폭증",color:"#FF6B35"},
-                  {arrow:"△",label:"스마트머니 매집",color:"#00C896"},
-                  {arrow:"▽",label:"스마트머니 이탈",color:"#FF4757"},
+                  {arrow:"⬆",label:"스마트머니 유입 폭증 (3.0↑)",color:"#FF6B35"},
+                  {arrow:"△",label:"스마트머니 매집 (1.5↑)",color:"#00C896"},
+                  {arrow:"▽",label:"스마트머니 이탈 (-1.0↓)",color:"#FF4757"},
                 ].map(b=>(
                   <div key={b.label} style={{display:"flex",alignItems:"center",gap:3,
                     background:`${b.color}15`,borderRadius:6,padding:"3px 8px",
