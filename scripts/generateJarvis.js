@@ -82,7 +82,7 @@ const JARVIS_SYSTEM = `당신은 J.A.R.V.I.S. INSIGHT입니다. 세콰이어 투
 async function callClaude(prompt, useWebSearch = false) {
   const body = {
     model:      'claude-sonnet-4-6',
-    max_tokens: 1500,
+    max_tokens: 800,
     system:     JARVIS_SYSTEM,
     messages:   [{ role: 'user', content: prompt }],
   };
@@ -223,7 +223,7 @@ async function main() {
     await saveCache({ cacheKey: `sefcon_KOREA_${today}`, tabType: 'sefcon', ticker: null, market: 'KOREA', interpretation });
     console.log('✅ SEFCON 완료');
     // 다음 요청 전 대기
-    await new Promise(r => setTimeout(r, 10000));
+    await new Promise(r => setTimeout(r, 30000));
   } catch (err) {
     console.error('❌ SEFCON 실패:', err.message);
   }
@@ -263,8 +263,8 @@ async function main() {
       console.error(`    ❌ 실패: ${err.message}`);
     }
 
-    // API 과부하 방지 (rate limit 방지용 10초 대기)
-    await new Promise(r => setTimeout(r, 10000));
+    // API 과부하 방지 (rate limit 방지용 30초 대기)
+    await new Promise(r => setTimeout(r, 30000));
   }
 
   // 만료 캐시 삭제
