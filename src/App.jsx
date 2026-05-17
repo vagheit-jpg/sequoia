@@ -1181,7 +1181,7 @@ export default function App(){
         {/* ════ 주가·QMA ════ */}
         {tab==="price60"&&(
           <div style={{animation:"fadeIn 0.3s ease"}}>
-            {/* J.A.R.V.I.S. INSIGHT */}
+            {/* J.A.R.V.I.S.  */}
             <JarvisComment C={C} tabType="stock" ticker={co?.ticker||null} name={co?.name||null} region="KOREA" />
 
             {/* 스마트머니 버튼 */}
